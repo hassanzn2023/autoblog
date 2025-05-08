@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { Upload, FileText, Pen } from "lucide-react";
+import { Upload, FileText, Pen, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import WritingStyleModal from "@/components/WritingStyleModal";
 
 const Index = () => {
@@ -45,16 +46,25 @@ const Index = () => {
                         <Upload size={16} className="text-gray-500" />
                       </Button>
                       
-                      {/* Writing Style Button */}
-                      <Button 
-                        variant="outline" 
-                        size="icon" 
-                        className="size-8"
-                        onClick={() => setWritingStyleModalOpen(true)}
-                      >
-                        <span className="sr-only">Writing Style</span>
-                        <FileText size={16} className="text-gray-500" />
-                      </Button>
+                      {/* Writing Style Button with Tooltip */}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="icon" 
+                              className="size-8"
+                              onClick={() => setWritingStyleModalOpen(true)}
+                            >
+                              <span className="sr-only">Writing Style</span>
+                              <FileText size={16} className="text-gray-500" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Select a writing style</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
 
                       {/* Pen Button */}
                       <Button variant="outline" size="icon" className="size-8">
@@ -103,13 +113,11 @@ const Index = () => {
                         </div>
                       </div>
 
-                      {/* AI Agent Toggle */}
-                      <div className="flex items-center gap-2 text-sm">
-                        <span>AI Agent</span>
-                        <div className="w-10 h-5 bg-[#F76D01] rounded-full relative flex items-center">
-                          <div className="absolute h-4 w-4 bg-white rounded-full left-[22px] transition-all"></div>
-                        </div>
-                      </div>
+                      {/* Send Button (Replacing AI Agent Toggle) */}
+                      <Button variant="outline" size="icon" className="size-8">
+                        <span className="sr-only">Send</span>
+                        <Send size={16} className="text-gray-500" />
+                      </Button>
                     </div>
                   </div>
                 </div>
