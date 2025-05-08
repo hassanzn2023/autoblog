@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Copy, Star, ArrowRight, BookOpen } from 'lucide-react';
@@ -11,6 +10,7 @@ import {
   TabsList, 
   TabsTrigger 
 } from "@/components/ui/tabs";
+import CreateTemplateDialog from '@/components/autoblog/CreateTemplateDialog';
 
 interface Template {
   id: string;
@@ -24,6 +24,7 @@ interface Template {
 
 const AutoblogTemplatePage = () => {
   const navigate = useNavigate();
+  const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] = useState(false);
   
   const templates: Template[] = [
     {
@@ -88,7 +89,7 @@ const AutoblogTemplatePage = () => {
   };
   
   const handleCreateTemplate = () => {
-    navigate('/autoblog/create');
+    setIsCreateTemplateDialogOpen(true);
   };
   
   const renderPopularityStars = (popularity: number) => {
@@ -226,6 +227,11 @@ const AutoblogTemplatePage = () => {
           </TabsContent>
         </Tabs>
       </div>
+      
+      <CreateTemplateDialog 
+        open={isCreateTemplateDialogOpen}
+        onOpenChange={setIsCreateTemplateDialogOpen}
+      />
     </div>
   );
 };
