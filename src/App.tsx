@@ -11,6 +11,10 @@ import ModeSelectionPage from "./pages/ModeSelectionPage";
 import NormalModePage from "./pages/NormalModePage";
 import ProModePage from "./pages/ProModePage";
 import SEOCheckerPage from "./pages/SEOCheckerPage";
+import AutoblogPage from "./pages/AutoblogPage";
+import AutoblogConfigPage from "./pages/AutoblogConfigPage";
+import BlogProjectsPage from "./pages/BlogProjectsPage";
+import BlogConfigPage from "./pages/BlogConfigPage";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +31,18 @@ const App = () => (
             <Route path="/autofix/normal" element={<NormalModePage />} />
             <Route path="/autofix/pro" element={<ProModePage />} />
             <Route path="/seo-checker" element={<SEOCheckerPage />} />
+            
+            {/* New Autoblog Routes */}
+            <Route path="/autoblog/create" element={<AutoblogPage />} />
+            <Route path="/autoblog/list" element={<AutoblogPage />} />
+            <Route path="/autoblog/template" element={<AutoblogPage />} />
+            <Route path="/autoblog/config/:id" element={<AutoblogConfigPage />} />
+            
+            {/* New Blog Routes */}
+            <Route path="/blog/create" element={<BlogProjectsPage />} />
+            <Route path="/blog/articles" element={<BlogProjectsPage />} />
+            <Route path="/blog/template" element={<BlogProjectsPage />} />
+            <Route path="/blog/config/:id" element={<BlogConfigPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

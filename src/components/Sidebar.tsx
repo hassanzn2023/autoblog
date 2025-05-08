@@ -4,7 +4,10 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, 
   History, 
+  Robot, 
+  FileText, 
   Book, 
+  Settings,
   BookOpen, 
   Edit, 
   ChevronDown, 
@@ -104,11 +107,12 @@ const Sidebar = () => {
         />
         
         <SidebarItem 
-          icon={<BookOpen size={18} />} 
+          icon={<Robot size={18} />} 
           text="Autoblog" 
           hasSubmenu 
           isSubmenuOpen={openSubmenu === "autoblog"}
           onToggleSubmenu={() => toggleSubmenu("autoblog")}
+          active={location.pathname.includes('/autoblog')}
         />
         {openSubmenu === "autoblog" && (
           <div className="sidebar-submenu">
@@ -117,15 +121,26 @@ const Sidebar = () => {
               to="/autoblog/create" 
               active={location.pathname === '/autoblog/create'}
             />
+            <SubmenuItem 
+              text="Project list" 
+              to="/autoblog/list" 
+              active={location.pathname === '/autoblog/list'}
+            />
+            <SubmenuItem 
+              text="Project Template" 
+              to="/autoblog/template" 
+              active={location.pathname === '/autoblog/template'}
+            />
           </div>
         )}
         
         <SidebarItem 
-          icon={<Book size={18} />} 
+          icon={<BookOpen size={18} />} 
           text="Blog" 
           hasSubmenu 
           isSubmenuOpen={openSubmenu === "blog"}
           onToggleSubmenu={() => toggleSubmenu("blog")}
+          active={location.pathname.includes('/blog')}
         />
         {openSubmenu === "blog" && (
           <div className="sidebar-submenu">
@@ -133,6 +148,16 @@ const Sidebar = () => {
               text="Create a project" 
               to="/blog/create" 
               active={location.pathname === '/blog/create'}
+            />
+            <SubmenuItem 
+              text="All Articles" 
+              to="/blog/articles" 
+              active={location.pathname === '/blog/articles'}
+            />
+            <SubmenuItem 
+              text="Setting Template" 
+              to="/blog/template" 
+              active={location.pathname === '/blog/template'}
             />
           </div>
         )}
