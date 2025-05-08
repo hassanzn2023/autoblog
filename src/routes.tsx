@@ -26,6 +26,7 @@ import HelpCenterPage from './pages/HelpCenterPage';
 import BenefitsPage from './pages/BenefitsPage';
 import RequestFeaturePage from './pages/RequestFeaturePage';
 import ApiDashboardPage from './pages/ApiDashboardPage';
+import GetStartedPage from './pages/GetStartedPage';
 
 const routes = [
   {
@@ -35,6 +36,10 @@ const routes = [
       {
         index: true,
         element: <Index />
+      },
+      {
+        path: 'get-started',
+        element: <GetStartedPage />
       },
       {
         path: 'history',
