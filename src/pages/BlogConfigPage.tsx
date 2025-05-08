@@ -303,7 +303,7 @@ const BlogConfigPage = () => {
         <ReviewSaveStep
           configType="blog"
           configSummary={{
-            projectName,
+            campaignName: projectName,  // Changed from projectName to campaignName to match the interface
             description: projectDescription || 'N/A',
             businessType: businessType || 'Blogger',
             articleType: articleType || 'Blog Posts',
