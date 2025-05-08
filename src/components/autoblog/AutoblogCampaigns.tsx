@@ -41,7 +41,7 @@ const AutoblogCampaigns = () => {
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full p-6">
       <div className="flex flex-col space-y-6">
         <div className="flex flex-col space-y-2">
           <h1 className="text-2xl font-bold">Campaigns & AutoBlogs</h1>
@@ -56,54 +56,60 @@ const AutoblogCampaigns = () => {
 
           <Button 
             onClick={() => setIsModalOpen(true)} 
-            className="bg-[#6e41e2] hover:bg-[#5a35c8] text-white"
+            className="bg-[#F76D01] hover:bg-[#e65d00] text-white"
           >
             + New Campaign
           </Button>
         </div>
 
         <Card className="overflow-hidden border border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center gap-1">
-                    <span className="bg-blue-500 text-white rounded-full w-5 h-5 inline-flex items-center justify-center text-xs">i</span>
-                    Name
-                  </div>
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">AutoBlog</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Batch</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center gap-1">
-                    <Clock size={14} />
-                    Last Updated
-                  </div>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {campaigns.map((campaign) => (
-                <tr key={campaign.id} onClick={() => handleRowClick(campaign.id)} className="hover:bg-gray-50 cursor-pointer">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      {campaign.name}
-                      {campaign.isDefault && (
-                        <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                          Default
-                        </span>
-                      )}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <div className="flex items-center gap-1">
+                      <span className="bg-blue-500 text-white rounded-full w-5 h-5 inline-flex items-center justify-center text-xs">i</span>
+                      Name
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">{campaign.status}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{campaign.status}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{campaign.nextBatch}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{campaign.lastUpdated}</td>
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">AutoBlog</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Batch</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <div className="flex items-center gap-1">
+                      <Clock size={14} />
+                      Last Updated
+                    </div>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {campaigns.map((campaign) => (
+                  <tr 
+                    key={campaign.id} 
+                    onClick={() => handleRowClick(campaign.id)} 
+                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        {campaign.name}
+                        {campaign.isDefault && (
+                          <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                            Default
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">{campaign.status}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{campaign.status}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{campaign.nextBatch}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{campaign.lastUpdated}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Card>
       </div>
 

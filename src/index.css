@@ -14,7 +14,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 262 72% 57%;
+    --primary: 25 100% 50%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
@@ -23,26 +23,26 @@
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 262 85% 96%;
-    --accent-foreground: 262 72% 57%;
+    --accent: 25 100% 96%;
+    --accent-foreground: 25 100% 50%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 262 72% 57%;
+    --ring: 25 100% 50%;
 
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 262 72% 57%;
+    --sidebar-primary: 25 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 262 85% 96%;
-    --sidebar-accent-foreground: 262 72% 57%;
+    --sidebar-accent: 25 100% 96%;
+    --sidebar-accent-foreground: 25 100% 50%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 262 72% 57%;
+    --sidebar-ring: 25 100% 50%;
   }
 
   .dark {
@@ -55,7 +55,7 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 262 72% 57%;
+    --primary: 25 100% 50%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
     --secondary: 217.2 32.6% 17.5%;
@@ -76,12 +76,12 @@
     
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 262 72% 57%;
+    --sidebar-primary: 25 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 262 72% 57%;
+    --sidebar-ring: 25 100% 50%;
   }
 }
 
@@ -121,11 +121,11 @@
   }
   
   .seo-button-primary {
-    @apply bg-seo-purple text-white hover:bg-seo-purple/90;
+    @apply bg-[#F76D01] text-white hover:bg-[#e65d00];
   }
   
   .seo-button-outline {
-    @apply border border-seo-purple text-seo-purple hover:bg-seo-purple hover:text-white;
+    @apply border border-[#F76D01] text-[#F76D01] hover:bg-[#F76D01] hover:text-white;
   }
   
   .seo-button-secondary {
@@ -137,14 +137,68 @@
   }
   
   .sidebar-item:hover {
-    @apply bg-seo-purple-light text-seo-purple;
+    @apply bg-orange-50 text-[#F76D01];
   }
   
   .sidebar-item.active {
-    @apply bg-seo-purple-light text-seo-purple border-l-4 border-seo-purple;
+    @apply bg-orange-50 text-[#F76D01] border-l-4 border-[#F76D01];
   }
   
   .sidebar-submenu {
     @apply ml-8 mt-1 space-y-1;
   }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+/* Transitions for wizard steps */
+.wizard-step-enter {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+.wizard-step-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 400ms, transform 400ms;
+}
+
+.wizard-step-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.wizard-step-exit-active {
+  opacity: 0;
+  transform: translateX(-30px);
+  transition: opacity 400ms, transform 400ms;
 }

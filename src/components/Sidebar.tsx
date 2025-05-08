@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
@@ -58,10 +59,12 @@ interface SubmenuItemProps {
   text: string;
   to: string;
   active?: boolean;
+  icon?: React.ReactNode;
 }
 
-const SubmenuItem = ({ text, to, active = false }: SubmenuItemProps) => (
+const SubmenuItem = ({ text, to, active = false, icon }: SubmenuItemProps) => (
   <Link to={to} className={`sidebar-item py-1.5 ${active ? 'active' : ''}`}>
+    {icon && icon}
     <span>{text}</span>
   </Link>
 );
@@ -77,10 +80,8 @@ const Sidebar = () => {
   return (
     <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-screen">
       <div className="p-4 border-b border-gray-200 flex items-center gap-2">
-        <div className="h-8 w-8 bg-seo-purple text-white flex items-center justify-center rounded-md font-bold">
-          WS
-        </div>
-        <div className="font-semibold text-lg">Writesonic</div>
+        <img src="/lovable-uploads/ed05de2c-aa25-4c40-90ae-28c373368e61.png" alt="Autommerce Logo" className="h-8" />
+        <div className="font-semibold text-lg">Autommerce</div>
       </div>
       
       <div className="p-3 border-b border-gray-200">
@@ -107,7 +108,7 @@ const Sidebar = () => {
         
         <SidebarItem 
           icon={<Bot size={18} />} 
-          text="Autoblog" 
+          text="Auto Blog" 
           hasSubmenu 
           isSubmenuOpen={openSubmenu === "autoblog"}
           onToggleSubmenu={() => toggleSubmenu("autoblog")}
@@ -117,7 +118,8 @@ const Sidebar = () => {
           <div className="sidebar-submenu">
             <SubmenuItem 
               text="Create a project" 
-              to="/autoblog/create" 
+              to="/autoblog/create"
+              icon={<Plus size={16} className="mr-1" />}
               active={location.pathname === '/autoblog/create'}
             />
             <SubmenuItem 
@@ -145,7 +147,8 @@ const Sidebar = () => {
           <div className="sidebar-submenu">
             <SubmenuItem 
               text="Create a project" 
-              to="/blog/create" 
+              to="/blog/create"
+              icon={<Plus size={16} className="mr-1" />}
               active={location.pathname === '/blog/create'}
             />
             <SubmenuItem 
@@ -163,7 +166,7 @@ const Sidebar = () => {
         
         <SidebarItem 
           icon={<Edit size={18} />} 
-          text="Auto fix" 
+          text="Auto Fix" 
           hasSubmenu 
           active={['/autofix/modes', '/autofix/articles', '/seo-checker'].some(path => location.pathname.includes(path))}
           isSubmenuOpen={openSubmenu === "autofix"}
@@ -193,7 +196,7 @@ const Sidebar = () => {
       </nav>
       
       <div className="p-4 border-t border-gray-200">
-        <button className="seo-button w-full flex items-center justify-center gap-2 bg-seo-purple/10 text-seo-purple hover:bg-seo-purple/20">
+        <button className="seo-button w-full flex items-center justify-center gap-2 bg-[#F76D01] hover:bg-[#e65d00] text-white">
           <Plus size={16} />
           <span>Upgrade now</span>
         </button>
