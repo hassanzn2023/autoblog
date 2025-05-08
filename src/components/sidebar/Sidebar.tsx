@@ -6,7 +6,8 @@ import {
   History, 
   BookOpen, 
   FileText,
-  Pen
+  Pen,
+  Sparkles
 } from 'lucide-react';
 
 import SidebarItem from './SidebarItem';
@@ -31,6 +32,13 @@ const Sidebar = () => {
       <WorkspaceSelector />
       
       <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+        <SidebarItem 
+          icon={<Sparkles size={18} className={location.pathname === '/get-started' ? 'text-[#F76D01]' : 'text-gray-500'} />} 
+          text="Get Started" 
+          to="/get-started" 
+          active={location.pathname === '/get-started'}
+        />
+        
         <SidebarItem 
           icon={<Home size={18} className="text-gray-500" />} 
           text="Home" 
