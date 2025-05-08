@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pen, Send } from "lucide-react";
+import { Pen, Send, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -39,6 +39,25 @@ const Index = () => {
                   
                   <div className="flex justify-between items-center mt-4">
                     <div className="flex items-center gap-2">
+                      {/* Attachment Button with Tooltip */}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="icon" 
+                              className="size-8"
+                            >
+                              <span className="sr-only">Attachment</span>
+                              <Paperclip size={16} className="text-gray-500" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Attach a file</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+
                       {/* Writing Style Button with Tooltip */}
                       <TooltipProvider>
                         <Tooltip>
