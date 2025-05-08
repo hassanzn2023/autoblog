@@ -61,7 +61,6 @@ const Sidebar = () => {
           onToggleSubmenu={() => toggleSubmenu("autoblog")}
           active={location.pathname.includes('/autoblog')}
           textColor={location.pathname.includes('/autoblog') ? 'text-[#F76D01] font-medium' : 'text-gray-600'}
-          onClick={undefined} // Remove the onClick handler to make it non-clickable
         />
         {openSubmenu === "autoblog" && <AutoblogSubmenu />}
         

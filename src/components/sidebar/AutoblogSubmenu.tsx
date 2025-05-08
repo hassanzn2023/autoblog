@@ -9,7 +9,7 @@ const AutoblogSubmenu = () => {
   const navigate = useNavigate();
   
   const handleCreateProject = () => {
-    navigate('/autoblog/create');
+    navigate('/autoblog/list');
   };
   
   return (
