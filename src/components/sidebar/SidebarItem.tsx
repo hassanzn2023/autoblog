@@ -14,35 +14,48 @@ interface SidebarItemProps {
   textColor?: string;
 }
 
-const SidebarItem = ({ 
-  icon, 
-  text, 
-  to = "#", 
-  active = false, 
+const SidebarItem = ({
+  icon,
+  text,
+  to,
+  active = false,
   hasSubmenu = false,
   isSubmenuOpen = false,
   onToggleSubmenu,
   textColor = 'text-gray-600'
-}: SidebarItemProps) => (
-  <div>
-    {hasSubmenu ? (
-      <button 
-        className={`w-full flex items-center justify-between px-3 py-2 rounded-md ${active ? 'bg-gray-100' : ''}`}
-        onClick={onToggleSubmenu}
-      >
-        <div className={`flex items-center gap-2 ${active ? 'text-seo-purple font-medium' : textColor}`}>
-          {icon}
-          <span>{text}</span>
-        </div>
-        {isSubmenuOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-      </button>
-    ) : (
-      <Link to={to} className={`flex items-center gap-2 px-3 py-2 rounded-md ${active ? 'bg-gray-100 text-seo-purple font-medium' : textColor}`}>
-        {icon}
-        <span>{text}</span>
-      </Link>
-    )}
-  </div>
-);
+}: SidebarItemProps) => {
+  
+  const content = (
+    <>
+      {icon}
+      <span className={textColor}>{text}</span>
+      {hasSubmenu && (
+        isSubmenuOpen ? 
+          <ChevronUp size={18} className="ml-auto text-gray-400" /> : 
+          <ChevronDown size={18} className="ml-auto text-gray-400" />
+      )}
+    </>
+  );
+  
+  return (
+    <div className="mb-1">
+      {hasSubmenu ? (
+        <button 
+          className={`flex items-center w-full py-2 px-3 rounded-md ${active ? 'bg-orange-50' : 'hover:bg-gray-100'}`}
+          onClick={onToggleSubmenu}
+        >
+          {content}
+        </button>
+      ) : (
+        <Link 
+          to={to || '#'} 
+          className={`flex items-center w-full py-2 px-3 rounded-md ${active ? 'bg-orange-50' : 'hover:bg-gray-100'}`}
+        >
+          {content}
+        </Link>
+      )}
+    </div>
+  );
+};
 
 export default SidebarItem;

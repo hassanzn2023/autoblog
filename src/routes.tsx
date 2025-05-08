@@ -19,6 +19,13 @@ import UsagePage from './pages/UsagePage';
 import BillingPage from './pages/BillingPage';
 import TeamsPage from './pages/TeamsPage';
 import IntegrationsPage from './pages/IntegrationsPage';
+import AutoblogCreatePage from './pages/AutoblogCreatePage';
+import AutoblogListPage from './pages/AutoblogListPage';
+import AutoblogTemplatePage from './pages/AutoblogTemplatePage';
+import HelpCenterPage from './pages/HelpCenterPage';
+import BenefitsPage from './pages/BenefitsPage';
+import RequestFeaturePage from './pages/RequestFeaturePage';
+import ApiDashboardPage from './pages/ApiDashboardPage';
 
 const routes = [
   {
@@ -36,6 +43,18 @@ const routes = [
       {
         path: 'autoblog',
         element: <AutoblogPage />
+      },
+      {
+        path: 'autoblog/create',
+        element: <AutoblogCreatePage />
+      },
+      {
+        path: 'autoblog/list',
+        element: <AutoblogListPage />
+      },
+      {
+        path: 'autoblog/template',
+        element: <AutoblogTemplatePage />
       },
       {
         path: 'autoblog/config',
@@ -92,6 +111,22 @@ const routes = [
       {
         path: 'integrations',
         element: <IntegrationsPage />
+      },
+      {
+        path: 'benefits',
+        element: <BenefitsPage />
+      },
+      {
+        path: 'request-feature',
+        element: <RequestFeaturePage />
+      },
+      {
+        path: 'api-dashboard',
+        element: <ApiDashboardPage />
+      },
+      {
+        path: 'help',
+        element: <HelpCenterPage />
       },
       {
         path: '*',

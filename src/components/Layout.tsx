@@ -9,7 +9,7 @@ const Layout = () => {
     <div className="flex min-h-screen">
       <Sidebar />
       <div className="flex-1 flex flex-col">
-        <header className="h-16 border-b border-gray-200 flex items-center justify-end px-6">
+        <header className="h-16 border-b border-gray-200 flex items-center justify-end px-6 bg-white">
           <ProfileDropdown />
         </header>
         <main className="flex-1 overflow-y-auto bg-gray-50">

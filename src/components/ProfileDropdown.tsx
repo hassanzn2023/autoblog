@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { User, Settings, LogOut, ChevronRight, Palette, Gift, MessageSquare, Key, Users, BarChart3, Lightbulb, Link } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { User, Settings, LogOut, ChevronRight, Palette, Gift, MessageSquare, Key, Users, BarChart3, Lightbulb, Link as LinkIcon } from 'lucide-react';
 import ThemeSelector from './ThemeSelector';
 
 type ThemeOption = 'comfort' | 'light' | 'dark';
@@ -30,7 +31,6 @@ const ProfileDropdown = () => {
     setShowThemeSelector(false);
     
     // Apply theme changes to the application
-    // This is where you would implement actual theme switching logic
     document.documentElement.classList.remove('theme-comfort', 'theme-light', 'theme-dark');
     document.documentElement.classList.add(`theme-${newTheme}`);
   };
@@ -56,7 +56,7 @@ const ProfileDropdown = () => {
             <div className="text-sm text-gray-500">malekalmout2016@gmail.com</div>
             <div className="flex items-center mt-2">
               <span className="text-xs text-gray-500">Free Plan</span>
-              <a href="#" className="text-xs text-seo-purple ml-2 font-medium">Upgrade</a>
+              <Link to="/billing" className="text-xs text-seo-purple ml-2 font-medium">Upgrade</Link>
             </div>
           </div>
           
@@ -78,60 +78,60 @@ const ProfileDropdown = () => {
               )}
             </div>
             
-            <a href="/preferences" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
+            <Link to="/preferences" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
               <Settings size={18} className="text-gray-500" />
               <span>Preferences</span>
-            </a>
+            </Link>
             
-            <a href="/profile" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
+            <Link to="/profile" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
               <User size={18} className="text-gray-500" />
               <span>Profile</span>
-            </a>
+            </Link>
             
-            <a href="/usage" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
+            <Link to="/usage" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
               <BarChart3 size={18} className="text-gray-500" />
               <span>Usage</span>
-            </a>
+            </Link>
             
-            <a href="/billing" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
+            <Link to="/billing" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
               <Key size={18} className="text-gray-500" />
               <span>Plans and Billing</span>
-            </a>
+            </Link>
             
-            <a href="/teams" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
+            <Link to="/teams" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
               <Users size={18} className="text-gray-500" />
               <span>Teams</span>
-            </a>
+            </Link>
             
-            <a href="/integrations" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
-              <Link size={18} className="text-gray-500" />
+            <Link to="/integrations" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
+              <LinkIcon size={18} className="text-gray-500" />
               <span>Integrations</span>
-            </a>
+            </Link>
             
-            <a href="/api-dashboard" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
+            <Link to="/api-dashboard" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
               <Key size={18} className="text-gray-500" />
               <span>API Dashboard</span>
-            </a>
+            </Link>
             
-            <a href="/benefits" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
+            <Link to="/benefits" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
               <Gift size={18} className="text-gray-500" />
               <span>Win Additional Benefits</span>
-            </a>
+            </Link>
             
-            <a href="/request-feature" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
+            <Link to="/request-feature" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
               <Lightbulb size={18} className="text-gray-500" />
               <span>Request a Feature</span>
-            </a>
+            </Link>
             
-            <a href="/help" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
+            <Link to="/help" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
               <MessageSquare size={18} className="text-gray-500" />
               <span>Help Center</span>
-            </a>
+            </Link>
             
-            <a href="/logout" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
+            <Link to="/logout" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
               <LogOut size={18} className="text-gray-500" />
               <span>Sign Out</span>
-            </a>
+            </Link>
           </div>
         </div>
       )}
