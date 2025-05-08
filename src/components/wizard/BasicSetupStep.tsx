@@ -10,6 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 interface BasicSetupStepProps {
   configType: 'blog' | 'autoblog';
@@ -24,17 +26,31 @@ const BasicSetupStep: React.FC<BasicSetupStepProps> = ({
   description,
   onUpdate,
 }) => {
+  const navigate = useNavigate();
+
+  const handleSettingChange = (value: string) => {
+    if (value === "create-template") {
+      // Navigate to template creation page
+      navigate('/autoblog/template');
+    } else if (value === "choose-template") {
+      // Navigate to template list page
+      navigate('/autoblog/template');
+    }
+    // For "scratch", we stay on the current page
+  };
+  
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <Label>Choose your preferred setting (Optional):</Label>
-        <Select>
+        <Select onValueChange={handleSettingChange}>
           <SelectTrigger>
             <SelectValue placeholder="-- Select a saved setting --" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="default">Default Template</SelectItem>
-            <SelectItem value="custom">Custom Template</SelectItem>
+            <SelectItem value="scratch">Start from scratch</SelectItem>
+            <SelectItem value="choose-template">Choose from templates</SelectItem>
+            <SelectItem value="create-template">Create a template</SelectItem>
           </SelectContent>
         </Select>
       </div>
