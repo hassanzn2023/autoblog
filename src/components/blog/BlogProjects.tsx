@@ -1,9 +1,10 @@
 
-import React from 'react';
-import { Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Clock, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import BlogProjectModal from './BlogProjectModal';
+import CreateBlogProjectModal from './CreateBlogProjectModal';
 
 interface Project {
   id: string;
@@ -14,7 +15,8 @@ interface Project {
 }
 
 const BlogProjects = () => {
-  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const navigate = useNavigate();
   
   const projects: Project[] = [
     {
@@ -27,8 +29,7 @@ const BlogProjects = () => {
   ];
 
   const handleRowClick = (projectId: string) => {
-    // Navigate to the blog project configuration wizard
-    window.location.href = `/blog/config/${projectId}`;
+    navigate(`/blog/config/${projectId}`);
   };
 
   return (
@@ -41,15 +42,21 @@ const BlogProjects = () => {
 
         <div className="flex justify-between items-center">
           <div className="flex space-x-2">
-            <Button variant="outline" size="sm">Doc</Button>
-            <Button variant="outline" size="sm">Tutorial</Button>
+            <Button variant="outline" size="sm">
+              <FileText className="mr-2" size={18} />
+              Doc
+            </Button>
+            <Button variant="outline" size="sm">
+              <FileText className="mr-2" size={18} />
+              Tutorial
+            </Button>
           </div>
 
           <Button 
             onClick={() => setIsModalOpen(true)} 
-            className="bg-[#F76D01] hover:bg-[#e65d00] text-white"
+            className="bg-[#F76D01] hover:bg-[#e65d00] text-white flex items-center gap-2"
           >
-            + New Blog Project
+            <span>+</span> New Blog Project
           </Button>
         </div>
 
@@ -59,16 +66,16 @@ const BlogProjects = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div className="flex items-center gap-1">
-                      <span className="bg-blue-500 text-white rounded-full w-5 h-5 inline-flex items-center justify-center text-xs">i</span>
+                    <div className="flex items-center">
+                      <FileText size={14} className="mr-2" />
                       Name
                     </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Articles</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div className="flex items-center gap-1">
-                      <Clock size={14} />
+                    <div className="flex items-center">
+                      <Clock size={14} className="mr-2" />
                       Last Updated
                     </div>
                   </th>
@@ -85,7 +92,7 @@ const BlogProjects = () => {
                       <div className="flex items-center">
                         {project.name}
                         {project.status === 'Active' && (
-                          <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                          <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
                             Active
                           </span>
                         )}
@@ -102,7 +109,7 @@ const BlogProjects = () => {
         </Card>
       </div>
 
-      <BlogProjectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <CreateBlogProjectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 };

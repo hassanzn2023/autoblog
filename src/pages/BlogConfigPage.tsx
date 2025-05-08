@@ -6,6 +6,7 @@ import { toast } from '@/hooks/use-toast';
 import BasicSetupStep from '@/components/wizard/BasicSetupStep';
 import BusinessProfileStep from '@/components/wizard/BusinessProfileStep';
 import TopicFoundationStep from '@/components/wizard/TopicFoundationStep';
+import KeywordResearchStep from '@/components/wizard/KeywordResearchStep';
 import AiContentGenerationStep from '@/components/wizard/AiContentGenerationStep';
 import LinkingSeoStep from '@/components/wizard/LinkingSeoStep';
 import MediaFormattingStep from '@/components/wizard/MediaFormattingStep';
@@ -36,6 +37,10 @@ const BlogConfigPage = () => {
   const [targetCountry, setTargetCountry] = useState('us');
   const [language, setLanguage] = useState('en');
   const [contentDescription, setContentDescription] = useState('');
+  
+  // Keyword Research state
+  const [primaryKeyword, setPrimaryKeyword] = useState('');
+  const [secondaryKeywords, setSecondaryKeywords] = useState<string[]>([]);
   
   // AI Generation state
   const [aiModel, setAiModel] = useState('default');
@@ -72,11 +77,18 @@ const BlogConfigPage = () => {
   const [includeBoldText, setIncludeBoldText] = useState(true);
   const [includeItalicText, setIncludeItalicText] = useState(true);
   
+  // Title Selection state
+  const [selectedTitle, setSelectedTitle] = useState('');
+  const [customTitle, setCustomTitle] = useState('');
+  
+  // Content Outline state
+  const [outlineTemplate, setOutlineTemplate] = useState(1);
+  const [customOutline, setCustomOutline] = useState('');
+  
   // Scheduling & Integration state
   const [integration, setIntegration] = useState('wordpress');
-  const [articlesPerBatch, setArticlesPerBatch] = useState(10);
-  const [interval, setInterval] = useState('weekly');
-  const [randomizePublishingTime, setRandomizePublishingTime] = useState(false);
+  const [publishStatus, setPublishStatus] = useState('draft');
+  const [scheduledDate, setScheduledDate] = useState('');
   
   // Review & Save state
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
@@ -89,7 +101,7 @@ const BlogConfigPage = () => {
       description: `Project "${projectName}" has been successfully saved.`,
     });
     // Redirect back to the blog projects page
-    navigate('/blog/create');
+    navigate('/blog');
   };
   
   useEffect(() => {
@@ -98,11 +110,9 @@ const BlogConfigPage = () => {
       // Parse the name from query string if creating a new project
       const searchParams = new URLSearchParams(location.search);
       const nameFromQuery = searchParams.get('name');
-      setProjectName(nameFromQuery || 'New Project');
+      setProjectName(nameFromQuery || 'My First Blog');
     } else if (id === '1') {
-      setProjectName('Default Project');
-    } else if (id === '2') {
-      setProjectName('My Blog');
+      setProjectName('My First Blog');
     }
   }, [id, location.search]);
   
@@ -127,6 +137,10 @@ const BlogConfigPage = () => {
       case 'targetCountry': setTargetCountry(value); break;
       case 'language': setLanguage(value); break;
       case 'contentDescription': setContentDescription(value); break;
+      
+      // Keyword Research
+      case 'primaryKeyword': setPrimaryKeyword(value); break;
+      case 'secondaryKeywords': setSecondaryKeywords(value); break;
       
       // AI Generation
       case 'aiModel': setAiModel(value); break;
@@ -163,11 +177,18 @@ const BlogConfigPage = () => {
       case 'includeBoldText': setIncludeBoldText(value); break;
       case 'includeItalicText': setIncludeItalicText(value); break;
       
+      // Title Selection
+      case 'selectedTitle': setSelectedTitle(value); break;
+      case 'customTitle': setCustomTitle(value); break;
+      
+      // Content Outline
+      case 'outlineTemplate': setOutlineTemplate(value); break;
+      case 'customOutline': setCustomOutline(value); break;
+      
       // Scheduling & Integration
       case 'integration': setIntegration(value); break;
-      case 'articlesPerBatch': setArticlesPerBatch(value); break;
-      case 'interval': setInterval(value); break;
-      case 'randomizePublishingTime': setRandomizePublishingTime(value); break;
+      case 'publishStatus': setPublishStatus(value); break;
+      case 'scheduledDate': setScheduledDate(value); break;
       
       // Review & Save
       case 'saveAsTemplate': setSaveAsTemplate(value); break;
@@ -179,7 +200,6 @@ const BlogConfigPage = () => {
     {
       id: 'basic-setup',
       title: 'Basic Setup',
-      visibleFor: 'all' as const,
       component: (
         <BasicSetupStep
           configType="blog"
@@ -192,7 +212,6 @@ const BlogConfigPage = () => {
     {
       id: 'business-profile',
       title: 'Business & Content Profile',
-      visibleFor: 'all' as const,
       component: (
         <BusinessProfileStep
           businessType={businessType}
@@ -206,7 +225,6 @@ const BlogConfigPage = () => {
     {
       id: 'topic-foundation',
       title: 'Topic & Content Foundation',
-      visibleFor: 'all' as const,
       component: (
         <TopicFoundationStep
           configType="blog"
@@ -222,9 +240,19 @@ const BlogConfigPage = () => {
       ),
     },
     {
+      id: 'keyword-research',
+      title: 'Keyword Research',
+      component: (
+        <KeywordResearchStep
+          primaryKeyword={primaryKeyword}
+          secondaryKeywords={secondaryKeywords}
+          onUpdate={handleUpdate}
+        />
+      ),
+    },
+    {
       id: 'ai-generation',
       title: 'AI & Content Generation',
-      visibleFor: 'all' as const,
       component: (
         <AiContentGenerationStep
           aiModel={aiModel}
@@ -243,7 +271,6 @@ const BlogConfigPage = () => {
     {
       id: 'linking-seo',
       title: 'Linking & SEO',
-      visibleFor: 'all' as const,
       component: (
         <LinkingSeoStep
           enableInternalLinking={enableInternalLinking}
@@ -263,7 +290,6 @@ const BlogConfigPage = () => {
     {
       id: 'media-formatting',
       title: 'Media & Formatting',
-      visibleFor: 'all' as const,
       component: (
         <MediaFormattingStep
           imageSource={imageSource}
@@ -281,16 +307,109 @@ const BlogConfigPage = () => {
       ),
     },
     {
+      id: 'select-title',
+      title: 'Select a Title',
+      component: (
+        <div className="space-y-6">
+          <p className="text-sm">Select a title that captures and reflects the essence of your article as well as your chosen primary keyword for maximum SEO impact. You can also use your own title.</p>
+          
+          <div className="space-y-4">
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm">Generate more</Button>
+              <Button variant="outline" size="sm">Show SERP Ranking</Button>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="border border-purple-300 bg-purple-50 p-3 rounded-md flex justify-between items-center">
+                <span>Speed Test Guide: What Really Affects Your Internet Speed in 2025</span>
+                <span className="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded-full">AI Recommended</span>
+              </div>
+              
+              <div className="border p-3 rounded-md hover:bg-gray-50">
+                Why Your Speed Test Results Are Wrong (And How to Fix It)
+              </div>
+              
+              <div className="border p-3 rounded-md hover:bg-gray-50">
+                The Truth About Speed Tests: What Internet Companies Don't Tell You
+              </div>
+              
+              <div className="border p-3 rounded-md hover:bg-gray-50">
+                Speed Test Secrets: A Simple Guide to Accurate Internet Testing
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <h3 className="font-medium">Add Your Own</h3>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Enter your title here..."
+                className="flex-1 border rounded-md px-3 py-2"
+                value={customTitle}
+                onChange={(e) => handleUpdate('customTitle', e.target.value)}
+              />
+              <Button
+                className="bg-purple-600 hover:bg-purple-700"
+                size="sm"
+              >
+                Add
+              </Button>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'content-outline',
+      title: 'Content Outline',
+      component: (
+        <div className="space-y-6">
+          <p className="text-sm">Choose an outline that best represents the structure and flow you envision for your article.</p>
+          
+          <div className="flex gap-2 mb-4">
+            <Button
+              variant={outlineTemplate === 1 ? "default" : "outline"}
+              className={outlineTemplate === 1 ? "bg-purple-600 hover:bg-purple-700" : ""}
+              onClick={() => handleUpdate('outlineTemplate', 1)}
+            >
+              Outline 1
+            </Button>
+            <Button
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <span>✏️</span> Write your own
+            </Button>
+          </div>
+          
+          <div className="border rounded-md p-4">
+            <h3 className="font-medium mb-3">Predefined Outline 1 (Placeholder)</h3>
+            
+            <div className="space-y-1">
+              <p><strong>Introduction:</strong> Hook, Thesis Statement</p>
+              <p><strong>H2: Understanding Internet Speed Tests</strong></p>
+              <p className="ml-4">H3: What do speed tests measure?</p>
+              <p className="ml-4">H3: Common misconceptions</p>
+              <p><strong>H2: Factors Affecting Accuracy</strong></p>
+              <p className="ml-4">H3: Your internet plan</p>
+              <p className="ml-4">H3: Router and Modem</p>
+              <p className="ml-4">H3: Testing Server Location</p>
+              <p><strong>Conclusion:</strong> Summary, Call to Action</p>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
       id: 'scheduling',
       title: 'Scheduling & Integration',
-      visibleFor: 'all' as const,
       component: (
         <SchedulingIntegrationStep
           configType="blog"
           integration={integration}
-          articlesPerBatch={articlesPerBatch}
-          interval={interval}
-          randomizePublishingTime={randomizePublishingTime}
+          publishStatus={publishStatus}
+          scheduledDate={scheduledDate}
           onUpdate={handleUpdate}
         />
       ),
@@ -298,12 +417,11 @@ const BlogConfigPage = () => {
     {
       id: 'review-save',
       title: 'Review & Save',
-      visibleFor: 'all' as const,
       component: (
         <ReviewSaveStep
           configType="blog"
           configSummary={{
-            campaignName: projectName,  // Changed from projectName to campaignName to match the interface
+            campaignName: projectName,
             description: projectDescription || 'N/A',
             businessType: businessType || 'Blogger',
             articleType: articleType || 'Blog Posts',
@@ -324,13 +442,8 @@ const BlogConfigPage = () => {
     },
   ];
 
-  // Filter steps based on the configuration type
-  const visibleSteps = wizardSteps.filter(step => 
-    step.visibleFor === 'all' || step.visibleFor === 'blog'
-  );
-
   const handleNext = () => {
-    if (activeStep < visibleSteps.length - 1) {
+    if (activeStep < wizardSteps.length - 1) {
       setActiveStep(activeStep + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -347,30 +460,29 @@ const BlogConfigPage = () => {
     setActiveStep(stepIndex);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
+  
+  // Calculate step name from step index + 1
+  const getStepName = (index: number) => `Step ${index + 1}: ${wizardSteps[index].title}`;
+  
   return (
     <div className="w-full p-6 bg-gray-50">
-      <h1 className="text-2xl font-bold mb-6">Configure Project: {projectName}</h1>
+      <h1 className="text-2xl font-bold mb-6">Configure Blog Project: {projectName}</h1>
       
       <div className="flex flex-col md:flex-row gap-6">
         {/* Steps Navigation */}
         <div className="w-full md:w-1/4 bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium">Project: {projectName}</h2>
-            <p className="text-sm text-gray-500">Configuration Steps</p>
-          </div>
           <div className="space-y-1 p-2">
-            {visibleSteps.map((step, index) => (
+            {wizardSteps.map((step, index) => (
               <button
                 key={step.id}
                 onClick={() => handleStepClick(index)}
                 className={`w-full text-left px-4 py-3 rounded-md text-sm transition-colors ${
                   index === activeStep
-                    ? 'bg-purple-50 text-[#6e41e2] border-l-4 border-[#6e41e2]'
+                    ? 'bg-purple-50 text-purple-800 border-l-4 border-purple-500'
                     : 'hover:bg-gray-100'
                 }`}
               >
-                Step {index + 1}: {step.title}
+                {getStepName(index)}
               </button>
             ))}
           </div>
@@ -378,10 +490,10 @@ const BlogConfigPage = () => {
 
         {/* Step Content */}
         <div className="w-full md:w-3/4 bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold mb-4">{visibleSteps[activeStep].title}</h2>
+          <h2 className="text-xl font-semibold mb-6">{getStepName(activeStep)}</h2>
           
-          <div className="min-h-[300px] mb-4">
-            {visibleSteps[activeStep].component}
+          <div className="min-h-[300px] mb-6">
+            {wizardSteps[activeStep].component}
           </div>
           
           <div className="flex justify-between pt-4 border-t border-gray-200">
@@ -393,14 +505,21 @@ const BlogConfigPage = () => {
               <div />
             )}
             
-            {activeStep < visibleSteps.length - 1 ? (
+            {activeStep < wizardSteps.length - 1 ? (
               <Button
-                className="bg-[#6e41e2] hover:bg-[#5a35c8] text-white"
+                className="bg-purple-600 hover:bg-purple-700 text-white"
                 onClick={handleNext}
               >
                 Next
               </Button>
-            ) : null}
+            ) : (
+              <Button
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={handleSave}
+              >
+                Save Project Configuration
+              </Button>
+            )}
           </div>
         </div>
       </div>

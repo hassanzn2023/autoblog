@@ -61,11 +61,31 @@ const routes = [
         element: <AutoblogConfigPage />
       },
       {
+        path: 'autoblog/config/:id',
+        element: <AutoblogConfigPage />
+      },
+      {
         path: 'blog',
         element: <BlogProjectsPage />
       },
       {
+        path: 'blog/create',
+        element: <BlogProjectsPage />
+      },
+      {
+        path: 'blog/articles',
+        element: <BlogProjectsPage />
+      },
+      {
+        path: 'blog/template',
+        element: <BlogProjectsPage />
+      },
+      {
         path: 'blog/config',
+        element: <BlogConfigPage />
+      },
+      {
+        path: 'blog/config/:id',
         element: <BlogConfigPage />
       },
       {
