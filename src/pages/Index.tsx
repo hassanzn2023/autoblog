@@ -1,17 +1,28 @@
 
-import React from "react";
-import { ArrowRight } from "lucide-react";
+import React, { useState } from "react";
+import { Upload, FileText, Pen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import WritingStyleModal from "@/components/WritingStyleModal";
 
 const Index = () => {
+  const [writingStyleModalOpen, setWritingStyleModalOpen] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+  const [connectToWeb, setConnectToWeb] = useState(true);
+  
   return (
-    <div className="p-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-1">Good afternoon, Malek!</h1>
-        <div className="flex flex-col lg:flex-row gap-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6 flex-grow">
-            <div className="space-y-6">
+    <div className="p-6 flex flex-col items-center">
+      <div className="mb-8 w-full max-w-4xl">
+        <h1 className="text-2xl font-bold mb-1 text-center">Good afternoon, Malek!</h1>
+        <div className="flex flex-col gap-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="space-y-6 flex flex-col items-center text-center">
               <div>
                 <h2 className="text-xl font-semibold mb-1">
                   Your <span className="text-[#F76D01]">SEO & Content AI Agent</span> is all set, what's on your mind?
@@ -19,7 +30,7 @@ const Index = () => {
                 <p className="text-gray-600">Get insights from your favorite marketing tools in every response.</p>
               </div>
               
-              <div className="max-w-3xl">
+              <div className="max-w-2xl w-full">
                 <div className="border border-gray-200 rounded-lg p-4 bg-white">
                   <Input 
                     placeholder="Create a pillar-cluster strategy for 'AI writing tools' in the UK..." 
@@ -28,38 +39,75 @@ const Index = () => {
                   
                   <div className="flex justify-between items-center mt-4">
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="icon" className="size-8">
-                        <span className="sr-only">Microphone</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M19 10v1a7 7 0 01-14 0v-1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M12 19v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M8 23h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </Button>
-                      
+                      {/* Upload Button */}
                       <Button variant="outline" size="icon" className="size-8">
                         <span className="sr-only">Upload</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M17 8l-5-5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M12 3v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
+                        <Upload size={16} className="text-gray-500" />
+                      </Button>
+                      
+                      {/* Writing Style Button */}
+                      <Button 
+                        variant="outline" 
+                        size="icon" 
+                        className="size-8"
+                        onClick={() => setWritingStyleModalOpen(true)}
+                      >
+                        <span className="sr-only">Writing Style</span>
+                        <FileText size={16} className="text-gray-500" />
+                      </Button>
+
+                      {/* Pen Button */}
+                      <Button variant="outline" size="icon" className="size-8">
+                        <span className="sr-only">Pen</span>
+                        <Pen size={16} className="text-gray-500" />
                       </Button>
                     </div>
                     
                     <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2 text-sm">
-                        <span>Auto</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </div>
+                      {/* Agent Dropdown */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <div className="flex items-center gap-2 text-sm cursor-pointer">
+                            <span>{selectedAgent || "Auto"}</span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuItem onClick={() => setSelectedAgent("Auto")}>
+                            Auto
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setSelectedAgent("Title Optimizer")}>
+                            Title Optimizer
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setSelectedAgent("Heading Optimizer")}>
+                            Heading Optimizer
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setSelectedAgent("Keyword Agent")}>
+                            Keyword Agent
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       
+                      {/* Connect to Web Toggle */}
+                      <div className="flex items-center gap-2 text-sm">
+                        <span>Connect to Web</span>
+                        <div 
+                          className={`w-10 h-5 ${connectToWeb ? 'bg-[#F76D01]' : 'bg-gray-200'} rounded-full relative flex items-center cursor-pointer`}
+                          onClick={() => setConnectToWeb(!connectToWeb)}
+                        >
+                          <div 
+                            className={`absolute h-4 w-4 bg-white rounded-full transition-all ${connectToWeb ? 'left-[22px]' : 'left-[2px]'}`}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* AI Agent Toggle */}
                       <div className="flex items-center gap-2 text-sm">
                         <span>AI Agent</span>
-                        <div className="w-8 h-4 bg-gray-200 rounded-full relative flex items-center">
-                          <div className="absolute h-3 w-3 bg-[#F76D01] rounded-full left-[2px] transition-all"></div>
+                        <div className="w-10 h-5 bg-[#F76D01] rounded-full relative flex items-center">
+                          <div className="absolute h-4 w-4 bg-white rounded-full left-[22px] transition-all"></div>
                         </div>
                       </div>
                     </div>
@@ -81,7 +129,7 @@ const Index = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8">
+      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8 max-w-4xl w-full">
         <div className="flex justify-between items-start mb-4">
           <div>
             <h2 className="text-lg font-semibold">Unlock premium SEO & content tools</h2>
@@ -96,7 +144,7 @@ const Index = () => {
         </div>
       </div>
 
-      <div className="mb-8">
+      <div className="mb-8 max-w-4xl w-full">
         <h2 className="text-xl font-semibold mb-4">SEO & Content workflow</h2>
         <p className="text-gray-600 mb-6">Take your content from idea to results, effortlessly.</p>
         
@@ -152,6 +200,12 @@ const Index = () => {
           </div>
         </div>
       </div>
+
+      {/* Writing Style Modal */}
+      <WritingStyleModal 
+        open={writingStyleModalOpen} 
+        onOpenChange={setWritingStyleModalOpen} 
+      />
     </div>
   );
 };
