@@ -3,6 +3,14 @@ import React from 'react';
 import { Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { 
+  Table,
+  TableHeader,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody
+} from '@/components/ui/table';
 import AutoblogCampaignModal from './AutoblogCampaignModal';
 
 interface Campaign {
@@ -64,34 +72,34 @@ const AutoblogCampaigns = () => {
 
         <Card className="overflow-hidden border border-gray-200">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
                     <div className="flex items-center gap-1">
                       <span className="bg-blue-500 text-white rounded-full w-5 h-5 inline-flex items-center justify-center text-xs">i</span>
                       Name
                     </div>
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">AutoBlog</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Batch</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  </TableHead>
+                  <TableHead>AutoBlog</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Next Batch</TableHead>
+                  <TableHead>
                     <div className="flex items-center gap-1">
                       <Clock size={14} />
                       Last Updated
                     </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {campaigns.map((campaign) => (
-                  <tr 
+                  <TableRow 
                     key={campaign.id} 
                     onClick={() => handleRowClick(campaign.id)} 
                     className="hover:bg-gray-50 cursor-pointer transition-colors"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <TableCell className="whitespace-nowrap">
                       <div className="flex items-center">
                         {campaign.name}
                         {campaign.isDefault && (
@@ -100,15 +108,15 @@ const AutoblogCampaigns = () => {
                           </span>
                         )}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">{campaign.status}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{campaign.status}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{campaign.nextBatch}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{campaign.lastUpdated}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">{campaign.status}</TableCell>
+                    <TableCell className="whitespace-nowrap">{campaign.status}</TableCell>
+                    <TableCell className="whitespace-nowrap">{campaign.nextBatch}</TableCell>
+                    <TableCell className="whitespace-nowrap">{campaign.lastUpdated}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </Card>
       </div>

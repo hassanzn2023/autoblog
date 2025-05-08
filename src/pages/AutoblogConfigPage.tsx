@@ -80,6 +80,17 @@ const AutoblogConfigPage = () => {
   
   // Review & Save state
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+
+  // Define handleSave function before using it
+  const handleSave = () => {
+    // Here would be logic to save the configuration
+    toast({
+      title: "Configuration Saved",
+      description: `Campaign "${campaignName}" has been successfully saved.`,
+    });
+    // Redirect back to the campaigns page
+    navigate('/autoblog/create');
+  };
   
   useEffect(() => {
     // In a real app, you would fetch the campaign data if editing (id !== 'new')
@@ -335,16 +346,6 @@ const AutoblogConfigPage = () => {
   const handleStepClick = (stepIndex: number) => {
     setActiveStep(stepIndex);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleSave = () => {
-    // Here would be logic to save the configuration
-    toast({
-      title: "Configuration Saved",
-      description: `Campaign "${campaignName}" has been successfully saved.`,
-    });
-    // Redirect back to the campaigns page
-    navigate('/autoblog/create');
   };
 
   return (

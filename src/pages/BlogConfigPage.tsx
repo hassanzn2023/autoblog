@@ -18,7 +18,7 @@ const BlogConfigPage = () => {
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState<number>(0);
   
-  // Blog project basic information
+  // Blog basic information
   const [projectName, setProjectName] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
   
@@ -74,21 +74,35 @@ const BlogConfigPage = () => {
   
   // Scheduling & Integration state
   const [integration, setIntegration] = useState('wordpress');
-  const [publishStatus, setPublishStatus] = useState('draft');
-  const [scheduledDate, setScheduledDate] = useState('');
+  const [articlesPerBatch, setArticlesPerBatch] = useState(10);
+  const [interval, setInterval] = useState('weekly');
+  const [randomizePublishingTime, setRandomizePublishingTime] = useState(false);
   
   // Review & Save state
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+
+  // Define handleSave function before using it
+  const handleSave = () => {
+    // Here would be logic to save the configuration
+    toast({
+      title: "Configuration Saved",
+      description: `Project "${projectName}" has been successfully saved.`,
+    });
+    // Redirect back to the blog projects page
+    navigate('/blog/create');
+  };
   
   useEffect(() => {
     // In a real app, you would fetch the project data if editing (id !== 'new')
     if (id === 'new') {
-      // Parse the name from query string if creating a new blog project
+      // Parse the name from query string if creating a new project
       const searchParams = new URLSearchParams(location.search);
       const nameFromQuery = searchParams.get('name');
-      setProjectName(nameFromQuery || 'New Blog Project');
+      setProjectName(nameFromQuery || 'New Project');
     } else if (id === '1') {
-      setProjectName('My First Blog');
+      setProjectName('Default Project');
+    } else if (id === '2') {
+      setProjectName('My Blog');
     }
   }, [id, location.search]);
   
@@ -151,14 +165,16 @@ const BlogConfigPage = () => {
       
       // Scheduling & Integration
       case 'integration': setIntegration(value); break;
-      case 'publishStatus': setPublishStatus(value); break;
-      case 'scheduledDate': setScheduledDate(value); break;
+      case 'articlesPerBatch': setArticlesPerBatch(value); break;
+      case 'interval': setInterval(value); break;
+      case 'randomizePublishingTime': setRandomizePublishingTime(value); break;
       
       // Review & Save
       case 'saveAsTemplate': setSaveAsTemplate(value); break;
     }
   };
 
+  // Steps configuration
   const wizardSteps = [
     {
       id: 'basic-setup',
@@ -204,12 +220,6 @@ const BlogConfigPage = () => {
           onUpdate={handleUpdate}
         />
       ),
-    },
-    {
-      id: 'keyword-research',
-      title: 'Keyword Research',
-      visibleFor: 'blog' as const,
-      component: <div>Keyword Research form goes here</div>,
     },
     {
       id: 'ai-generation',
@@ -271,18 +281,6 @@ const BlogConfigPage = () => {
       ),
     },
     {
-      id: 'select-title',
-      title: 'Select a Title',
-      visibleFor: 'blog' as const,
-      component: <div>Select a Title form goes here</div>,
-    },
-    {
-      id: 'content-outline',
-      title: 'Content Outline',
-      visibleFor: 'blog' as const,
-      component: <div>Content Outline form goes here</div>,
-    },
-    {
       id: 'scheduling',
       title: 'Scheduling & Integration',
       visibleFor: 'all' as const,
@@ -290,8 +288,9 @@ const BlogConfigPage = () => {
         <SchedulingIntegrationStep
           configType="blog"
           integration={integration}
-          publishStatus={publishStatus}
-          scheduledDate={scheduledDate}
+          articlesPerBatch={articlesPerBatch}
+          interval={interval}
+          randomizePublishingTime={randomizePublishingTime}
           onUpdate={handleUpdate}
         />
       ),
@@ -304,7 +303,7 @@ const BlogConfigPage = () => {
         <ReviewSaveStep
           configType="blog"
           configSummary={{
-            campaignName: projectName,
+            projectName,
             description: projectDescription || 'N/A',
             businessType: businessType || 'Blogger',
             articleType: articleType || 'Blog Posts',
@@ -349,25 +348,15 @@ const BlogConfigPage = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSave = () => {
-    // Here would be logic to save the configuration
-    toast({
-      title: "Configuration Saved",
-      description: `Blog Project "${projectName}" has been successfully saved.`,
-    });
-    // Redirect back to the appropriate listing page
-    navigate('/blog/create');
-  };
-
   return (
     <div className="w-full p-6 bg-gray-50">
-      <h1 className="text-2xl font-bold mb-6">Configure Blog Project: {projectName}</h1>
+      <h1 className="text-2xl font-bold mb-6">Configure Project: {projectName}</h1>
       
       <div className="flex flex-col md:flex-row gap-6">
         {/* Steps Navigation */}
         <div className="w-full md:w-1/4 bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="p-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium">Blog Project: {projectName}</h2>
+            <h2 className="text-lg font-medium">Project: {projectName}</h2>
             <p className="text-sm text-gray-500">Configuration Steps</p>
           </div>
           <div className="space-y-1 p-2">
@@ -377,7 +366,7 @@ const BlogConfigPage = () => {
                 onClick={() => handleStepClick(index)}
                 className={`w-full text-left px-4 py-3 rounded-md text-sm transition-colors ${
                   index === activeStep
-                    ? 'bg-orange-50 text-[#F76D01] border-l-4 border-[#F76D01]'
+                    ? 'bg-purple-50 text-[#6e41e2] border-l-4 border-[#6e41e2]'
                     : 'hover:bg-gray-100'
                 }`}
               >
@@ -406,7 +395,7 @@ const BlogConfigPage = () => {
             
             {activeStep < visibleSteps.length - 1 ? (
               <Button
-                className="bg-[#F76D01] hover:bg-[#e65d00] text-white"
+                className="bg-[#6e41e2] hover:bg-[#5a35c8] text-white"
                 onClick={handleNext}
               >
                 Next
