@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { User, Settings, LogOut, ChevronRight, Palette, Gift, MessageSquareHelp, Key, Users, Line, BarChart3, Lightbulb } from 'lucide-react';
+import { User, Settings, LogOut, ChevronRight, Palette, Gift, MessageSquare, Key, Users, BarChart3, Lightbulb, Link } from 'lucide-react';
 import ThemeSelector from './ThemeSelector';
 
 type ThemeOption = 'comfort' | 'light' | 'dark';
@@ -104,7 +104,7 @@ const ProfileDropdown = () => {
             </a>
             
             <a href="/integrations" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
-              <Line size={18} className="text-gray-500" />
+              <Link size={18} className="text-gray-500" />
               <span>Integrations</span>
             </a>
             
@@ -124,7 +124,7 @@ const ProfileDropdown = () => {
             </a>
             
             <a href="/help" className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-md">
-              <MessageSquareHelp size={18} className="text-gray-500" />
+              <MessageSquare size={18} className="text-gray-500" />
               <span>Help Center</span>
             </a>
             
