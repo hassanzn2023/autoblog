@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Copy, Star, ArrowRight, BookOpen } from 'lucide-react';
+import { PlusCircle, Copy, ArrowRight, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -11,6 +11,7 @@ import {
   TabsTrigger 
 } from "@/components/ui/tabs";
 import CreateTemplateDialog from '@/components/autoblog/CreateTemplateDialog';
+import PreviewTemplateDialog from '@/components/autoblog/PreviewTemplateDialog';
 
 interface Template {
   id: string;
@@ -18,13 +19,56 @@ interface Template {
   description: string;
   category: string;
   type: 'official' | 'community' | 'yours';
-  popularity: number; // 1-5
   difficulty: 'beginner' | 'intermediate' | 'advanced';
+  // Template settings
+  businessProfile: {
+    businessType: string;
+    articleType: string;
+    readerLevel: string;
+    contentGoals: string;
+  };
+  aiContent: {
+    aiModel: string;
+    antiAiDetection: boolean;
+    articleSize: string;
+    creativityLevel: string;
+    toneOfVoice: string;
+    pointOfView: string;
+    formality: string;
+    includeFAQ: boolean;
+    customInstructions: string;
+  };
+  linkingSeo: {
+    enableInternalLinking: boolean;
+    internalLinksCount: number;
+    sitemapUrl: string;
+    enableExternalLinking: boolean;
+    externalLinksCount: number | 'automatic';
+    automateExternalLinkSelection: boolean;
+    includeExternalSources: string;
+    excludeExternalSources: string;
+    enableTargetPages: boolean;
+    autoAssignWordPressCategory: boolean;
+  };
+  mediaFormatting: {
+    imageSource: 'google' | 'ai' | 'none';
+    imagePrompt: string;
+    inArticleImagesCount: number;
+    addFeaturedImage: boolean;
+    embedYoutubeVideos: boolean;
+    includeTables: boolean;
+    includeQuotes: boolean;
+    includeLists: boolean;
+    includeBoldText: boolean;
+    includeItalicText: boolean;
+  };
 }
 
 const AutoblogTemplatePage = () => {
   const navigate = useNavigate();
   const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] = useState(false);
+  const [isPreviewTemplateDialogOpen, setIsPreviewTemplateDialogOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   
   const templates: Template[] = [
     {
@@ -33,8 +77,48 @@ const AutoblogTemplatePage = () => {
       description: 'Automatically collect and publish news from various sources with proper attribution',
       category: 'news',
       type: 'official',
-      popularity: 5,
-      difficulty: 'beginner'
+      difficulty: 'beginner',
+      businessProfile: {
+        businessType: 'News Website',
+        articleType: 'news',
+        readerLevel: 'general',
+        contentGoals: 'Inform readers about current events'
+      },
+      aiContent: {
+        aiModel: 'default',
+        antiAiDetection: true,
+        articleSize: 'medium',
+        creativityLevel: 'balanced',
+        toneOfVoice: 'informative',
+        pointOfView: 'third-person',
+        formality: 'neutral',
+        includeFAQ: false,
+        customInstructions: 'Focus on factual reporting with unbiased language'
+      },
+      linkingSeo: {
+        enableInternalLinking: true,
+        internalLinksCount: 2,
+        sitemapUrl: '',
+        enableExternalLinking: true,
+        externalLinksCount: 'automatic',
+        automateExternalLinkSelection: true,
+        includeExternalSources: 'trusted news outlets',
+        excludeExternalSources: 'social media, forums',
+        enableTargetPages: false,
+        autoAssignWordPressCategory: true
+      },
+      mediaFormatting: {
+        imageSource: 'ai',
+        imagePrompt: 'News related to the article content',
+        inArticleImagesCount: 1,
+        addFeaturedImage: true,
+        embedYoutubeVideos: false,
+        includeTables: false,
+        includeQuotes: true,
+        includeLists: true,
+        includeBoldText: true,
+        includeItalicText: true
+      }
     },
     {
       id: '2',
@@ -42,8 +126,48 @@ const AutoblogTemplatePage = () => {
       description: 'Create detailed analysis posts about industry trends and developments',
       category: 'business',
       type: 'official',
-      popularity: 4,
-      difficulty: 'intermediate'
+      difficulty: 'intermediate',
+      businessProfile: {
+        businessType: 'Business Consulting',
+        articleType: 'analysis',
+        readerLevel: 'professional',
+        contentGoals: 'Provide expert analysis on industry trends'
+      },
+      aiContent: {
+        aiModel: 'default',
+        antiAiDetection: true,
+        articleSize: 'long',
+        creativityLevel: 'balanced',
+        toneOfVoice: 'professional',
+        pointOfView: 'third-person',
+        formality: 'formal',
+        includeFAQ: true,
+        customInstructions: 'Include data-driven insights and expert perspectives'
+      },
+      linkingSeo: {
+        enableInternalLinking: true,
+        internalLinksCount: 3,
+        sitemapUrl: '',
+        enableExternalLinking: true,
+        externalLinksCount: 5,
+        automateExternalLinkSelection: false,
+        includeExternalSources: 'industry reports, research papers',
+        excludeExternalSources: 'promotional content',
+        enableTargetPages: true,
+        autoAssignWordPressCategory: true
+      },
+      mediaFormatting: {
+        imageSource: 'ai',
+        imagePrompt: 'Professional business charts and graphs',
+        inArticleImagesCount: 3,
+        addFeaturedImage: true,
+        embedYoutubeVideos: true,
+        includeTables: true,
+        includeQuotes: true,
+        includeLists: true,
+        includeBoldText: true,
+        includeItalicText: true
+      }
     },
     {
       id: '3',
@@ -51,8 +175,48 @@ const AutoblogTemplatePage = () => {
       description: 'Generate comprehensive product reviews based on specifications and user feedback',
       category: 'reviews',
       type: 'official',
-      popularity: 5,
-      difficulty: 'intermediate'
+      difficulty: 'intermediate',
+      businessProfile: {
+        businessType: 'Product Review Blog',
+        articleType: 'review',
+        readerLevel: 'general',
+        contentGoals: 'Provide detailed and unbiased product reviews'
+      },
+      aiContent: {
+        aiModel: 'default',
+        antiAiDetection: true,
+        articleSize: 'medium',
+        creativityLevel: 'balanced',
+        toneOfVoice: 'objective',
+        pointOfView: 'third-person',
+        formality: 'neutral',
+        includeFAQ: true,
+        customInstructions: 'Include pros and cons, and compare with similar products'
+      },
+      linkingSeo: {
+        enableInternalLinking: true,
+        internalLinksCount: 2,
+        sitemapUrl: '',
+        enableExternalLinking: true,
+        externalLinksCount: 'automatic',
+        automateExternalLinkSelection: true,
+        includeExternalSources: 'product websites, user reviews',
+        excludeExternalSources: 'competitor websites',
+        enableTargetPages: false,
+        autoAssignWordPressCategory: true
+      },
+      mediaFormatting: {
+        imageSource: 'ai',
+        imagePrompt: 'Product images and lifestyle shots',
+        inArticleImagesCount: 2,
+        addFeaturedImage: true,
+        embedYoutubeVideos: true,
+        includeTables: true,
+        includeQuotes: true,
+        includeLists: true,
+        includeBoldText: true,
+        includeItalicText: true
+      }
     },
     {
       id: '4',
@@ -60,8 +224,48 @@ const AutoblogTemplatePage = () => {
       description: 'Create recipe posts with ingredients, instructions, and nutritional information',
       category: 'food',
       type: 'community',
-      popularity: 4,
-      difficulty: 'beginner'
+      difficulty: 'beginner',
+      businessProfile: {
+        businessType: 'Food Blog',
+        articleType: 'recipe',
+        readerLevel: 'general',
+        contentGoals: 'Share delicious and easy-to-follow recipes'
+      },
+      aiContent: {
+        aiModel: 'default',
+        antiAiDetection: false,
+        articleSize: 'short',
+        creativityLevel: 'high',
+        toneOfVoice: 'friendly',
+        pointOfView: 'second-person',
+        formality: 'informal',
+        includeFAQ: true,
+        customInstructions: 'Add personal anecdotes and cooking tips'
+      },
+      linkingSeo: {
+        enableInternalLinking: true,
+        internalLinksCount: 3,
+        sitemapUrl: '',
+        enableExternalLinking: true,
+        externalLinksCount: 'automatic',
+        automateExternalLinkSelection: true,
+        includeExternalSources: 'food blogs, cooking websites',
+        excludeExternalSources: 'irrelevant content',
+        enableTargetPages: false,
+        autoAssignWordPressCategory: true
+      },
+      mediaFormatting: {
+        imageSource: 'ai',
+        imagePrompt: 'Delicious food photography',
+        inArticleImagesCount: 3,
+        addFeaturedImage: true,
+        embedYoutubeVideos: true,
+        includeTables: true,
+        includeQuotes: true,
+        includeLists: true,
+        includeBoldText: true,
+        includeItalicText: true
+      }
     },
     {
       id: '5',
@@ -69,8 +273,48 @@ const AutoblogTemplatePage = () => {
       description: 'Generate destination guides with attractions, tips, and local insights',
       category: 'travel',
       type: 'community',
-      popularity: 3,
-      difficulty: 'intermediate'
+      difficulty: 'intermediate',
+      businessProfile: {
+        businessType: 'Travel Blog',
+        articleType: 'guide',
+        readerLevel: 'general',
+        contentGoals: 'Provide comprehensive travel guides for various destinations'
+      },
+      aiContent: {
+        aiModel: 'default',
+        antiAiDetection: true,
+        articleSize: 'long',
+        creativityLevel: 'balanced',
+        toneOfVoice: 'descriptive',
+        pointOfView: 'third-person',
+        formality: 'neutral',
+        includeFAQ: true,
+        customInstructions: 'Include historical facts, local customs, and practical tips'
+      },
+      linkingSeo: {
+        enableInternalLinking: true,
+        internalLinksCount: 3,
+        sitemapUrl: '',
+        enableExternalLinking: true,
+        externalLinksCount: 'automatic',
+        automateExternalLinkSelection: true,
+        includeExternalSources: 'travel websites, tourism boards',
+        excludeExternalSources: 'irrelevant content',
+        enableTargetPages: false,
+        autoAssignWordPressCategory: true
+      },
+      mediaFormatting: {
+        imageSource: 'ai',
+        imagePrompt: 'Beautiful travel photography',
+        inArticleImagesCount: 4,
+        addFeaturedImage: true,
+        embedYoutubeVideos: true,
+        includeTables: true,
+        includeQuotes: true,
+        includeLists: true,
+        includeBoldText: true,
+        includeItalicText: true
+      }
     },
     {
       id: '6',
@@ -78,8 +322,48 @@ const AutoblogTemplatePage = () => {
       description: 'Create step-by-step tutorials for software and technology topics',
       category: 'technology',
       type: 'yours',
-      popularity: 4,
-      difficulty: 'advanced'
+      difficulty: 'advanced',
+      businessProfile: {
+        businessType: 'Tech Blog',
+        articleType: 'tutorial',
+        readerLevel: 'technical',
+        contentGoals: 'Provide clear and detailed tech tutorials'
+      },
+      aiContent: {
+        aiModel: 'default',
+        antiAiDetection: true,
+        articleSize: 'long',
+        creativityLevel: 'low',
+        toneOfVoice: 'technical',
+        pointOfView: 'third-person',
+        formality: 'formal',
+        includeFAQ: true,
+        customInstructions: 'Include code snippets, screenshots, and troubleshooting tips'
+      },
+      linkingSeo: {
+        enableInternalLinking: true,
+        internalLinksCount: 4,
+        sitemapUrl: '',
+        enableExternalLinking: true,
+        externalLinksCount: 6,
+        automateExternalLinkSelection: false,
+        includeExternalSources: 'official documentation, developer blogs',
+        excludeExternalSources: 'forums, social media',
+        enableTargetPages: true,
+        autoAssignWordPressCategory: true
+      },
+      mediaFormatting: {
+        imageSource: 'ai',
+        imagePrompt: 'Software screenshots and diagrams',
+        inArticleImagesCount: 5,
+        addFeaturedImage: true,
+        embedYoutubeVideos: true,
+        includeTables: true,
+        includeQuotes: true,
+        includeLists: true,
+        includeBoldText: true,
+        includeItalicText: true
+      }
     }
   ];
 
@@ -92,28 +376,19 @@ const AutoblogTemplatePage = () => {
     setIsCreateTemplateDialogOpen(true);
   };
   
-  const renderPopularityStars = (popularity: number) => {
-    return (
-      <div className="flex">
-        {[...Array(5)].map((_, i) => (
-          <Star 
-            key={i} 
-            size={14} 
-            className={i < popularity ? "text-yellow-400 fill-yellow-400" : "text-gray-300"} 
-          />
-        ))}
-      </div>
-    );
+  const handlePreviewTemplate = (template: Template) => {
+    setSelectedTemplate(template);
+    setIsPreviewTemplateDialogOpen(true);
   };
   
-  const getDifficultyColor = (difficulty: string) => {
-    switch(difficulty) {
-      case 'beginner':
-        return 'bg-green-100 text-green-800 hover:bg-green-200';
-      case 'intermediate':
-        return 'bg-blue-100 text-blue-800 hover:bg-blue-200';
-      case 'advanced':
+  const getTypeColor = (type: string) => {
+    switch(type) {
+      case 'official':
         return 'bg-purple-100 text-purple-800 hover:bg-purple-200';
+      case 'community':
+        return 'bg-blue-100 text-blue-800 hover:bg-blue-200';
+      case 'yours':
+        return 'bg-green-100 text-green-800 hover:bg-green-200';
       default:
         return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
     }
@@ -161,6 +436,7 @@ const AutoblogTemplatePage = () => {
                   key={template.id}
                   template={template}
                   onUse={handleUseTemplate}
+                  onPreview={handlePreviewTemplate}
                 />
               ))}
             </div>
@@ -175,6 +451,7 @@ const AutoblogTemplatePage = () => {
                     key={template.id}
                     template={template}
                     onUse={handleUseTemplate}
+                    onPreview={handlePreviewTemplate}
                   />
                 ))}
             </div>
@@ -189,6 +466,7 @@ const AutoblogTemplatePage = () => {
                     key={template.id}
                     template={template}
                     onUse={handleUseTemplate}
+                    onPreview={handlePreviewTemplate}
                   />
                 ))}
             </div>
@@ -203,6 +481,7 @@ const AutoblogTemplatePage = () => {
                     key={template.id}
                     template={template}
                     onUse={handleUseTemplate}
+                    onPreview={handlePreviewTemplate}
                   />
                 ))}
               
@@ -232,6 +511,12 @@ const AutoblogTemplatePage = () => {
         open={isCreateTemplateDialogOpen}
         onOpenChange={setIsCreateTemplateDialogOpen}
       />
+
+      <PreviewTemplateDialog
+        open={isPreviewTemplateDialogOpen}
+        onOpenChange={setIsPreviewTemplateDialogOpen}
+        template={selectedTemplate}
+      />
     </div>
   );
 };
@@ -239,24 +524,10 @@ const AutoblogTemplatePage = () => {
 interface TemplateCardProps {
   template: Template;
   onUse: (id: string) => void;
+  onPreview: (template: Template) => void;
 }
 
-const TemplateCard = ({ template, onUse }: TemplateCardProps) => {
-  const navigate = useNavigate();
-  
-  const getDifficultyColor = (difficulty: string) => {
-    switch(difficulty) {
-      case 'beginner':
-        return 'bg-green-100 text-green-800 hover:bg-green-200';
-      case 'intermediate':
-        return 'bg-blue-100 text-blue-800 hover:bg-blue-200';
-      case 'advanced':
-        return 'bg-purple-100 text-purple-800 hover:bg-purple-200';
-      default:
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
-    }
-  };
-  
+const TemplateCard = ({ template, onUse, onPreview }: TemplateCardProps) => {
   const getTypeColor = (type: string) => {
     switch(type) {
       case 'official':
@@ -268,20 +539,6 @@ const TemplateCard = ({ template, onUse }: TemplateCardProps) => {
       default:
         return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
     }
-  };
-  
-  const renderPopularityStars = (popularity: number) => {
-    return (
-      <div className="flex">
-        {[...Array(5)].map((_, i) => (
-          <Star 
-            key={i} 
-            size={14} 
-            className={i < popularity ? "text-yellow-400 fill-yellow-400" : "text-gray-300"} 
-          />
-        ))}
-      </div>
-    );
   };
 
   return (
@@ -300,24 +557,12 @@ const TemplateCard = ({ template, onUse }: TemplateCardProps) => {
         </div>
         <CardDescription className="mt-1">{template.description}</CardDescription>
       </CardHeader>
-      <CardContent className="pt-0 pb-2">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center">
-            {renderPopularityStars(template.popularity)}
-          </div>
-          <div>
-            <Badge className={getDifficultyColor(template.difficulty)}>
-              {template.difficulty.charAt(0).toUpperCase() + template.difficulty.slice(1)}
-            </Badge>
-          </div>
-        </div>
-      </CardContent>
       <CardFooter className="bg-gray-50 border-t border-gray-200 flex justify-between p-3">
         <Button
           variant="outline"
           size="sm"
           className="text-gray-600"
-          onClick={() => navigate(`/autoblog/template/preview/${template.id}`)}
+          onClick={() => onPreview(template)}
         >
           Preview
         </Button>
