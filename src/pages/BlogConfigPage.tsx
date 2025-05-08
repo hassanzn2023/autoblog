@@ -31,7 +31,7 @@ const BlogConfigPage = () => {
     {
       id: 'basic-setup',
       title: 'Basic Setup',
-      visibleFor: 'all',
+      visibleFor: 'all' as const,
       component: (
         <BasicSetupStep
           configType="blog"
@@ -44,61 +44,61 @@ const BlogConfigPage = () => {
     {
       id: 'business-profile',
       title: 'Business & Content Profile',
-      visibleFor: 'all',
+      visibleFor: 'all' as const,
       component: <div>Business & Content Profile form goes here</div>,
     },
     {
       id: 'topic-foundation',
       title: 'Topic & Content Foundation',
-      visibleFor: 'all',
+      visibleFor: 'all' as const,
       component: <div>Topic & Content Foundation form goes here</div>,
     },
     {
       id: 'keyword-research',
       title: 'Keyword Research',
-      visibleFor: 'blog', // Only for blog
+      visibleFor: 'blog' as const,
       component: <div>Keyword Research form goes here</div>,
     },
     {
       id: 'ai-generation',
       title: 'AI & Content Generation',
-      visibleFor: 'all',
+      visibleFor: 'all' as const,
       component: <div>AI & Content Generation form goes here</div>,
     },
     {
       id: 'linking-seo',
       title: 'Linking & SEO',
-      visibleFor: 'all',
+      visibleFor: 'all' as const,
       component: <div>Linking & SEO form goes here</div>,
     },
     {
       id: 'media-formatting',
       title: 'Media & Formatting',
-      visibleFor: 'all',
+      visibleFor: 'all' as const,
       component: <div>Media & Formatting form goes here</div>,
     },
     {
       id: 'select-title',
       title: 'Select a Title',
-      visibleFor: 'blog', // Only for blog
+      visibleFor: 'blog' as const,
       component: <div>Select a Title form goes here</div>,
     },
     {
       id: 'content-outline',
       title: 'Content Outline',
-      visibleFor: 'blog', // Only for blog
+      visibleFor: 'blog' as const,
       component: <div>Content Outline form goes here</div>,
     },
     {
       id: 'scheduling',
       title: 'Scheduling & Integration',
-      visibleFor: 'all',
+      visibleFor: 'all' as const,
       component: <div>Scheduling & Integration form goes here</div>,
     },
     {
       id: 'review-save',
       title: 'Review & Save',
-      visibleFor: 'all',
+      visibleFor: 'all' as const,
       component: <div>Review & Save form goes here</div>,
     },
   ];

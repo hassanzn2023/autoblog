@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, 
   History, 
-  Robot, 
+  Bot, 
   FileText, 
   Book, 
   Settings,
@@ -107,7 +106,7 @@ const Sidebar = () => {
         />
         
         <SidebarItem 
-          icon={<Robot size={18} />} 
+          icon={<Bot size={18} />} 
           text="Autoblog" 
           hasSubmenu 
           isSubmenuOpen={openSubmenu === "autoblog"}
