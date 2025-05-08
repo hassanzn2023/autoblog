@@ -1,6 +1,5 @@
-
 import React, { useState } from "react";
-import { Upload, FileText, Pen, Send } from "lucide-react";
+import { Pen, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -40,12 +39,6 @@ const Index = () => {
                   
                   <div className="flex justify-between items-center mt-4">
                     <div className="flex items-center gap-2">
-                      {/* Upload Button */}
-                      <Button variant="outline" size="icon" className="size-8">
-                        <span className="sr-only">Upload</span>
-                        <Upload size={16} className="text-gray-500" />
-                      </Button>
-                      
                       {/* Writing Style Button with Tooltip */}
                       <TooltipProvider>
                         <Tooltip>
@@ -57,7 +50,7 @@ const Index = () => {
                               onClick={() => setWritingStyleModalOpen(true)}
                             >
                               <span className="sr-only">Writing Style</span>
-                              <FileText size={16} className="text-gray-500" />
+                              <Pen size={16} className="text-gray-500" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -65,12 +58,6 @@ const Index = () => {
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-
-                      {/* Pen Button */}
-                      <Button variant="outline" size="icon" className="size-8">
-                        <span className="sr-only">Pen</span>
-                        <Pen size={16} className="text-gray-500" />
-                      </Button>
                     </div>
                     
                     <div className="flex items-center gap-4">
@@ -113,7 +100,7 @@ const Index = () => {
                         </div>
                       </div>
 
-                      {/* Send Button (Replacing AI Agent Toggle) */}
+                      {/* Send Button */}
                       <Button variant="outline" size="icon" className="size-8">
                         <span className="sr-only">Send</span>
                         <Send size={16} className="text-gray-500" />

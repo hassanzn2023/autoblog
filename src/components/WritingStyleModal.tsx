@@ -17,7 +17,9 @@ const WritingStyleModal = ({ open, onOpenChange }: WritingStyleModalProps) => {
     <>
       {/* Writing Style Popover */}
       <Popover>
-        <PopoverTrigger></PopoverTrigger>
+        <PopoverTrigger asChild>
+          <span></span>
+        </PopoverTrigger>
         <PopoverContent 
           align="start" 
           className="w-[350px] p-0 bg-white border border-gray-200 shadow-md rounded-md"
