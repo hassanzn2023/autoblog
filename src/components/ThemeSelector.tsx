@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Sun, Moon, CircleHalf } from 'lucide-react';
+import { Sun, Moon, CircleHelp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 type ThemeOption = 'comfort' | 'light' | 'dark';
@@ -19,7 +19,7 @@ const ThemeSelector: React.FC<ThemeSelectorProps> = ({ currentTheme, onThemeChan
         }`}
         onClick={() => onThemeChange('comfort')}
       >
-        <CircleHalf size={18} className={currentTheme === 'comfort' ? "text-[#F76D01]" : "text-gray-500 dark:text-gray-400"} />
+        <CircleHelp size={18} className={currentTheme === 'comfort' ? "text-[#F76D01]" : "text-gray-500 dark:text-gray-400"} />
         <span className={currentTheme === 'comfort' ? "text-[#F76D01] font-medium" : "dark:text-gray-200"}>Comfort</span>
         {currentTheme === 'comfort' && (
           <Badge variant="outline" className="ml-auto border-[#F76D01] bg-orange-50 text-[#F76D01] dark:bg-gray-700">
