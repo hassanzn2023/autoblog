@@ -78,16 +78,16 @@ const AutoblogCampaigns = () => {
                   <TableHead>
                     <div className="flex items-center gap-1">
                       <span className="bg-blue-500 text-white rounded-full w-5 h-5 inline-flex items-center justify-center text-xs">i</span>
-                      Name
+                      NAME
                     </div>
                   </TableHead>
-                  <TableHead>AutoBlog</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Next Batch</TableHead>
+                  <TableHead>AUTOBLOG</TableHead>
+                  <TableHead>STATUS</TableHead>
+                  <TableHead>NEXT BATCH</TableHead>
                   <TableHead>
                     <div className="flex items-center gap-1">
                       <Clock size={14} />
-                      Last Updated
+                      LAST UPDATED
                     </div>
                   </TableHead>
                 </TableRow>
@@ -109,7 +109,7 @@ const AutoblogCampaigns = () => {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="whitespace-nowrap">{campaign.status}</TableCell>
+                    <TableCell className="whitespace-nowrap">Off</TableCell>
                     <TableCell className="whitespace-nowrap">{campaign.status}</TableCell>
                     <TableCell className="whitespace-nowrap">{campaign.nextBatch}</TableCell>
                     <TableCell className="whitespace-nowrap">{campaign.lastUpdated}</TableCell>

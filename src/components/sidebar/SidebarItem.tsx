@@ -27,12 +27,15 @@ const SidebarItem = ({
   
   const content = (
     <>
-      {icon}
+      <span className="mr-3">{icon}</span>
       <span className={textColor}>{text}</span>
       {hasSubmenu && (
-        isSubmenuOpen ? 
-          <ChevronUp size={18} className="ml-auto text-gray-400" /> : 
-          <ChevronDown size={18} className="ml-auto text-gray-400" />
+        <span className="ml-auto">
+          {isSubmenuOpen ? 
+            <ChevronUp size={18} className="text-gray-400" /> : 
+            <ChevronDown size={18} className="text-gray-400" />
+          }
+        </span>
       )}
     </>
   );

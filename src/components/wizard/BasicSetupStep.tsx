@@ -40,18 +40,17 @@ const BasicSetupStep: React.FC<BasicSetupStepProps> = ({
       </div>
 
       <div className="space-y-2">
-        <Label>{configType === 'blog' ? 'Blog Project' : 'Campaign'} Name</Label>
+        <Label>Campaign Name</Label>
         <Input 
           value={name}
           onChange={(e) => onUpdate('name', e.target.value)}
-          readOnly
         />
       </div>
 
       <div className="space-y-2">
         <Label>Description (Optional)</Label>
         <Textarea 
-          placeholder="Enter a brief description..."
+          placeholder="Enter a brief description for your campaign..."
           value={description}
           onChange={(e) => onUpdate('description', e.target.value)}
           rows={5}
