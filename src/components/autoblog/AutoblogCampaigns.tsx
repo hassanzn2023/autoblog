@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { Play, PauseCircle, Settings, MoreHorizontal } from 'lucide-react';
@@ -12,7 +12,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from '@/components/ui/badge';
-import AutoblogCampaignModal from './AutoblogCampaignModal';
 
 interface Campaign {
   id: string;
@@ -25,7 +24,6 @@ interface Campaign {
 
 const AutoblogCampaigns = () => {
   const navigate = useNavigate();
-  const [isModalOpen, setIsModalOpen] = useState(false);
   
   const campaigns: Campaign[] = [
     {

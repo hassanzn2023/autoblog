@@ -80,8 +80,8 @@ const AutoblogListPage = () => {
       <div className="max-w-[1400px] mx-auto">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-2xl font-bold">Autoblog Campaigns</h1>
-            <p className="text-gray-600">Manage and monitor your autoblogging campaigns</p>
+            <h1 className="text-2xl font-bold">Project List</h1>
+            <p className="text-gray-600">View and manage your autoblog projects</p>
           </div>
           <div className="flex gap-3">
             <Button 

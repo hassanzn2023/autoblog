@@ -11,7 +11,8 @@ const AutoblogSubmenu = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   const handleCreateProject = () => {
-    setIsModalOpen(true);
+    // Navigate to the main Autoblog page instead of opening modal directly
+    navigate('/autoblog');
   };
   
   return (
