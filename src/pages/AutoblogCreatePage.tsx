@@ -39,29 +39,29 @@ const AutoblogCreatePage = () => {
   };
   
   const goBack = () => {
-    navigate('/autoblog');
+    navigate('/autoblog/list');
   };
 
   return (
-    <div className="w-full bg-gray-50 min-h-screen px-6 py-8">
-      <div className="max-w-[1000px] mx-auto">
+    <div className="w-full bg-white min-h-screen p-6">
+      <div className="max-w-[800px] mx-auto">
         <div className="flex items-center mb-6">
           <Button 
             variant="ghost" 
             onClick={goBack}
-            className="mr-4"
+            className="mr-3"
           >
             <ArrowLeft size={18} />
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Create a New Autoblog Project</h1>
-            <p className="text-gray-600 mt-1">Set up your automatic content generation system</p>
+            <p className="text-gray-600">Set up your automatic content generation system</p>
           </div>
         </div>
         
-        <Card className="shadow-sm">
+        <Card className="shadow-sm border-gray-200">
           <CardHeader>
-            <CardTitle>Project Details</CardTitle>
+            <CardTitle className="text-xl">Project Details</CardTitle>
             <CardDescription>
               Fill in basic information about your autoblogging project
             </CardDescription>

@@ -12,6 +12,7 @@ interface SidebarItemProps {
   isSubmenuOpen?: boolean;
   onToggleSubmenu?: () => void;
   textColor?: string;
+  onClick?: () => void;
 }
 
 const SidebarItem = ({
@@ -22,7 +23,8 @@ const SidebarItem = ({
   hasSubmenu = false,
   isSubmenuOpen = false,
   onToggleSubmenu,
-  textColor = 'text-gray-600'
+  textColor = 'text-gray-600',
+  onClick
 }: SidebarItemProps) => {
   
   const content = (
@@ -40,12 +42,22 @@ const SidebarItem = ({
     </>
   );
   
+  const handleItemClick = (e: React.MouseEvent) => {
+    if (hasSubmenu) {
+      onToggleSubmenu?.();
+    }
+    if (onClick) {
+      e.preventDefault();
+      onClick();
+    }
+  };
+  
   return (
     <div className="mb-1">
-      {hasSubmenu ? (
+      {hasSubmenu || onClick ? (
         <button 
           className={`flex items-center w-full py-2 px-3 rounded-md ${active ? 'bg-orange-50' : 'hover:bg-gray-100'}`}
-          onClick={onToggleSubmenu}
+          onClick={handleItemClick}
         >
           {content}
         </button>

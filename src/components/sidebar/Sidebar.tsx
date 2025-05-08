@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Home, 
   History, 
@@ -20,10 +20,15 @@ import UpgradeButton from './UpgradeButton';
 
 const Sidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [openSubmenu, setOpenSubmenu] = useState<string | null>("autoblog");
   
   const toggleSubmenu = (name: string) => {
     setOpenSubmenu(openSubmenu === name ? null : name);
+  };
+
+  const handleAutoblogClick = () => {
+    navigate('/autoblog/list');
   };
 
   return (
@@ -61,6 +66,7 @@ const Sidebar = () => {
           onToggleSubmenu={() => toggleSubmenu("autoblog")}
           active={location.pathname.includes('/autoblog')}
           textColor={location.pathname.includes('/autoblog') ? 'text-[#F76D01] font-medium' : 'text-gray-600'}
+          onClick={handleAutoblogClick}
         />
         {openSubmenu === "autoblog" && <AutoblogSubmenu />}
         
