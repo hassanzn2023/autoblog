@@ -33,7 +33,7 @@ const BlogProjects = () => {
   };
 
   return (
-    <div className="w-full p-6">
+    <div className="w-full">
       <div className="flex flex-col space-y-6">
         <div className="flex flex-col space-y-2">
           <h1 className="text-2xl font-bold">Blog Projects</h1>
@@ -62,7 +62,7 @@ const BlogProjects = () => {
 
         <Card className="overflow-hidden border border-gray-200">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
