@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import Sidebar from './Sidebar';
+import Sidebar from './sidebar/Sidebar';
 import ProfileDropdown from './ProfileDropdown';
 
 const Layout = () => {

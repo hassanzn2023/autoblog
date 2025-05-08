@@ -1,0 +1,94 @@
+
+import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { 
+  Home, 
+  History, 
+  Pen, 
+  BookOpen, 
+  FileText
+} from 'lucide-react';
+
+import SidebarItem from './SidebarItem';
+import AutoblogSubmenu from './AutoblogSubmenu';
+import BlogSubmenu from './BlogSubmenu';
+import AutofixSubmenu from './AutofixSubmenu';
+import SidebarLogo from './SidebarLogo';
+import WorkspaceSelector from './WorkspaceSelector';
+import UpgradeButton from './UpgradeButton';
+
+const Sidebar = () => {
+  const location = useLocation();
+  const [openSubmenu, setOpenSubmenu] = useState<string | null>("autofix");
+  
+  const toggleSubmenu = (name: string) => {
+    setOpenSubmenu(openSubmenu === name ? null : name);
+  };
+
+  return (
+    <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-screen">
+      <SidebarLogo />
+      <WorkspaceSelector />
+      
+      <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+        <SidebarItem 
+          icon={<Home size={18} className={location.pathname === '/' ? 'text-seo-purple' : 'text-gray-500'} />} 
+          text="Home" 
+          to="/" 
+          active={location.pathname === '/'}
+        />
+        
+        <SidebarItem 
+          icon={<History size={18} className={location.pathname === '/history' ? 'text-seo-purple' : 'text-gray-500'} />} 
+          text="History" 
+          to="/history" 
+          active={location.pathname === '/history'}
+        />
+        
+        <SidebarItem 
+          icon={<BookOpen size={18} className={location.pathname.includes('/autoblog') ? 'text-seo-purple' : 'text-gray-500'} />} 
+          text="Auto Blog" 
+          hasSubmenu 
+          isSubmenuOpen={openSubmenu === "autoblog"}
+          onToggleSubmenu={() => toggleSubmenu("autoblog")}
+          active={location.pathname.includes('/autoblog')}
+          textColor={location.pathname.includes('/autoblog') ? 'text-seo-purple font-medium' : 'text-gray-600'}
+        />
+        {openSubmenu === "autoblog" && <AutoblogSubmenu />}
+        
+        <SidebarItem 
+          icon={<BookOpen size={18} className={location.pathname.includes('/blog') ? 'text-seo-purple' : 'text-gray-500'} />} 
+          text="Blog" 
+          hasSubmenu 
+          isSubmenuOpen={openSubmenu === "blog"}
+          onToggleSubmenu={() => toggleSubmenu("blog")}
+          active={location.pathname.includes('/blog')}
+          textColor={location.pathname.includes('/blog') ? 'text-seo-purple font-medium' : 'text-gray-600'}
+        />
+        {openSubmenu === "blog" && <BlogSubmenu />}
+        
+        <SidebarItem 
+          icon={<FileText size={18} className={location.pathname.includes('/autofix') ? 'text-seo-purple' : 'text-gray-500'} />} 
+          text="Auto Fix" 
+          hasSubmenu 
+          active={['/autofix/modes', '/autofix/articles', '/seo-checker'].some(path => location.pathname.includes(path))}
+          isSubmenuOpen={openSubmenu === "autofix"}
+          onToggleSubmenu={() => toggleSubmenu("autofix")}
+          textColor={location.pathname.includes('/autofix') ? 'text-seo-purple font-medium' : 'text-gray-600'}
+        />
+        {openSubmenu === "autofix" && <AutofixSubmenu />}
+        
+        <SidebarItem 
+          icon={<Pen size={18} className={location.pathname === '/writing-style' ? 'text-seo-purple' : 'text-gray-500'} />} 
+          text="Writing Style" 
+          to="/writing-style" 
+          active={location.pathname === '/writing-style'}
+        />
+      </nav>
+      
+      <UpgradeButton />
+    </div>
+  );
+};
+
+export default Sidebar;
