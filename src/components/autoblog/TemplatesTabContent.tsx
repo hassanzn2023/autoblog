@@ -6,7 +6,7 @@ import { Template } from '@/types/template';
 
 interface TemplatesTabContentProps {
   templates: Template[];
-  onUseTemplate: (id: string) => void;
+  onUseTemplate: (template: Template) => void;
   onPreviewTemplate: (template: Template) => void;
   onCreateTemplate: () => void;
   showEmptyCard?: boolean;
@@ -31,7 +31,7 @@ const TemplatesTabContent = ({
         <TemplateCard 
           key={template.id}
           template={template}
-          onUse={onUseTemplate}
+          onUse={(template) => onUseTemplate(template)}
           onPreview={onPreviewTemplate}
         />
       ))}

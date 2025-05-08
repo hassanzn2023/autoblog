@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/tabs";
 import CreateTemplateDialog from '@/components/autoblog/CreateTemplateDialog';
 import PreviewTemplateDialog from '@/components/autoblog/PreviewTemplateDialog';
+import SelectProjectDialog from '@/components/autoblog/SelectProjectDialog';
 import TemplatesTabContent from '@/components/autoblog/TemplatesTabContent';
 import { Template } from '@/types/template';
 import { templates } from '@/data/templates';
@@ -19,11 +20,12 @@ const AutoblogTemplatePage = () => {
   const navigate = useNavigate();
   const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] = useState(false);
   const [isPreviewTemplateDialogOpen, setIsPreviewTemplateDialogOpen] = useState(false);
+  const [isSelectProjectDialogOpen, setIsSelectProjectDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   
-  const handleUseTemplate = (templateId: string) => {
-    // Navigate to create page with template ID
-    navigate(`/autoblog/create?template=${templateId}`);
+  const handleUseTemplate = (template: Template) => {
+    setSelectedTemplate(template);
+    setIsSelectProjectDialogOpen(true);
   };
   
   const handleCreateTemplate = () => {
@@ -73,7 +75,7 @@ const AutoblogTemplatePage = () => {
           <TabsContent value="all">
             <TemplatesTabContent
               templates={templates}
-              onUseTemplate={handleUseTemplate}
+              onUseTemplate={(template) => handleUseTemplate(template)}
               onPreviewTemplate={handlePreviewTemplate}
               onCreateTemplate={handleCreateTemplate}
               filterType="all"
@@ -83,7 +85,7 @@ const AutoblogTemplatePage = () => {
           <TabsContent value="official">
             <TemplatesTabContent
               templates={templates}
-              onUseTemplate={handleUseTemplate}
+              onUseTemplate={(template) => handleUseTemplate(template)}
               onPreviewTemplate={handlePreviewTemplate}
               onCreateTemplate={handleCreateTemplate}
               filterType="official"
@@ -93,7 +95,7 @@ const AutoblogTemplatePage = () => {
           <TabsContent value="community">
             <TemplatesTabContent
               templates={templates}
-              onUseTemplate={handleUseTemplate}
+              onUseTemplate={(template) => handleUseTemplate(template)}
               onPreviewTemplate={handlePreviewTemplate}
               onCreateTemplate={handleCreateTemplate}
               filterType="community"
@@ -103,7 +105,7 @@ const AutoblogTemplatePage = () => {
           <TabsContent value="yours">
             <TemplatesTabContent
               templates={templates}
-              onUseTemplate={handleUseTemplate}
+              onUseTemplate={(template) => handleUseTemplate(template)}
               onPreviewTemplate={handlePreviewTemplate}
               onCreateTemplate={handleCreateTemplate}
               filterType="yours"
@@ -121,6 +123,12 @@ const AutoblogTemplatePage = () => {
       <PreviewTemplateDialog
         open={isPreviewTemplateDialogOpen}
         onOpenChange={setIsPreviewTemplateDialogOpen}
+        template={selectedTemplate}
+      />
+      
+      <SelectProjectDialog
+        open={isSelectProjectDialogOpen}
+        onOpenChange={setIsSelectProjectDialogOpen}
         template={selectedTemplate}
       />
     </div>

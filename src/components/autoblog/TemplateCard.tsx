@@ -5,27 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Copy, ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Template } from '@/types/template';
+import { getTypeColor } from '@/utils/templateUtils';
 
 interface TemplateCardProps {
   template: Template;
-  onUse: (id: string) => void;
+  onUse: (template: Template) => void;
   onPreview: (template: Template) => void;
 }
 
 const TemplateCard = ({ template, onUse, onPreview }: TemplateCardProps) => {
-  const getTypeColor = (type: string) => {
-    switch(type) {
-      case 'official':
-        return 'bg-purple-100 text-purple-800 hover:bg-purple-200';
-      case 'community':
-        return 'bg-blue-100 text-blue-800 hover:bg-blue-200';
-      case 'yours':
-        return 'bg-green-100 text-green-800 hover:bg-green-200';
-      default:
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
-    }
-  };
-
   return (
     <Card className="overflow-hidden hover:shadow-md transition-shadow border-gray-200">
       <CardHeader className="pb-2">
@@ -62,7 +50,7 @@ const TemplateCard = ({ template, onUse, onPreview }: TemplateCardProps) => {
           <Button
             className="bg-[#F76D01] hover:bg-[#e65d00] text-white"
             size="sm"
-            onClick={() => onUse(template.id)}
+            onClick={() => onUse(template)}
           >
             Use Template <ArrowRight size={14} className="ml-1" />
           </Button>

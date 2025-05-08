@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { templates } from '@/data/templates';
 
 interface BasicSetupStepProps {
   configType: 'blog' | 'autoblog';
@@ -27,6 +28,21 @@ const BasicSetupStep: React.FC<BasicSetupStepProps> = ({
   onUpdate,
 }) => {
   const navigate = useNavigate();
+  const [selectedTemplateName, setSelectedTemplateName] = useState<string>('');
+
+  useEffect(() => {
+    // Check if we have a template selection in localStorage
+    const templateId = localStorage.getItem('selectedTemplate');
+    if (templateId) {
+      // Find the template by ID
+      const template = templates.find(t => t.id === templateId);
+      if (template) {
+        setSelectedTemplateName(template.name);
+      }
+      // Clear localStorage so it doesn't persist if user navigates away and back
+      localStorage.removeItem('selectedTemplate');
+    }
+  }, []);
 
   const handleSettingChange = (value: string) => {
     if (value === "create-template") {
@@ -43,11 +59,14 @@ const BasicSetupStep: React.FC<BasicSetupStepProps> = ({
     <div className="space-y-6">
       <div className="space-y-2">
         <Label>Choose your preferred setting (Optional):</Label>
-        <Select onValueChange={handleSettingChange}>
+        <Select onValueChange={handleSettingChange} value={selectedTemplateName ? "template-selected" : undefined}>
           <SelectTrigger>
-            <SelectValue placeholder="-- Select a saved setting --" />
+            <SelectValue placeholder={selectedTemplateName || "-- Select a saved setting --"} />
           </SelectTrigger>
           <SelectContent>
+            {selectedTemplateName && (
+              <SelectItem value="template-selected" disabled>{selectedTemplateName}</SelectItem>
+            )}
             <SelectItem value="scratch">Start from scratch</SelectItem>
             <SelectItem value="choose-template">Choose from templates</SelectItem>
             <SelectItem value="create-template">Create a template</SelectItem>
