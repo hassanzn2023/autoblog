@@ -15,6 +15,8 @@ import AutoblogPage from "./pages/AutoblogPage";
 import AutoblogConfigPage from "./pages/AutoblogConfigPage";
 import BlogProjectsPage from "./pages/BlogProjectsPage";
 import BlogConfigPage from "./pages/BlogConfigPage";
+import HistoryPage from "./pages/HistoryPage";
+import WritingStylePage from "./pages/WritingStylePage";
 
 const queryClient = new QueryClient();
 
@@ -25,20 +27,23 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
           <Route element={<Layout />}>
+            <Route path="/" element={<Index />} />
+            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/writing-style" element={<WritingStylePage />} />
+            
             <Route path="/autofix/modes" element={<ModeSelectionPage />} />
             <Route path="/autofix/normal" element={<NormalModePage />} />
             <Route path="/autofix/pro" element={<ProModePage />} />
             <Route path="/seo-checker" element={<SEOCheckerPage />} />
             
-            {/* New Autoblog Routes */}
+            {/* Autoblog Routes */}
             <Route path="/autoblog/create" element={<AutoblogPage />} />
             <Route path="/autoblog/list" element={<AutoblogPage />} />
             <Route path="/autoblog/template" element={<AutoblogPage />} />
             <Route path="/autoblog/config/:id" element={<AutoblogConfigPage />} />
             
-            {/* New Blog Routes */}
+            {/* Blog Routes */}
             <Route path="/blog/create" element={<BlogProjectsPage />} />
             <Route path="/blog/articles" element={<BlogProjectsPage />} />
             <Route path="/blog/template" element={<BlogProjectsPage />} />
