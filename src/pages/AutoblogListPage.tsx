@@ -1,8 +1,8 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Play, PauseCircle, Settings, MoreHorizontal, Download, Info } from 'lucide-react';
+import { Play, PauseCircle, Settings, MoreHorizontal, Download, Info, PlusCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
+import AutoblogCampaignModal from '@/components/autoblog/AutoblogCampaignModal';
 
 interface Campaign {
   id: string;
@@ -32,6 +33,7 @@ interface Campaign {
 
 const AutoblogListPage = () => {
   const navigate = useNavigate();
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
   const campaigns: Campaign[] = [
     {
@@ -57,10 +59,6 @@ const AutoblogListPage = () => {
       lastUpdated: 'May 5, 11:30 AM'
     }
   ];
-
-  const handleCreateNew = () => {
-    navigate('/autoblog/create');
-  };
   
   const handleRowClick = (campaignId: string) => {
     navigate(`/autoblog/config/${campaignId}`);
@@ -105,9 +103,9 @@ const AutoblogListPage = () => {
             <Button
               variant="default"
               className="bg-[#F76D01] hover:bg-[#e65d00] flex items-center gap-2"
-              onClick={handleCreateNew}
+              onClick={() => setIsModalOpen(true)}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              <PlusCircle size={16} />
               New Campaign
             </Button>
           </div>
@@ -202,6 +200,11 @@ const AutoblogListPage = () => {
           </Table>
         </div>
       </div>
+
+      <AutoblogCampaignModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+      />
     </div>
   );
 };

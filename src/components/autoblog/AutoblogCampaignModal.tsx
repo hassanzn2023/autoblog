@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useNavigate } from 'react-router-dom';
 
 interface AutoblogCampaignModalProps {
   isOpen: boolean;
@@ -21,16 +22,17 @@ interface AutoblogCampaignModalProps {
 }
 
 const AutoblogCampaignModal: React.FC<AutoblogCampaignModalProps> = ({ isOpen, onClose }) => {
+  const navigate = useNavigate();
   const [campaignName, setCampaignName] = useState('');
   const [description, setDescription] = useState('');
 
   const handleCreate = () => {
     // Here you would handle the creation of a new campaign
     if (campaignName.trim()) {
-      // Redirect to the configuration wizard for the new campaign
-      window.location.href = `/autoblog/config/new?name=${encodeURIComponent(campaignName)}`;
+      // Instead of using window.location, use navigate for clean SPA navigation
+      navigate(`/autoblog/config/new?name=${encodeURIComponent(campaignName)}`);
+      onClose();
     }
-    onClose();
   };
 
   return (

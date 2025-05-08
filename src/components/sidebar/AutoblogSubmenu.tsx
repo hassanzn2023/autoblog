@@ -1,15 +1,17 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import SubmenuItem from './SubmenuItem';
+import AutoblogCampaignModal from '@/components/autoblog/AutoblogCampaignModal';
 
 const AutoblogSubmenu = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
   const handleCreateProject = () => {
-    navigate('/autoblog/list');
+    setIsModalOpen(true);
   };
   
   return (
@@ -31,6 +33,11 @@ const AutoblogSubmenu = () => {
         text="Project Template" 
         to="/autoblog/template" 
         active={location.pathname === '/autoblog/template'}
+      />
+      
+      <AutoblogCampaignModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
       />
     </div>
   );
