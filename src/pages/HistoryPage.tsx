@@ -49,7 +49,6 @@ const HISTORY_DATA = [
 ];
 
 const HistoryPage = () => {
-  const [activeTab, setActiveTab] = useState<'history' | 'folders'>('history');
   const [viewMode, setViewMode] = useState<'folder' | 'list'>('folder');
   
   const getStatusColor = (status: string) => {
@@ -67,23 +66,7 @@ const HistoryPage = () => {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">History</h1>
-      
-      <div className="flex items-center space-x-2 mb-6">
-        <div
-          className={`text-sm cursor-pointer ${activeTab === 'history' ? 'text-seo-purple font-medium' : 'text-gray-500'}`}
-          onClick={() => setActiveTab('history')}
-        >
-          History
-        </div>
-        <div className="text-gray-500">/</div>
-        <div
-          className={`text-sm cursor-pointer ${activeTab === 'folders' ? 'text-seo-purple font-medium' : 'text-gray-500'}`}
-          onClick={() => setActiveTab('folders')}
-        >
-          Folders
-        </div>
-      </div>
+      <h1 className="text-2xl font-bold mb-6">History</h1>
       
       <div className="flex justify-between items-center mb-6">
         <div className="flex space-x-2">
@@ -118,26 +101,6 @@ const HistoryPage = () => {
       </div>
       
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="border-b border-gray-200 px-4 py-2 flex">
-          <div
-            className={`px-4 py-2 cursor-pointer text-sm font-medium transition-colors ${
-              activeTab === 'history' ? 'text-seo-purple border-b-2 border-seo-purple' : 'text-gray-500'
-            }`}
-            onClick={() => setActiveTab('history')}
-          >
-            History
-          </div>
-          
-          <div
-            className={`px-4 py-2 cursor-pointer text-sm font-medium transition-colors ${
-              activeTab === 'folders' ? 'text-seo-purple border-b-2 border-seo-purple' : 'text-gray-500'
-            }`}
-            onClick={() => setActiveTab('folders')}
-          >
-            Folders
-          </div>
-        </div>
-        
         <Table>
           <TableHeader>
             <TableRow>
