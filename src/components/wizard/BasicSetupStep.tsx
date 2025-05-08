@@ -13,6 +13,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { templates } from '@/data/templates';
+import TemplateSelectionDialog from '@/components/autoblog/TemplateSelectionDialog';
 
 interface BasicSetupStepProps {
   configType: 'blog' | 'autoblog';
@@ -29,6 +30,7 @@ const BasicSetupStep: React.FC<BasicSetupStepProps> = ({
 }) => {
   const navigate = useNavigate();
   const [selectedTemplateName, setSelectedTemplateName] = useState<string>('');
+  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
 
   useEffect(() => {
     // Check if we have a template selection in localStorage
@@ -49,8 +51,8 @@ const BasicSetupStep: React.FC<BasicSetupStepProps> = ({
       // Navigate to template creation page
       navigate('/autoblog/template');
     } else if (value === "choose-template") {
-      // Navigate to template list page
-      navigate('/autoblog/template');
+      // Open the template selection dialog
+      setIsTemplateDialogOpen(true);
     }
     // For "scratch", we stay on the current page
   };
@@ -91,6 +93,12 @@ const BasicSetupStep: React.FC<BasicSetupStepProps> = ({
           rows={5}
         />
       </div>
+
+      {/* Template Selection Dialog */}
+      <TemplateSelectionDialog 
+        open={isTemplateDialogOpen}
+        onOpenChange={setIsTemplateDialogOpen}
+      />
     </div>
   );
 };
