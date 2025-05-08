@@ -36,39 +36,37 @@ const AutoblogCreatePage = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <h1 className="text-2xl font-bold mb-8">Create a New Autoblog Project</h1>
+    <div className="w-full max-w-[1200px] mx-auto px-6">
+      <h1 className="text-2xl font-bold mb-6 text-center">Create a New Autoblog Project</h1>
       
-      <div className="bg-white rounded-lg shadow p-6">
-        <form className="space-y-6" onSubmit={handleSubmit}>
+      <div className="bg-white rounded-lg shadow">
+        <form className="p-8 space-y-8" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="projectName" className="block text-gray-600 mb-2">Project Name</label>
+            <label className="block text-gray-700 mb-2 font-medium">Project Name</label>
             <Input 
               type="text" 
-              id="projectName" 
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F76D01]" 
-              placeholder="Enter project name"
+              placeholder="Enter project name" 
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
+              className="w-full border-gray-300"
             />
           </div>
           
           <div>
-            <label htmlFor="description" className="block text-gray-600 mb-2">Description</label>
+            <label className="block text-gray-700 mb-2 font-medium">Description</label>
             <Textarea 
-              id="description" 
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F76D01]" 
-              rows={4}
-              placeholder="Describe your autoblog project"
+              placeholder="Describe your autoblog project" 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              className="w-full border-gray-300"
+              rows={5}
             />
           </div>
           
           <div>
-            <label htmlFor="category" className="block text-gray-600 mb-2">Category</label>
+            <label className="block text-gray-700 mb-2 font-medium">Category</label>
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="w-full p-3 border border-gray-300 rounded-lg bg-white">
+              <SelectTrigger className="w-full bg-white border-gray-300">
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
@@ -84,10 +82,10 @@ const AutoblogCreatePage = () => {
             </Select>
           </div>
           
-          <div>
+          <div className="pt-4 flex justify-center">
             <Button 
               type="submit" 
-              className="bg-[#F76D01] text-white px-6 py-3 rounded-md hover:bg-[#E65D00] transition-colors"
+              className="bg-[#F76D01] hover:bg-[#e65d00] text-white px-6 py-2 rounded-md w-auto"
             >
               Create Project
             </Button>

@@ -1,17 +1,6 @@
 
 import React from 'react';
-import { Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { 
-  Table,
-  TableHeader,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody
-} from '@/components/ui/table';
-import AutoblogCampaignModal from './AutoblogCampaignModal';
 
 interface Campaign {
   id: string;
@@ -33,13 +22,6 @@ const AutoblogCampaigns = () => {
       status: 'Off',
       nextBatch: '-',
       lastUpdated: 'Jan 2, 10:44 AM'
-    },
-    {
-      id: '2',
-      name: 'قسنط',
-      status: 'Off',
-      nextBatch: '-',
-      lastUpdated: 'May 6, 9:38 PM'
     }
   ];
 
@@ -49,79 +31,67 @@ const AutoblogCampaigns = () => {
   };
 
   return (
-    <div className="w-full p-6">
-      <div className="flex flex-col space-y-6">
-        <div className="flex flex-col space-y-2">
-          <h1 className="text-2xl font-bold">Campaigns & AutoBlogs</h1>
+    <div className="w-full p-6 max-w-[1400px] mx-auto">
+      <h1 className="text-2xl font-bold mb-4">Campaigns & AutoBlogs</h1>
+      
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex justify-between items-center mb-6">
           <p className="text-gray-600">Campaigns define how your content is generated...</p>
+          
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="rounded-md">
+              Doc
+            </Button>
+            <Button variant="outline" size="sm" className="rounded-md">
+              Tutorial
+            </Button>
+            <Button 
+              onClick={() => setIsModalOpen(true)} 
+              className="bg-[#F76D01] hover:bg-[#e65d00] text-white ml-4"
+            >
+              New Campaign
+            </Button>
+          </div>
         </div>
 
-        <div className="flex justify-between items-center">
-          <div className="flex space-x-2">
-            <Button variant="outline" size="sm">Doc</Button>
-            <Button variant="outline" size="sm">Tutorial</Button>
-          </div>
-
-          <Button 
-            onClick={() => setIsModalOpen(true)} 
-            className="bg-[#F76D01] hover:bg-[#e65d00] text-white"
-          >
-            + New Campaign
-          </Button>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-3 px-4 text-gray-500 font-medium text-sm uppercase">Name</th>
+                <th className="text-left py-3 px-4 text-gray-500 font-medium text-sm uppercase">Autoblog</th>
+                <th className="text-left py-3 px-4 text-gray-500 font-medium text-sm uppercase">Status</th>
+                <th className="text-left py-3 px-4 text-gray-500 font-medium text-sm uppercase">Next Batch</th>
+                <th className="text-left py-3 px-4 text-gray-500 font-medium text-sm uppercase">Last Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {campaigns.map((campaign) => (
+                <tr 
+                  key={campaign.id} 
+                  onClick={() => handleRowClick(campaign.id)} 
+                  className="hover:bg-gray-50 cursor-pointer transition-colors border-b"
+                >
+                  <td className="py-4 px-4">
+                    <div className="flex items-center">
+                      {campaign.name}
+                      {campaign.isDefault && (
+                        <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                          Default
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-4 px-4">Off</td>
+                  <td className="py-4 px-4">{campaign.status}</td>
+                  <td className="py-4 px-4">{campaign.nextBatch}</td>
+                  <td className="py-4 px-4">{campaign.lastUpdated}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-
-        <Card className="overflow-hidden border border-gray-200">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    <div className="flex items-center gap-1">
-                      <span className="bg-blue-500 text-white rounded-full w-5 h-5 inline-flex items-center justify-center text-xs">i</span>
-                      NAME
-                    </div>
-                  </TableHead>
-                  <TableHead>AUTOBLOG</TableHead>
-                  <TableHead>STATUS</TableHead>
-                  <TableHead>NEXT BATCH</TableHead>
-                  <TableHead>
-                    <div className="flex items-center gap-1">
-                      <Clock size={14} />
-                      LAST UPDATED
-                    </div>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {campaigns.map((campaign) => (
-                  <TableRow 
-                    key={campaign.id} 
-                    onClick={() => handleRowClick(campaign.id)} 
-                    className="hover:bg-gray-50 cursor-pointer transition-colors"
-                  >
-                    <TableCell className="whitespace-nowrap">
-                      <div className="flex items-center">
-                        {campaign.name}
-                        {campaign.isDefault && (
-                          <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                            Default
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">Off</TableCell>
-                    <TableCell className="whitespace-nowrap">{campaign.status}</TableCell>
-                    <TableCell className="whitespace-nowrap">{campaign.nextBatch}</TableCell>
-                    <TableCell className="whitespace-nowrap">{campaign.lastUpdated}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
       </div>
-
-      <AutoblogCampaignModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 };
