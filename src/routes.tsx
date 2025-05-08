@@ -1,3 +1,4 @@
+
 import React from 'react';
 import Layout from './components/Layout';
 import Index from './pages/Index';
@@ -45,6 +46,10 @@ const routes = [
         element: <HistoryPage />
       },
       {
+        path: 'content-settings',
+        element: <AutoblogTemplatePage />
+      },
+      {
         path: 'autoblog',
         element: <AutoblogPage />
       },
@@ -55,10 +60,6 @@ const routes = [
       {
         path: 'autoblog/list',
         element: <AutoblogListPage />
-      },
-      {
-        path: 'autoblog/template',
-        element: <AutoblogTemplatePage />
       },
       {
         path: 'autoblog/config',
@@ -78,10 +79,6 @@ const routes = [
       },
       {
         path: 'blog/articles',
-        element: <BlogProjectsPage />
-      },
-      {
-        path: 'blog/template',
         element: <BlogProjectsPage />
       },
       {

@@ -30,16 +30,6 @@ const AutoblogSubmenu = () => {
         to="/autoblog/list" 
         active={location.pathname === '/autoblog/list'}
       />
-      <SubmenuItem 
-        text="Project Template" 
-        to="/autoblog/template" 
-        active={location.pathname === '/autoblog/template'}
-      />
-      
-      <AutoblogCampaignModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
     </div>
   );
 };

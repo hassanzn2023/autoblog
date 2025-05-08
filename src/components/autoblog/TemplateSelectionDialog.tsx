@@ -58,7 +58,7 @@ const TemplateSelectionDialog: React.FC<TemplateSelectionDialogProps> = ({
             onPreviewTemplate={() => {}} // We don't need preview functionality here
             onCreateTemplate={() => {
               onOpenChange(false);
-              navigate('/autoblog/template');
+              navigate('/content-settings');
             }}
             filterType="all"
           />

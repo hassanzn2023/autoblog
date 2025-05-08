@@ -20,11 +20,6 @@ const BlogSubmenu = () => {
         to="/blog/articles" 
         active={location.pathname === '/blog/articles'}
       />
-      <SubmenuItem 
-        text="Setting Template" 
-        to="/blog/template" 
-        active={location.pathname === '/blog/template'}
-      />
     </div>
   );
 };

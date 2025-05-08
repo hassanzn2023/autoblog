@@ -7,7 +7,8 @@ import {
   BookOpen, 
   FileText,
   Pen,
-  Sparkles
+  Sparkles,
+  Settings
 } from 'lucide-react';
 
 import SidebarItem from './SidebarItem';
@@ -51,6 +52,13 @@ const Sidebar = () => {
           text="History" 
           to="/history" 
           active={location.pathname === '/history'}
+        />
+        
+        <SidebarItem 
+          icon={<Settings size={18} className={location.pathname.includes('/content-settings') ? 'text-[#F76D01]' : 'text-gray-500'} />} 
+          text="Content Settings" 
+          to="/content-settings" 
+          active={location.pathname.includes('/content-settings')}
         />
         
         <SidebarItem 
