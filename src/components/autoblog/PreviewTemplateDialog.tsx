@@ -6,63 +6,14 @@ import { TabsList, TabsTrigger, Tabs, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Template } from '@/types/template';
+import { getTypeColor } from '@/utils/templateUtils';
 
 // Import wizard step components
 import BusinessProfileStep from '@/components/wizard/BusinessProfileStep';
 import AiContentGenerationStep from '@/components/wizard/AiContentGenerationStep';
 import LinkingSeoStep from '@/components/wizard/LinkingSeoStep';
 import MediaFormattingStep from '@/components/wizard/MediaFormattingStep';
-
-interface Template {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  type: 'official' | 'community' | 'yours';
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  // Template settings
-  businessProfile: {
-    businessType: string;
-    articleType: string;
-    readerLevel: string;
-    contentGoals: string;
-  };
-  aiContent: {
-    aiModel: string;
-    antiAiDetection: boolean;
-    articleSize: string;
-    creativityLevel: string;
-    toneOfVoice: string;
-    pointOfView: string;
-    formality: string;
-    includeFAQ: boolean;
-    customInstructions: string;
-  };
-  linkingSeo: {
-    enableInternalLinking: boolean;
-    internalLinksCount: number;
-    sitemapUrl: string;
-    enableExternalLinking: boolean;
-    externalLinksCount: number | 'automatic';
-    automateExternalLinkSelection: boolean;
-    includeExternalSources: string;
-    excludeExternalSources: string;
-    enableTargetPages: boolean;
-    autoAssignWordPressCategory: boolean;
-  };
-  mediaFormatting: {
-    imageSource: 'google' | 'ai' | 'none';
-    imagePrompt: string;
-    inArticleImagesCount: number;
-    addFeaturedImage: boolean;
-    embedYoutubeVideos: boolean;
-    includeTables: boolean;
-    includeQuotes: boolean;
-    includeLists: boolean;
-    includeBoldText: boolean;
-    includeItalicText: boolean;
-  };
-}
 
 interface PreviewTemplateDialogProps {
   open: boolean;
@@ -80,23 +31,13 @@ const PreviewTemplateDialog: React.FC<PreviewTemplateDialogProps> = ({
 
   if (!template) return null;
 
-  const getTypeColor = (type: string) => {
-    switch(type) {
-      case 'official':
-        return 'bg-purple-100 text-purple-800 hover:bg-purple-200';
-      case 'community':
-        return 'bg-blue-100 text-blue-800 hover:bg-blue-200';
-      case 'yours':
-        return 'bg-green-100 text-green-800 hover:bg-green-200';
-      default:
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
-    }
-  };
-
   const handleUseTemplate = () => {
     navigate(`/autoblog/create?template=${template.id}`);
     onOpenChange(false);
   };
+
+  // Empty function for read-only steps
+  const noopUpdate = () => {};
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -129,8 +70,7 @@ const PreviewTemplateDialog: React.FC<PreviewTemplateDialogProps> = ({
                 articleType={template.businessProfile.articleType}
                 readerLevel={template.businessProfile.readerLevel}
                 contentGoals={template.businessProfile.contentGoals}
-                onUpdate={() => {}} // Read-only in preview
-                readOnly={true}
+                onUpdate={noopUpdate}
               />
             </TabsContent>
             
@@ -145,8 +85,7 @@ const PreviewTemplateDialog: React.FC<PreviewTemplateDialogProps> = ({
                 formality={template.aiContent.formality}
                 includeFAQ={template.aiContent.includeFAQ}
                 customInstructions={template.aiContent.customInstructions}
-                onUpdate={() => {}} // Read-only in preview
-                readOnly={true}
+                onUpdate={noopUpdate}
               />
             </TabsContent>
             
@@ -162,8 +101,7 @@ const PreviewTemplateDialog: React.FC<PreviewTemplateDialogProps> = ({
                 excludeExternalSources={template.linkingSeo.excludeExternalSources}
                 enableTargetPages={template.linkingSeo.enableTargetPages}
                 autoAssignWordPressCategory={template.linkingSeo.autoAssignWordPressCategory}
-                onUpdate={() => {}} // Read-only in preview
-                readOnly={true}
+                onUpdate={noopUpdate}
               />
             </TabsContent>
             
@@ -179,8 +117,7 @@ const PreviewTemplateDialog: React.FC<PreviewTemplateDialogProps> = ({
                 includeLists={template.mediaFormatting.includeLists}
                 includeBoldText={template.mediaFormatting.includeBoldText}
                 includeItalicText={template.mediaFormatting.includeItalicText}
-                onUpdate={() => {}} // Read-only in preview
-                readOnly={true}
+                onUpdate={noopUpdate}
               />
             </TabsContent>
           </Tabs>
