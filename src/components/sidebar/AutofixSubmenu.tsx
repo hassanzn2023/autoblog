@@ -9,6 +9,11 @@ const AutofixSubmenu = () => {
   return (
     <div className="pl-2 mt-1 space-y-1">
       <SubmenuItem 
+        text="SEO Checker" 
+        to="/seo-checker" 
+        active={location.pathname === '/seo-checker'}
+      />
+      <SubmenuItem 
         text="Autofix Modes" 
         to="/autofix/modes" 
         active={location.pathname === '/autofix/modes'}
