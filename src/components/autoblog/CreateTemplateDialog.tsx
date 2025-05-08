@@ -47,12 +47,16 @@ const CreateTemplateDialog: React.FC<CreateTemplateDialogProps> = ({
   const [customInstructions, setCustomInstructions] = useState('');
   
   // Linking & SEO settings
-  const [internalLinking, setInternalLinking] = useState('automatic');
-  const [linkingStrategy, setLinkingStrategy] = useState('moderate');
-  const [addNofollow, setAddNofollow] = useState(false);
-  const [addSponsoredAttr, setAddSponsoredAttr] = useState(false);
-  const [keywordsToTarget, setKeywordsToTarget] = useState('');
-  const [metaDescription, setMetaDescription] = useState(true);
+  const [enableInternalLinking, setEnableInternalLinking] = useState(true);
+  const [internalLinksCount, setInternalLinksCount] = useState(3);
+  const [sitemapUrl, setSitemapUrl] = useState('');
+  const [enableExternalLinking, setEnableExternalLinking] = useState(true);
+  const [externalLinksCount, setExternalLinksCount] = useState<number | 'automatic'>('automatic');
+  const [automateExternalLinkSelection, setAutomateExternalLinkSelection] = useState(true);
+  const [includeExternalSources, setIncludeExternalSources] = useState('');
+  const [excludeExternalSources, setExcludeExternalSources] = useState('');
+  const [enableTargetPages, setEnableTargetPages] = useState(false);
+  const [autoAssignWordPressCategory, setAutoAssignWordPressCategory] = useState(true);
   
   // Media and formatting settings
   const [imageSource, setImageSource] = useState<'google' | 'ai' | 'none'>('ai');
@@ -117,23 +121,35 @@ const CreateTemplateDialog: React.FC<CreateTemplateDialogProps> = ({
   
   const handleUpdateLinkingSeo = (field: string, value: any) => {
     switch(field) {
-      case 'internalLinking':
-        setInternalLinking(value);
+      case 'enableInternalLinking':
+        setEnableInternalLinking(value);
         break;
-      case 'linkingStrategy':
-        setLinkingStrategy(value);
+      case 'internalLinksCount':
+        setInternalLinksCount(value);
         break;
-      case 'addNofollow':
-        setAddNofollow(value);
+      case 'sitemapUrl':
+        setSitemapUrl(value);
         break;
-      case 'addSponsoredAttr':
-        setAddSponsoredAttr(value);
+      case 'enableExternalLinking':
+        setEnableExternalLinking(value);
         break;
-      case 'keywordsToTarget':
-        setKeywordsToTarget(value);
+      case 'externalLinksCount':
+        setExternalLinksCount(value);
         break;
-      case 'metaDescription':
-        setMetaDescription(value);
+      case 'automateExternalLinkSelection':
+        setAutomateExternalLinkSelection(value);
+        break;
+      case 'includeExternalSources':
+        setIncludeExternalSources(value);
+        break;
+      case 'excludeExternalSources':
+        setExcludeExternalSources(value);
+        break;
+      case 'enableTargetPages':
+        setEnableTargetPages(value);
+        break;
+      case 'autoAssignWordPressCategory':
+        setAutoAssignWordPressCategory(value);
         break;
     }
   };
@@ -210,12 +226,16 @@ const CreateTemplateDialog: React.FC<CreateTemplateDialogProps> = ({
     setIncludeFAQ(true);
     setCustomInstructions('');
     
-    setInternalLinking('automatic');
-    setLinkingStrategy('moderate');
-    setAddNofollow(false);
-    setAddSponsoredAttr(false);
-    setKeywordsToTarget('');
-    setMetaDescription(true);
+    setEnableInternalLinking(true);
+    setInternalLinksCount(3);
+    setSitemapUrl('');
+    setEnableExternalLinking(true);
+    setExternalLinksCount('automatic');
+    setAutomateExternalLinkSelection(true);
+    setIncludeExternalSources('');
+    setExcludeExternalSources('');
+    setEnableTargetPages(false);
+    setAutoAssignWordPressCategory(true);
     
     setImageSource('ai');
     setImagePrompt('');
@@ -297,12 +317,16 @@ const CreateTemplateDialog: React.FC<CreateTemplateDialogProps> = ({
             
             <TabsContent value="linking">
               <LinkingSeoStep
-                internalLinking={internalLinking}
-                linkingStrategy={linkingStrategy}
-                addNofollow={addNofollow}
-                addSponsoredAttr={addSponsoredAttr}
-                keywordsToTarget={keywordsToTarget}
-                metaDescription={metaDescription}
+                enableInternalLinking={enableInternalLinking}
+                internalLinksCount={internalLinksCount}
+                sitemapUrl={sitemapUrl}
+                enableExternalLinking={enableExternalLinking}
+                externalLinksCount={externalLinksCount}
+                automateExternalLinkSelection={automateExternalLinkSelection}
+                includeExternalSources={includeExternalSources}
+                excludeExternalSources={excludeExternalSources}
+                enableTargetPages={enableTargetPages}
+                autoAssignWordPressCategory={autoAssignWordPressCategory}
                 onUpdate={handleUpdateLinkingSeo}
               />
             </TabsContent>
