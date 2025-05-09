@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import { Search, X, Loader, RefreshCw, Pencil, Link as LinkIcon } from 'lucide-react';
+import { Search, X, Loader, RefreshCw, Pencil, Link as LinkIcon, ExternalLink, AlertTriangle } from 'lucide-react';
 import { generateKeywordSuggestions, generateSecondaryKeywordSuggestions, extractContentFromUrl } from '@/services/openaiService';
 
 interface Keyword {
@@ -24,6 +25,7 @@ const QuickOptimizationForm = () => {
   const [content, setContent] = useState('');
   const [url, setUrl] = useState('');
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
+  const [extractionError, setExtractionError] = useState<string | null>(null);
   const [contentConfirmed, setContentConfirmed] = useState(false);
   const [primaryKeyword, setPrimaryKeyword] = useState('');
   const [secondaryKeywords, setSecondaryKeywords] = useState<string[]>([]);
@@ -36,6 +38,7 @@ const QuickOptimizationForm = () => {
   const [isGeneratingPrimary, setIsGeneratingPrimary] = useState(false);
   const [isGeneratingSecondary, setIsGeneratingSecondary] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [extractionAttempts, setExtractionAttempts] = useState(0);
   
   // Determine if the content is RTL or LTR
   const [isRtlContent, setIsRtlContent] = useState(false);
@@ -88,13 +91,23 @@ const QuickOptimizationForm = () => {
         description: "Please enter a valid URL before confirming.",
         variant: "destructive"
       });
-      return;
+      return false;
+    }
+    
+    // Add http:// prefix if not present
+    let processedUrl = url;
+    if (!/^https?:\/\//i.test(processedUrl)) {
+      processedUrl = 'https://' + processedUrl;
+      setUrl(processedUrl);
     }
     
     try {
       setIsLoadingUrl(true);
+      setExtractionError(null);
+      setExtractionAttempts(prev => prev + 1);
+      
       // Call the API to extract content from URL
-      const extractedContent = await extractContentFromUrl(url);
+      const extractedContent = await extractContentFromUrl(processedUrl);
       
       if (extractedContent) {
         setContent(extractedContent);
@@ -104,6 +117,7 @@ const QuickOptimizationForm = () => {
         });
         return true;
       } else {
+        setExtractionError("Unable to extract content from this URL");
         toast({
           title: "Extraction Failed",
           description: "Unable to extract content from this URL. Please try another URL or paste content manually.",
@@ -113,6 +127,7 @@ const QuickOptimizationForm = () => {
       }
     } catch (error) {
       console.error("Error extracting content from URL:", error);
+      setExtractionError(error instanceof Error ? error.message : "Unknown error occurred");
       toast({
         title: "Extraction Error",
         description: "An error occurred while extracting content from the URL.",
@@ -264,12 +279,8 @@ const QuickOptimizationForm = () => {
     }
   };
   
-  const handleRegeneratePrimaryKeywords = async () => {
-    await handleGeneratePrimaryKeywords();
-  };
-  
-  const handleRegenerateSecondaryKeywords = async () => {
-    await handleGenerateSecondaryKeywords();
+  const handleRetryExtraction = async () => {
+    await handleUrlExtraction();
   };
   
   const handleStartOptimization = () => {
@@ -399,12 +410,47 @@ const QuickOptimizationForm = () => {
                     onChange={(e) => setUrl(e.target.value)}
                     disabled={contentConfirmed || isLoadingUrl}
                   />
-                  {isLoadingUrl && (
-                    <div className="p-3 bg-gray-100 rounded-md flex items-center">
-                      <Loader size={20} className="animate-spin text-purple-600" />
-                    </div>
+                  {!contentConfirmed && (
+                    <Button 
+                      variant="outline" 
+                      onClick={handleUrlExtraction} 
+                      disabled={isLoadingUrl || !url.trim()}
+                      className="whitespace-nowrap"
+                    >
+                      {isLoadingUrl ? (
+                        <Loader size={16} className="mr-2 animate-spin" />
+                      ) : (
+                        <ExternalLink size={16} className="mr-2" />
+                      )}
+                      Extract
+                    </Button>
                   )}
                 </div>
+                
+                {isLoadingUrl && (
+                  <div className="p-4 border border-gray-200 rounded-md mb-4">
+                    <div className="flex items-center justify-center space-x-2">
+                      <Loader size={20} className="animate-spin text-purple-600" />
+                      <span>Extracting content from URL... This may take a moment.</span>
+                    </div>
+                  </div>
+                )}
+
+                {extractionError && !isLoadingUrl && (
+                  <div className="p-4 border border-red-200 bg-red-50 rounded-md mb-4">
+                    <div className="flex items-center">
+                      <AlertTriangle size={20} className="text-red-500 mr-2" />
+                      <div className="flex-1">
+                        <p className="font-medium text-red-600">Extraction Failed</p>
+                        <p className="text-sm text-red-500">{extractionError}</p>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={handleRetryExtraction} className="whitespace-nowrap">
+                        <RefreshCw size={14} className="mr-1" />
+                        Retry
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 
                 {content && !contentConfirmed && (
                   <div className="mb-4">
@@ -412,6 +458,9 @@ const QuickOptimizationForm = () => {
                       <div className="font-medium flex items-center">
                         <LinkIcon size={16} className="mr-2" /> 
                         <span>Content from URL</span>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        You can edit the extracted content below
                       </div>
                     </div>
                     <div className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'}`}>
@@ -425,24 +474,16 @@ const QuickOptimizationForm = () => {
                         className="mb-4"
                       />
                     </div>
-                  </div>
-                )}
-                
-                {!contentConfirmed && (
-                  <div className="text-center mt-4">
-                    <Button 
-                      variant="seoButton" 
-                      onClick={handleContentConfirm}
-                      disabled={isLoadingUrl}
-                      className="z-10 relative"
-                    >
-                      {isLoadingUrl ? (
-                        <>
-                          <Loader size={16} className="mr-2 animate-spin" />
-                          Extracting Content...
-                        </>
-                      ) : content ? "Confirm Content" : "Extract Content"}
-                    </Button>
+                    
+                    <div className="text-center mt-6">
+                      <Button 
+                        variant="seoButton" 
+                        onClick={handleContentConfirm}
+                        className="z-10 relative"
+                      >
+                        Confirm Content
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>

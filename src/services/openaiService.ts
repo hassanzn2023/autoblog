@@ -1,6 +1,6 @@
-
 // OpenAI service for SEO analysis and keyword suggestions
 import axios from 'axios';
+import { extractContentFromUrl as extractContent } from './contentExtractorService';
 
 const OPENAI_API_KEY = "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";
 
@@ -9,64 +9,23 @@ interface KeywordSuggestion {
   text: string;
 }
 
-// Function to extract content from URL
+// Function to extract content from URL using the improved extraction service
 export const extractContentFromUrl = async (url: string): Promise<string> => {
   try {
     console.info(`Extracting content from URL: ${url}`);
     
-    // For demo purposes, you might want to replace this with an actual API call
-    // The following is a simulated response after a delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    const extractedData = await extractContent(url);
     
-    // In production, this should be replaced with an actual API call 
-    // to a service that extracts content from URLs
-    // Example:
-    // const response = await fetch('/api/extract-url-content', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ url })
-    // });
-    // const data = await response.json();
-    // return data.content;
-
-    // Mock content extraction based on URL
-    if (url.includes('almayadeen.net')) {
-      return `
-        <h1>عمليتين ضد الاحتلال الإسرائيلي</h1>
-        <p>أعلنت المقاومة الفلسطينية اليوم تنفيذ عمليتين نوعيتين ضد قوات الاحتلال الإسرائيلي.</p>
-        <h2>تفاصيل العمليات</h2>
-        <p>العملية الأولى استهدفت موقعاً عسكرياً في محيط قطاع غزة، فيما استهدفت العملية الثانية حاجزاً للاحتلال في الضفة الغربية.</p>
-        <p>وأكدت كتائب القسام مسؤوليتها عن العملية الأولى، فيما أعلنت سرايا القدس مسؤوليتها عن العملية الثانية.</p>
-        <img src="https://example.com/resistance.jpg" alt="صورة توضيحية للمقاومة" />
-        <h2>رد الاحتلال</h2>
-        <p>من جانبه، اعترف جيش الاحتلال بمقتل جندي وإصابة 3 آخرين في العمليتين، فيما توعد بالرد.</p>
-        <p>وقد شنت طائرات الاحتلال غارات على عدة مواقع في قطاع غزة، مدعية أنها تستهدف مواقع للمقاومة.</p>
-        <h3>مواقف دولية</h3>
-        <p>دعت الأمم المتحدة إلى ضبط النفس وتجنب التصعيد في المنطقة.</p>
-      `;
+    if (extractedData.error) {
+      console.error("Error in content extraction:", extractedData.error);
     }
     
-    if (url.includes('awalseo.com') || url.includes('example.com')) {
-      return `<h1>Extracted Content from ${url}</h1>
-      <p>This is the automatically extracted content from the provided URL. In a real production environment, this would contain the actual content scraped from the webpage.</p>
-      <h2>Features of Content Extraction</h2>
-      <ul>
-        <li>Extracts main article text</li>
-        <li>Preserves heading structure</li>
-        <li>Maintains formatting</li>
-        <li>Keeps important images</li>
-      </ul>
-      <p>The extracted content is ready for SEO analysis and optimization suggestions.</p>
-      <p><a href="${url}">Original Source</a></p>`;
-    }
-    
-    // Default response if URL doesn't match predefined patterns
-    return `<h1>Content from ${url}</h1>
-    <p>This is simulated content extraction. In a production environment, this would contain the actual content from the provided URL.</p>`;
+    // Return the HTML content
+    return extractedData.content || `<h1>Unable to extract content from ${url}</h1><p>Please try another URL or paste your content manually.</p>`;
     
   } catch (error) {
     console.error("Error extracting content from URL:", error);
-    throw error;
+    return `<h1>Error extracting content</h1><p>Could not extract content from ${url}. Please try again or paste your content manually.</p>`;
   }
 };
 
