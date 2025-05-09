@@ -1,8 +1,8 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Link, Upload, RefreshCw, Search, Pencil, AlertTriangle, Check, Loader } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { Editor } from '@tinymce/tinymce-react';
 import { 
   generateKeywordSuggestions, 
   generateSecondaryKeywordSuggestions,
@@ -95,25 +95,27 @@ const Recommendation = ({ status, text, action }: RecommendationProps) => {
   );
 };
 
-// Calculate content stats
+// Calculate content stats - Enhanced to handle HTML content
 const calculateContentStats = (content: string) => {
   if (!content) return { words: 0, headings: 0, paragraphs: 0, images: 0 };
   
+  // Create a temporary DOM element to parse the HTML content
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = content;
+  
+  // Get plain text to count words
+  const plainText = tempDiv.textContent || tempDiv.innerText || '';
   // Count words (split by spaces and filter out empty strings)
-  const words = content.split(/\s+/).filter(word => word.length > 0).length;
+  const words = plainText.split(/\s+/).filter(word => word.length > 0).length;
   
-  // Count headings (approximate by looking for # markdown or h1-h6 tags)
-  const headingRegex = /^#+\s+.+$|<h[1-6]>.*<\/h[1-6]>/gim;
-  const headings = (content.match(headingRegex) || []).length;
+  // Count headings
+  const headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').length;
   
-  // Count paragraphs (look for double newlines or <p> tags)
-  const paragraphRegex = /\n\s*\n|<p>.*?<\/p>/gs;
-  const paragraphs = (content.match(paragraphRegex) || []).length || 
-                    content.split(/\n+/).filter(p => p.trim().length > 0).length;
+  // Count paragraphs
+  const paragraphs = tempDiv.querySelectorAll('p').length;
   
-  // Count image references (approximate by looking for markdown or HTML img tags)
-  const imageRegex = /!\[.*?\]\(.*?\)|<img.*?>/gi;
-  const images = (content.match(imageRegex) || []).length;
+  // Count images
+  const images = tempDiv.querySelectorAll('img').length;
   
   return { words, headings, paragraphs, images };
 };
@@ -344,9 +346,8 @@ const SEOCheckerResult = () => {
           
           <div className="md:col-span-3">
             <div className="bg-white rounded-lg border border-gray-200 p-6 h-full">
-              <pre className="whitespace-pre-wrap text-sm font-mono">
-                {content}
-              </pre>
+              {/* Render HTML content safely instead of using pre tag */}
+              <div className="text-sm" dangerouslySetInnerHTML={{ __html: content }}></div>
             </div>
           </div>
         </div>
@@ -373,9 +374,17 @@ const QuickOptimizationForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [fetchingUrl, setFetchingUrl] = useState(false);
   
+  const editorRef = useRef<any>(null);
+  
   const handleContentConfirm = async () => {
+    // Get content from rich text editor if that's the selected method
+    let contentToUse = content;
+    if (contentMethod === 'text' && editorRef.current) {
+      contentToUse = editorRef.current.getContent();
+    }
+    
     // Validate content based on selected method
-    if (contentMethod === 'text' && !content.trim()) {
+    if (contentMethod === 'text' && !contentToUse.trim()) {
       toast({
         title: "Content Required",
         description: "Please add your content before confirming.",
@@ -411,13 +420,23 @@ const QuickOptimizationForm = () => {
           toast({
             title: "URL Extraction Warning",
             description: "The extracted content seems too short. Please check the URL or try a different method.",
-            variant: "default"
+            variant: "warning"
           });
         }
-        setContent(extractedContent);
+        
+        // Set the extracted content into the editor
+        if (editorRef.current) {
+          editorRef.current.setContent(extractedContent);
+          contentToUse = extractedContent;
+        } else {
+          setContent(extractedContent);
+          contentToUse = extractedContent;
+        }
+        
         toast({
           title: "URL Content Extracted",
           description: "Successfully extracted content from the URL.",
+          variant: "success"
         });
       } catch (error) {
         toast({
@@ -435,7 +454,15 @@ const QuickOptimizationForm = () => {
     if (contentMethod === 'file' && contentFile) {
       try {
         const text = await readFileAsText(contentFile);
-        setContent(text);
+        
+        // Set the content into the editor
+        if (editorRef.current) {
+          editorRef.current.setContent(text);
+          contentToUse = text;
+        } else {
+          setContent(text);
+          contentToUse = text;
+        }
       } catch (error) {
         toast({
           title: "File Reading Failed",
@@ -446,16 +473,19 @@ const QuickOptimizationForm = () => {
       }
     }
     
+    // Save the content and mark as confirmed
+    setContent(contentToUse);
     setContentConfirmed(true);
     toast({
       title: "Content Confirmed",
       description: "Your content has been added successfully.",
+      variant: "success"
     });
     
     // Generate primary keyword suggestions after content is confirmed
     setIsLoading(true);
     try {
-      const suggestions = await generateKeywordSuggestions(content);
+      const suggestions = await generateKeywordSuggestions(contentToUse);
       setPrimaryKeywordSuggestions(suggestions);
     } catch (error) {
       console.error("Error getting keyword suggestions:", error);
@@ -701,13 +731,37 @@ const QuickOptimizationForm = () => {
             </div>
             
             {contentMethod === 'text' && (
-              <Textarea 
-                className="w-full h-32"
-                placeholder="Paste your article content here..."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                disabled={contentConfirmed}
-              />
+              <div className="border border-gray-200 rounded-lg">
+                {!contentConfirmed ? (
+                  <Editor
+                    onInit={(evt, editor) => editorRef.current = editor}
+                    initialValue=""
+                    init={{
+                      height: 300,
+                      menubar: false,
+                      plugins: [
+                        'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                        'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                        'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount', 'paste'
+                      ],
+                      toolbar: 'undo redo | formatselect | ' +
+                      'bold italic backcolor | alignleft aligncenter ' +
+                      'alignright alignjustify | bullist numlist outdent indent | ' +
+                      'removeformat | help',
+                      content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                      paste_data_images: true, // Allow pasting images from clipboard
+                      paste_retain_style_properties: 'all', // Keep all styles when pasting
+                      paste_webkit_styles: 'all', // Specifically for webkit browsers
+                      paste_merge_formats: true, // Merge format when pasting
+                      paste_convert_word_fake_lists: true, // Convert Word lists to proper lists
+                      paste_remove_styles_if_webkit: false,
+                      directionality: 'auto' // Support both RTL and LTR text
+                    }}
+                  />
+                ) : (
+                  <div className="min-h-[300px] p-4 bg-gray-50 rounded-lg" dangerouslySetInnerHTML={{ __html: content }}></div>
+                )}
+              </div>
             )}
             
             {contentMethod === 'link' && (
@@ -726,6 +780,10 @@ const QuickOptimizationForm = () => {
                     <span>Fetching content from URL...</span>
                   </div>
                 )}
+                
+                {contentConfirmed && contentMethod === 'link' && (
+                  <div className="min-h-[200px] p-4 border border-gray-200 bg-gray-50 rounded-lg" dangerouslySetInnerHTML={{ __html: content }}></div>
+                )}
               </div>
             )}
             
@@ -738,11 +796,12 @@ const QuickOptimizationForm = () => {
                   onChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
                       setContentFile(e.target.files[0]);
-                      setContent(e.target.files[0].name); // Just for display
+                      // Only set name for display now, actual content will be read on confirm
+                      setContent(e.target.files[0].name); 
                     }
                   }}
                   disabled={contentConfirmed}
-                  accept=".txt,.doc,.docx,.pdf,.md"
+                  accept=".txt,.doc,.docx,.pdf,.md,.html,.htm"
                 />
                 <label 
                   htmlFor="file-upload"
@@ -750,7 +809,13 @@ const QuickOptimizationForm = () => {
                 >
                   Click to upload or drag and drop
                 </label>
-                {content && contentMethod === 'file' && <p className="mt-2 text-sm text-gray-500">{content}</p>}
+                {content && contentMethod === 'file' && contentFile && (
+                  <p className="mt-2 text-sm text-gray-500">{contentFile.name}</p>
+                )}
+                
+                {contentConfirmed && contentMethod === 'file' && (
+                  <div className="mt-4 min-h-[200px] p-4 border border-gray-200 bg-gray-50 rounded-lg text-left" dangerouslySetInnerHTML={{ __html: content }}></div>
+                )}
               </div>
             )}
             
