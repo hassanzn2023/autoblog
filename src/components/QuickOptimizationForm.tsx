@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
@@ -408,19 +407,22 @@ const QuickOptimizationForm = () => {
                 </div>
                 
                 {content && !contentConfirmed && (
-                  <div className="mb-4 border border-gray-200 rounded-md p-4">
+                  <div className="mb-4">
                     <div className="mb-2 flex items-center justify-between">
                       <div className="font-medium flex items-center">
                         <LinkIcon size={16} className="mr-2" /> 
-                        <span>Preview from URL</span>
+                        <span>Content from URL</span>
                       </div>
                     </div>
-                    <div className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'} max-h-60 overflow-y-auto border-t pt-2`}>
+                    <div className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'}`}>
                       <ReactQuill 
                         theme="snow" 
                         value={content} 
-                        readOnly={true}
-                        modules={{ toolbar: false }}
+                        onChange={setContent} 
+                        modules={modules} 
+                        formats={formats}
+                        placeholder="Edit content from URL here..."
+                        className="mb-4"
                       />
                     </div>
                   </div>

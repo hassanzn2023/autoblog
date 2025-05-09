@@ -1,3 +1,4 @@
+
 // OpenAI service for SEO analysis and keyword suggestions
 import axios from 'axios';
 
@@ -29,6 +30,22 @@ export const extractContentFromUrl = async (url: string): Promise<string> => {
     // return data.content;
 
     // Mock content extraction based on URL
+    if (url.includes('almayadeen.net')) {
+      return `
+        <h1>عمليتين ضد الاحتلال الإسرائيلي</h1>
+        <p>أعلنت المقاومة الفلسطينية اليوم تنفيذ عمليتين نوعيتين ضد قوات الاحتلال الإسرائيلي.</p>
+        <h2>تفاصيل العمليات</h2>
+        <p>العملية الأولى استهدفت موقعاً عسكرياً في محيط قطاع غزة، فيما استهدفت العملية الثانية حاجزاً للاحتلال في الضفة الغربية.</p>
+        <p>وأكدت كتائب القسام مسؤوليتها عن العملية الأولى، فيما أعلنت سرايا القدس مسؤوليتها عن العملية الثانية.</p>
+        <img src="https://example.com/resistance.jpg" alt="صورة توضيحية للمقاومة" />
+        <h2>رد الاحتلال</h2>
+        <p>من جانبه، اعترف جيش الاحتلال بمقتل جندي وإصابة 3 آخرين في العمليتين، فيما توعد بالرد.</p>
+        <p>وقد شنت طائرات الاحتلال غارات على عدة مواقع في قطاع غزة، مدعية أنها تستهدف مواقع للمقاومة.</p>
+        <h3>مواقف دولية</h3>
+        <p>دعت الأمم المتحدة إلى ضبط النفس وتجنب التصعيد في المنطقة.</p>
+      `;
+    }
+    
     if (url.includes('awalseo.com') || url.includes('example.com')) {
       return `<h1>Extracted Content from ${url}</h1>
       <p>This is the automatically extracted content from the provided URL. In a real production environment, this would contain the actual content scraped from the webpage.</p>
