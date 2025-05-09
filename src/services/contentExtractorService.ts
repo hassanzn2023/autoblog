@@ -1,5 +1,6 @@
 
 import axios from 'axios';
+import { Readability } from '@mozilla/readability';
 import DOMPurify from 'dompurify';
 
 // Interface for the extracted content
@@ -15,7 +16,7 @@ export interface ExtractedContent {
 }
 
 /**
- * Extract content from a URL using CORS proxies
+ * Extract content from a URL using multiple methods
  */
 export async function extractContentFromUrl(url: string): Promise<ExtractedContent> {
   try {
@@ -24,8 +25,10 @@ export async function extractContentFromUrl(url: string): Promise<ExtractedConte
     // Try different CORS proxies in sequence
     const proxies = [
       `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      `https://corsproxy.io/?${encodeURIComponent(url)}`,
       `https://cors-anywhere.herokuapp.com/${url}`,
-      `https://corsproxy.io/?${encodeURIComponent(url)}`
+      `https://crossorigin.me/${url}`,
+      `https://thingproxy.freeboard.io/fetch/${url}`
     ];
     
     let html: string = '';
@@ -34,16 +37,22 @@ export async function extractContentFromUrl(url: string): Promise<ExtractedConte
     // Try each proxy until one works
     for (const proxyUrl of proxies) {
       try {
+        console.log(`Trying proxy: ${proxyUrl}`);
         const response = await axios.get(proxyUrl, {
-          timeout: 15000,
+          timeout: 20000,
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml',
+            'Accept-Language': 'en-US,en;q=0.9,ar;q=0.8'
           }
         });
         
         html = response.data;
-        console.log('Content extracted successfully using proxy:', proxyUrl);
-        break;
+        if (html && html.length > 0) {
+          console.log('Content extracted successfully using proxy:', proxyUrl);
+          console.log('HTML length:', html.length);
+          break;
+        }
       } catch (err) {
         console.log(`Proxy ${proxyUrl} failed:`, err);
         error = err instanceof Error ? err : new Error('Unknown error');
@@ -51,17 +60,32 @@ export async function extractContentFromUrl(url: string): Promise<ExtractedConte
       }
     }
     
-    // If all proxies failed, throw the last error
-    if (!html && error) {
-      throw error;
+    // If all proxies failed, try direct fetch as a last resort
+    if (!html) {
+      try {
+        console.log('All proxies failed, trying direct fetch');
+        const response = await axios.get(url, {
+          timeout: 15000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
+        });
+        html = response.data;
+        console.log('Content extracted successfully using direct fetch');
+      } catch (directErr) {
+        console.log('Direct fetch failed:', directErr);
+        // If direct fetch also failed, we'll use the last error from the proxies
+        if (error) throw error;
+        throw directErr;
+      }
     }
     
     // If we got the HTML, parse it
-    if (html) {
+    if (html && html.length > 0) {
       return parseHtmlContent(html, url);
     }
     
-    // Fallback to mock content
+    // Fallback to mock content if no HTML was retrieved
     return getFallbackContent(url);
   } catch (error) {
     console.error("Error extracting content:", error);
@@ -79,13 +103,45 @@ export async function extractContentFromUrl(url: string): Promise<ExtractedConte
 }
 
 /**
- * Parse HTML content using browser-friendly methods
+ * Parse HTML content using Readability.js and browser-friendly methods
  */
 function parseHtmlContent(html: string, baseUrl: string): ExtractedContent {
   try {
+    console.log("Parsing HTML content...");
+    
     // Create a DOM parser
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
+    
+    // Use Readability to extract the main content
+    const readability = new Readability(doc);
+    const article = readability.parse();
+    
+    console.log("Readability parsing result:", article ? "Success" : "Failed");
+    
+    if (article) {
+      // Successfully parsed with Readability
+      // Fix relative URLs in the content
+      const contentDiv = document.createElement('div');
+      contentDiv.innerHTML = article.content;
+      fixRelativeUrls(contentDiv, baseUrl);
+      
+      // Sanitize content
+      const sanitizedContent = DOMPurify.sanitize(contentDiv.innerHTML);
+      
+      return {
+        title: article.title || extractMetaProperty(doc, 'og:title') || "Extracted Content",
+        content: sanitizedContent,
+        textContent: article.textContent || "",
+        length: article.length || 0,
+        excerpt: article.excerpt || "",
+        byline: article.byline || extractMetaProperty(doc, 'author') || "",
+        siteName: article.siteName || extractMetaProperty(doc, 'og:site_name') || extractSiteNameFromUrl(baseUrl)
+      };
+    }
+    
+    // Fallback to our custom extraction if Readability fails
+    console.log("Falling back to custom extraction...");
     
     // Get title
     const title = doc.querySelector('title')?.textContent || extractMetaProperty(doc, 'og:title') || "Extracted Content";
@@ -151,7 +207,10 @@ function findMainContent(doc: Document): HTMLElement | null {
     'main', 'article', '[role="main"]',
     '.content', '.article', '.post', '.entry-content',
     '#content', '#main-content', '#article-content',
-    'article', '.article-body', '.story-body'
+    'article', '.article-body', '.story-body',
+    // Arabic content selectors
+    '.article-text', '.node-body', '.field-body',
+    '.article-content', '.post-content', '.entry'
   ];
   
   for (const selector of selectors) {
@@ -175,7 +234,10 @@ function removeUnwantedElements(element: HTMLElement): void {
     '.ads', '.advertisement', '.ad-container',
     '.sidebar', '.comments', '.related-posts',
     '[data-ad]', '[class*="advert"]', '[id*="advert"]',
-    '.social-share', '.share-buttons'
+    '.social-share', '.share-buttons',
+    // Arabic sites common ad selectors
+    '.ads-block', '.advertisement-area', '.social-media',
+    '.newsletter-subscription', '.popup-container'
   ];
   
   // Find all unwanted elements
@@ -204,11 +266,12 @@ function fixRelativeUrls(element: HTMLElement, baseUrl: string): void {
     // Fix links
     const links = element.querySelectorAll('a');
     links.forEach(link => {
-      if (link.href) {
-        if (link.href.startsWith('/')) {
-          link.href = `${baseDomain}${link.href}`;
-        } else if (!link.href.startsWith('http')) {
-          link.href = `${baseUrl}/${link.href}`;
+      const href = link.getAttribute('href');
+      if (href) {
+        if (href.startsWith('/')) {
+          link.setAttribute('href', `${baseDomain}${href}`);
+        } else if (!href.startsWith('http')) {
+          link.setAttribute('href', `${baseUrl}/${href}`);
         }
       }
     });
@@ -216,11 +279,12 @@ function fixRelativeUrls(element: HTMLElement, baseUrl: string): void {
     // Fix images
     const images = element.querySelectorAll('img');
     images.forEach(img => {
-      if (img.src) {
-        if (img.src.startsWith('/')) {
-          img.src = `${baseDomain}${img.src}`;
-        } else if (!img.src.startsWith('http')) {
-          img.src = `${baseUrl}/${img.src}`;
+      const src = img.getAttribute('src');
+      if (src) {
+        if (src.startsWith('/')) {
+          img.setAttribute('src', `${baseDomain}${src}`);
+        } else if (!src.startsWith('http')) {
+          img.setAttribute('src', `${baseUrl}/${src}`);
         }
       }
     });
