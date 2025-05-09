@@ -1,3 +1,4 @@
+
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import DOMPurify from 'dompurify';
@@ -146,7 +147,12 @@ function parseHtmlAlternative(html: string, baseUrl: string): ExtractedContent {
       // Otherwise, extract all paragraphs and headings
       const bodyElement = document.body;
       const elements = bodyElement.querySelectorAll('p, h1, h2, h3, h4, h5, h6, img, ul, ol');
-      content = Array.from(elements).map(el => el.outerHTML).join('');
+      
+      // Fixed: Add proper type assertion for elements
+      content = Array.from(elements).map(el => {
+        const htmlElement = el as Element; // Type assertion
+        return htmlElement.outerHTML;
+      }).join('');
     }
     
     // Clean and fix content

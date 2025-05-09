@@ -599,7 +599,7 @@ const QuickOptimizationForm = () => {
                     </div>
                     <button 
                       className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md flex items-center gap-1 transition-colors"
-                      onClick={handleRegeneratePrimaryKeywords}
+                      onClick={handleGeneratePrimaryKeywords}
                       disabled={isGeneratingPrimary}
                     >
                       {isGeneratingPrimary ? (
@@ -694,7 +694,7 @@ const QuickOptimizationForm = () => {
                     </div>
                     <button 
                       className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md flex items-center gap-1 transition-colors"
-                      onClick={handleRegenerateSecondaryKeywords}
+                      onClick={handleGenerateSecondaryKeywords}
                       disabled={isGeneratingSecondary}
                     >
                       {isGeneratingSecondary ? (
