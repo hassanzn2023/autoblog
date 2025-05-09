@@ -257,7 +257,7 @@ const QuickOptimizationForm = () => {
           toast({
             title: "URL Extraction Warning",
             description: "The extracted content seems too short. Please check the URL or try a different method.",
-            variant: "warning"
+            variant: "default"
           });
         }
         setContent(extractedContent);
