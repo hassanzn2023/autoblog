@@ -1,8 +1,6 @@
 
-import { JSDOM } from 'jsdom';
-import { Readability } from '@mozilla/readability';
-import DOMPurify from 'dompurify';
 import axios from 'axios';
+import DOMPurify from 'dompurify';
 
 // Interface for the extracted content
 export interface ExtractedContent {
@@ -17,41 +15,54 @@ export interface ExtractedContent {
 }
 
 /**
- * Extract content from a URL using Readability.js
+ * Extract content from a URL using CORS proxies
  */
 export async function extractContentFromUrl(url: string): Promise<ExtractedContent> {
   try {
     console.log(`Attempting to extract content from: ${url}`);
     
-    // First try: direct fetch with CORS proxy
-    try {
-      const response = await axios.get(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, {
-        timeout: 10000,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-      });
-      
-      const html = response.data;
-      return parseHtmlWithReadability(html, url);
-    } catch (corsError) {
-      console.log('CORS proxy failed, trying alternative:', corsError);
-      
-      // Second try: alternative CORS proxy
+    // Try different CORS proxies in sequence
+    const proxies = [
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      `https://cors-anywhere.herokuapp.com/${url}`,
+      `https://corsproxy.io/?${encodeURIComponent(url)}`
+    ];
+    
+    let html: string = '';
+    let error: Error | null = null;
+    
+    // Try each proxy until one works
+    for (const proxyUrl of proxies) {
       try {
-        const response = await axios.get(`https://cors-anywhere.herokuapp.com/${url}`, {
-          timeout: 10000
+        const response = await axios.get(proxyUrl, {
+          timeout: 15000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
         });
         
-        const html = response.data;
-        return parseHtmlWithReadability(html, url);
-      } catch (corsError2) {
-        console.log('Both CORS proxies failed, using fallback:', corsError2);
-        
-        // Fallback: Use mock content based on URL pattern
-        return getFallbackContent(url);
+        html = response.data;
+        console.log('Content extracted successfully using proxy:', proxyUrl);
+        break;
+      } catch (err) {
+        console.log(`Proxy ${proxyUrl} failed:`, err);
+        error = err instanceof Error ? err : new Error('Unknown error');
+        // Continue to the next proxy
       }
     }
+    
+    // If all proxies failed, throw the last error
+    if (!html && error) {
+      throw error;
+    }
+    
+    // If we got the HTML, parse it
+    if (html) {
+      return parseHtmlContent(html, url);
+    }
+    
+    // Fallback to mock content
+    return getFallbackContent(url);
   } catch (error) {
     console.error("Error extracting content:", error);
     return {
@@ -68,156 +79,187 @@ export async function extractContentFromUrl(url: string): Promise<ExtractedConte
 }
 
 /**
- * Parse HTML content using Readability
+ * Parse HTML content using browser-friendly methods
  */
-function parseHtmlWithReadability(html: string, baseUrl: string): ExtractedContent {
+function parseHtmlContent(html: string, baseUrl: string): ExtractedContent {
   try {
-    const window = new JSDOM(html, {
-      url: baseUrl
-    }).window;
+    // Create a DOM parser
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
     
-    // Create a new Readability object
-    const reader = new Readability(window.document);
+    // Get title
+    const title = doc.querySelector('title')?.textContent || extractMetaProperty(doc, 'og:title') || "Extracted Content";
     
-    // Parse the content
-    const article = reader.parse();
+    // Try to find main content container
+    let contentElement = findMainContent(doc);
     
-    if (!article) {
-      throw new Error("Failed to extract article content");
+    // If no main content found, use the body
+    if (!contentElement) {
+      contentElement = doc.body;
     }
     
-    // Sanitize the HTML content to prevent XSS
-    const { window: dompurifyWindow } = new JSDOM('');
-    const purify = DOMPurify(dompurifyWindow);
+    // Clone the content to avoid modifying the original
+    const contentClone = contentElement.cloneNode(true) as HTMLElement;
+    
+    // Remove script tags, ad elements, and other unwanted elements
+    removeUnwantedElements(contentClone);
     
     // Fix relative URLs in the HTML
-    const fixedContent = fixRelativeUrls(article.content, baseUrl);
-    const sanitizedContent = purify.sanitize(fixedContent);
+    fixRelativeUrls(contentClone, baseUrl);
+    
+    // Get the content HTML
+    const contentHtml = contentClone.innerHTML;
+    
+    // Sanitize content
+    const sanitizedContent = DOMPurify.sanitize(contentHtml);
+    
+    // Extract text content
+    const textContent = contentClone.textContent || "";
+    
+    // Extract excerpt (first 150 characters)
+    const excerpt = textContent.length > 150
+      ? textContent.substring(0, 150) + "..."
+      : textContent;
+    
+    // Extract site name
+    const siteName = extractMetaProperty(doc, 'og:site_name') || extractSiteNameFromUrl(baseUrl);
+    
+    // Extract author
+    const byline = extractMetaProperty(doc, 'author') || extractMetaProperty(doc, 'og:article:author') || "";
     
     return {
-      title: article.title || "Extracted Content",
+      title,
       content: sanitizedContent,
-      textContent: article.textContent || "",
-      length: article.length,
-      excerpt: article.excerpt || "",
-      byline: article.byline || "",
-      siteName: article.siteName || ""
+      textContent: textContent.replace(/\s+/g, ' ').trim(),
+      length: textContent.length,
+      excerpt,
+      byline,
+      siteName
     };
   } catch (error) {
     console.error("Error parsing HTML:", error);
-    
-    // Alternative parser as fallback if Readability fails
-    return parseHtmlAlternative(html, baseUrl);
-  }
-}
-
-/**
- * Alternative HTML parser as fallback
- */
-function parseHtmlAlternative(html: string, baseUrl: string): ExtractedContent {
-  try {
-    const dom = new JSDOM(html);
-    const document = dom.window.document;
-    
-    // Extract title
-    const titleElement = document.querySelector('title');
-    const title = titleElement ? titleElement.textContent : "Extracted Content";
-    
-    // Try to find main content container
-    let contentElement = null;
-    const selectors = [
-      'main', 'article', '[role="main"]',
-      '.content', '.article', '.post', '.entry-content',
-      '#content', '#main-content', '#article-content'
-    ];
-    
-    for (const selector of selectors) {
-      const element = document.querySelector(selector);
-      if (element) {
-        contentElement = element;
-        break;
-      }
-    }
-    
-    let content = '';
-    if (contentElement) {
-      // If we found a content container, use its HTML
-      content = contentElement.innerHTML;
-    } else {
-      // Otherwise, extract all paragraphs and headings
-      const bodyElement = document.body;
-      const elements = bodyElement.querySelectorAll('p, h1, h2, h3, h4, h5, h6, img, ul, ol');
-      
-      // Fixed: Add proper type assertion for elements
-      content = Array.from(elements).map(el => {
-        const htmlElement = el as Element; // Type assertion
-        return htmlElement.outerHTML;
-      }).join('');
-    }
-    
-    // Clean and fix content
-    const fixedContent = fixRelativeUrls(content, baseUrl);
-    
-    // Sanitize content
-    const { window: dompurifyWindow } = new JSDOM('');
-    const purify = DOMPurify(dompurifyWindow);
-    const sanitizedContent = purify.sanitize(fixedContent);
-    
-    return {
-      title: title || "Extracted Content",
-      content: sanitizedContent,
-      textContent: sanitizedContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
-      length: sanitizedContent.length,
-      excerpt: extractExcerpt(sanitizedContent),
-      byline: "",
-      siteName: extractSiteName(baseUrl)
-    };
-  } catch (error) {
-    console.error("Alternative parser failed:", error);
     return getFallbackContent(baseUrl);
   }
 }
 
 /**
- * Extract an excerpt from the content
+ * Find the main content element in the document
  */
-function extractExcerpt(content: string): string {
-  // Remove HTML tags and trim
-  const textContent = content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+function findMainContent(doc: Document): HTMLElement | null {
+  // Try different selectors that typically contain main content
+  const selectors = [
+    'main', 'article', '[role="main"]',
+    '.content', '.article', '.post', '.entry-content',
+    '#content', '#main-content', '#article-content',
+    'article', '.article-body', '.story-body'
+  ];
   
-  // Get the first ~150 characters
-  return textContent.length > 150 ? textContent.substring(0, 150) + '...' : textContent;
+  for (const selector of selectors) {
+    const element = doc.querySelector(selector);
+    if (element) {
+      return element as HTMLElement;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Remove unwanted elements from the content
+ */
+function removeUnwantedElements(element: HTMLElement): void {
+  // Elements to remove
+  const unwantedSelectors = [
+    'script', 'style', 'iframe',
+    'nav', 'header', 'footer', 'aside',
+    '.ads', '.advertisement', '.ad-container',
+    '.sidebar', '.comments', '.related-posts',
+    '[data-ad]', '[class*="advert"]', '[id*="advert"]',
+    '.social-share', '.share-buttons'
+  ];
+  
+  // Find all unwanted elements
+  unwantedSelectors.forEach(selector => {
+    const elements = element.querySelectorAll(selector);
+    elements.forEach(el => el.parentNode?.removeChild(el));
+  });
+  
+  // Remove empty paragraphs
+  const paragraphs = element.querySelectorAll('p');
+  paragraphs.forEach(p => {
+    if (!p.textContent?.trim()) {
+      p.parentNode?.removeChild(p);
+    }
+  });
+}
+
+/**
+ * Fix relative URLs in the HTML content
+ */
+function fixRelativeUrls(element: HTMLElement, baseUrl: string): void {
+  try {
+    const baseUrlObj = new URL(baseUrl);
+    const baseDomain = `${baseUrlObj.protocol}//${baseUrlObj.host}`;
+    
+    // Fix links
+    const links = element.querySelectorAll('a');
+    links.forEach(link => {
+      if (link.href) {
+        if (link.href.startsWith('/')) {
+          link.href = `${baseDomain}${link.href}`;
+        } else if (!link.href.startsWith('http')) {
+          link.href = `${baseUrl}/${link.href}`;
+        }
+      }
+    });
+    
+    // Fix images
+    const images = element.querySelectorAll('img');
+    images.forEach(img => {
+      if (img.src) {
+        if (img.src.startsWith('/')) {
+          img.src = `${baseDomain}${img.src}`;
+        } else if (!img.src.startsWith('http')) {
+          img.src = `${baseUrl}/${img.src}`;
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Error fixing relative URLs:", error);
+  }
+}
+
+/**
+ * Extract meta property from document
+ */
+function extractMetaProperty(doc: Document, property: string): string {
+  // Check standard meta property
+  const metaProperty = doc.querySelector(`meta[property="${property}"]`);
+  if (metaProperty) {
+    return metaProperty.getAttribute('content') || '';
+  }
+  
+  // Check name attribute as fallback
+  const metaName = doc.querySelector(`meta[name="${property}"]`);
+  if (metaName) {
+    return metaName.getAttribute('content') || '';
+  }
+  
+  return '';
 }
 
 /**
  * Extract site name from URL
  */
-function extractSiteName(url: string): string {
+function extractSiteNameFromUrl(url: string): string {
   try {
     const hostname = new URL(url).hostname;
-    return hostname.replace(/^www\./, '');
+    return hostname.replace(/^www\./, '')
+      .split('.')
+      .slice(0, -1)
+      .join('.');
   } catch {
     return "";
-  }
-}
-
-/**
- * Fix relative URLs in HTML content
- */
-function fixRelativeUrls(html: string, baseUrl: string): string {
-  try {
-    const baseUrlObj = new URL(baseUrl);
-    const baseDomain = `${baseUrlObj.protocol}//${baseUrlObj.host}`;
-    
-    // Fix relative URLs in src and href attributes
-    return html
-      .replace(/src="\/([^"]*)"/g, `src="${baseDomain}/$1"`)
-      .replace(/href="\/([^"]*)"/g, `href="${baseDomain}/$1"`)
-      .replace(/src='\/([^']*)'/g, `src='${baseDomain}/$1'`)
-      .replace(/href='\/([^']*)'/g, `href='${baseDomain}/$1'`);
-  } catch (error) {
-    console.error("Error fixing relative URLs:", error);
-    return html;
   }
 }
 
@@ -269,6 +311,6 @@ function getFallbackContent(url: string): ExtractedContent {
     length: 300,
     excerpt: `This is the extracted content from the provided URL. In a real production environment, this would contain the actual content scraped from the webpage.`,
     byline: "",
-    siteName: extractSiteName(url)
+    siteName: extractSiteNameFromUrl(url)
   };
 }

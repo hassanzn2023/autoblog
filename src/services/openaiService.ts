@@ -1,3 +1,4 @@
+
 // OpenAI service for SEO analysis and keyword suggestions
 import axios from 'axios';
 import { extractContentFromUrl as extractContent } from './contentExtractorService';
@@ -18,6 +19,7 @@ export const extractContentFromUrl = async (url: string): Promise<string> => {
     
     if (extractedData.error) {
       console.error("Error in content extraction:", extractedData.error);
+      return `<h1>Error extracting content</h1><p>${extractedData.error}</p><p>Please try another URL or paste your content manually.</p>`;
     }
     
     // Return the HTML content
