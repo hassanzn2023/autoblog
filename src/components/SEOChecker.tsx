@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Link, Upload, RefreshCw, Search, Pencil, AlertTriangle, Check, Loader } from 'lucide-react';
@@ -13,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 // SEO Score Meter Component
 const SEOScoreMeter = ({ score }: { score: number }) => {
@@ -103,16 +104,16 @@ const calculateContentStats = (content: string) => {
   const words = content.split(/\s+/).filter(word => word.length > 0).length;
   
   // Count headings (approximate by looking for # markdown or h1-h6 tags)
-  const headingRegex = /^#+\s+.+$|<h[1-6]>.*<\/h[1-6]>/gim;
+  const headingRegex = /<h[1-6][^>]*>.*?<\/h[1-6]>|<strong>.*?<\/strong>/gi;
   const headings = (content.match(headingRegex) || []).length;
   
   // Count paragraphs (look for double newlines or <p> tags)
-  const paragraphRegex = /\n\s*\n|<p>.*?<\/p>/gs;
+  const paragraphRegex = /<p>.*?<\/p>/gs;
   const paragraphs = (content.match(paragraphRegex) || []).length || 
                     content.split(/\n+/).filter(p => p.trim().length > 0).length;
   
-  // Count image references (approximate by looking for markdown or HTML img tags)
-  const imageRegex = /!\[.*?\]\(.*?\)|<img.*?>/gi;
+  // Count image references (approximate by looking for img tags)
+  const imageRegex = /<img.*?>/gi;
   const images = (content.match(imageRegex) || []).length;
   
   return { words, headings, paragraphs, images };
@@ -373,6 +374,23 @@ const QuickOptimizationForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [fetchingUrl, setFetchingUrl] = useState(false);
   
+  const quillModules = {
+    toolbar: [
+      [{ header: [1, 2, 3, 4, 5, 6, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ list: 'ordered' }, { list: 'bullet' }],
+      ['link', 'image'],
+      ['clean']
+    ]
+  };
+  
+  const quillFormats = [
+    'header',
+    'bold', 'italic', 'underline', 'strike',
+    'list', 'bullet',
+    'link', 'image'
+  ];
+
   const handleContentConfirm = async () => {
     // Validate content based on selected method
     if (contentMethod === 'text' && !content.trim()) {
@@ -701,13 +719,17 @@ const QuickOptimizationForm = () => {
             </div>
             
             {contentMethod === 'text' && (
-              <Textarea 
-                className="w-full h-32"
-                placeholder="Paste your article content here..."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                disabled={contentConfirmed}
-              />
+              <div className="quill-container">
+                <ReactQuill 
+                  theme="snow"
+                  value={content}
+                  onChange={setContent}
+                  modules={quillModules}
+                  formats={quillFormats}
+                  readOnly={contentConfirmed}
+                  className="h-64"
+                />
+              </div>
             )}
             
             {contentMethod === 'link' && (
@@ -742,7 +764,7 @@ const QuickOptimizationForm = () => {
                     }
                   }}
                   disabled={contentConfirmed}
-                  accept=".txt,.doc,.docx,.pdf,.md"
+                  accept=".txt,.doc,.docx,.pdf,.md,.html"
                 />
                 <label 
                   htmlFor="file-upload"
