@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import { Search, X, Loader, RefreshCw, Pencil, Link as LinkIcon, ExternalLink, AlertTriangle } from 'lucide-react';
+import { Search, X, Loader, RefreshCw, Pencil, Link as LinkIcon, ExternalLink, AlertTriangle, Upload, FileText } from 'lucide-react';
 import { generateKeywordSuggestions, generateSecondaryKeywordSuggestions, extractContentFromUrl } from '@/services/openaiService';
+import { parseWordDocument } from '@/services/documentParserService';
 
 interface Keyword {
   id: string;
@@ -38,6 +39,12 @@ const QuickOptimizationForm = () => {
   const [isGeneratingSecondary, setIsGeneratingSecondary] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [extractionAttempts, setExtractionAttempts] = useState(0);
+  
+  // New state variables for file upload
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isParsingFile, setIsParsingFile] = useState(false);
+  const [fileParsingError, setFileParsingError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Determine if the content is RTL or LTR
   const [isRtlContent, setIsRtlContent] = useState(false);
@@ -321,6 +328,106 @@ const QuickOptimizationForm = () => {
     }, 1000);
   };
   
+  // Handle file upload and parsing
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+      return;
+    }
+    
+    const file = files[0];
+    setSelectedFile(file);
+    
+    // Check if the file is a Word document
+    if (!file.name.endsWith('.docx') && !file.name.endsWith('.doc')) {
+      setFileParsingError("Please upload a valid Word document (.docx or .doc)");
+      toast({
+        title: "Invalid File",
+        description: "Please upload a valid Word document (.docx or .doc)",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Parse the Word document
+    try {
+      setIsParsingFile(true);
+      setFileParsingError(null);
+      
+      const result = await parseWordDocument(file);
+      setContent(result.html);
+      
+      toast({
+        title: "File Uploaded",
+        description: "Word document has been successfully parsed.",
+      });
+    } catch (error) {
+      console.error("Error parsing file:", error);
+      setFileParsingError(error instanceof Error ? error.message : "Failed to parse Word document");
+      toast({
+        title: "Parsing Error",
+        description: "Failed to parse the Word document. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsParsingFile(false);
+    }
+  };
+  
+  // Handle drag and drop for files
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+  
+  const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const files = event.dataTransfer.files;
+    if (!files || files.length === 0) {
+      return;
+    }
+    
+    const file = files[0];
+    setSelectedFile(file);
+    
+    // Check if the file is a Word document
+    if (!file.name.endsWith('.docx') && !file.name.endsWith('.doc')) {
+      setFileParsingError("Please upload a valid Word document (.docx or .doc)");
+      toast({
+        title: "Invalid File",
+        description: "Please upload a valid Word document (.docx or .doc)",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Parse the Word document
+    try {
+      setIsParsingFile(true);
+      setFileParsingError(null);
+      
+      const result = await parseWordDocument(file);
+      setContent(result.html);
+      
+      toast({
+        title: "File Uploaded",
+        description: "Word document has been successfully parsed.",
+      });
+    } catch (error) {
+      console.error("Error parsing file:", error);
+      setFileParsingError(error instanceof Error ? error.message : "Failed to parse Word document");
+      toast({
+        title: "Parsing Error",
+        description: "Failed to parse the Word document. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsParsingFile(false);
+    }
+  };
+  
   return (
     <div className="max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Quick SEO Optimization</h1>
@@ -490,36 +597,101 @@ const QuickOptimizationForm = () => {
             
             {contentMethod === 'file' && (
               <div>
-                <div className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center">
+                <div 
+                  className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center"
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                >
                   <input 
                     type="file" 
                     id="file-upload" 
                     className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        setContent(e.target.files[0].name);
-                      }
-                    }}
-                    disabled={contentConfirmed}
+                    ref={fileInputRef}
+                    accept=".doc,.docx"
+                    onChange={handleFileUpload}
+                    disabled={contentConfirmed || isParsingFile}
                   />
-                  <label 
-                    htmlFor="file-upload"
-                    className={`cursor-pointer text-purple-600 hover:text-purple-800 ${contentConfirmed ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    Click to upload or drag and drop
-                  </label>
-                  {content && contentMethod === 'file' && <p className="mt-2 text-sm text-gray-500">{content}</p>}
+                  {!selectedFile && !content ? (
+                    <div className="flex flex-col items-center justify-center py-4">
+                      <Upload size={40} className="mb-4 text-purple-600" />
+                      <label 
+                        htmlFor="file-upload"
+                        className={`cursor-pointer text-purple-600 hover:text-purple-800 ${contentConfirmed || isParsingFile ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        Click to upload or drag and drop
+                      </label>
+                      <p className="mt-2 text-sm text-gray-500">Only .doc and .docx files are supported</p>
+                    </div>
+                  ) : isParsingFile ? (
+                    <div className="flex flex-col items-center justify-center py-4">
+                      <Loader size={40} className="mb-4 animate-spin text-purple-600" />
+                      <p>Parsing document content...</p>
+                    </div>
+                  ) : selectedFile ? (
+                    <div className="flex items-center justify-center py-2">
+                      <FileText size={24} className="text-purple-600 mr-2" />
+                      <span>{selectedFile.name}</span>
+                      {!contentConfirmed && (
+                        <button 
+                          className="ml-2 text-red-500 hover:text-red-700"
+                          onClick={() => {
+                            setSelectedFile(null);
+                            setContent('');
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                          }}
+                        >
+                          <X size={18} />
+                        </button>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
                 
-                {!contentConfirmed && content && (
-                  <div className="text-center mt-4">
-                    <Button 
-                      variant="seoButton" 
-                      onClick={handleContentConfirm}
-                      className="z-10 relative"
-                    >
-                      Confirm Content
-                    </Button>
+                {fileParsingError && !isParsingFile && (
+                  <div className="p-4 border border-red-200 bg-red-50 rounded-md mt-4">
+                    <div className="flex items-center">
+                      <AlertTriangle size={20} className="text-red-500 mr-2" />
+                      <div>
+                        <p className="font-medium text-red-600">Parsing Error</p>
+                        <p className="text-sm text-red-500">{fileParsingError}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {content && contentMethod === 'file' && !contentConfirmed && (
+                  <div className="mt-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="font-medium flex items-center">
+                        <FileText size={16} className="mr-2" /> 
+                        <span>Content from Document</span>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        You can edit the extracted content below
+                      </div>
+                    </div>
+                    
+                    <div className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'}`}>
+                      <ReactQuill 
+                        theme="snow" 
+                        value={content} 
+                        onChange={setContent} 
+                        modules={modules} 
+                        formats={formats}
+                        placeholder="Edit content from document here..."
+                        className="mb-4"
+                      />
+                    </div>
+                    
+                    <div className="text-center mt-6">
+                      <Button 
+                        variant="seoButton" 
+                        onClick={handleContentConfirm}
+                        className="z-10 relative"
+                      >
+                        Confirm Content
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>

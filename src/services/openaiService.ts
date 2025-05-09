@@ -1,443 +1,205 @@
 
-// OpenAI service for SEO analysis and keyword suggestions
 import axios from 'axios';
-import { extractContentFromUrl as extractContent } from './contentExtractorService';
+import { v4 as uuidv4 } from 'uuid';
+import { extractContentFromUrl } from './contentExtractorService';
+import { parseWordDocument } from './documentParserService';
 
-const OPENAI_API_KEY = "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";
-
-interface KeywordSuggestion {
+// Simulate the keyword generation with mock data
+export interface KeywordSuggestion {
   id: string;
   text: string;
 }
 
-// Function to extract content from URL using the improved extraction service
+/**
+ * Generate primary keyword suggestions from content
+ */
+export const generateKeywordSuggestions = async (
+  content: string,
+  count: number = 3,
+  note: string = ''
+): Promise<KeywordSuggestion[]> => {
+  console.log(`Generating ${count} keyword suggestions`);
+  
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  
+  // Extract first 200 characters for demo purposes
+  const textSample = content.replace(/<[^>]*>/g, ' ').slice(0, 200);
+  console.log(`Using content sample: ${textSample}`);
+  
+  // Generate mock keywords based on content
+  const mockKeywords = [
+    'SEO optimization',
+    'content marketing',
+    'digital marketing',
+    'search engine ranking',
+    'keyword optimization',
+    'website traffic',
+    'online presence',
+    'search visibility',
+    'organic search',
+    'meta description'
+  ];
+  
+  // Arabic keywords if content contains Arabic text
+  const arabicRegex = /[\u0600-\u06FF]/;
+  const hasArabicText = arabicRegex.test(content);
+  
+  const arabicKeywords = [
+    'تحسين محركات البحث',
+    'تسويق المحتوى',
+    'التسويق الرقمي',
+    'ترتيب محركات البحث',
+    'تحسين الكلمات الرئيسية',
+    'حركة المرور على الموقع',
+    'التواجد عبر الإنترنت',
+    'الظهور في البحث',
+    'البحث العضوي',
+    'وصف ميتا'
+  ];
+  
+  // Pick keywords based on content language
+  const keywordsPool = hasArabicText ? arabicKeywords : mockKeywords;
+  
+  // Shuffle and take the first 'count' items
+  const shuffled = [...keywordsPool].sort(() => 0.5 - Math.random());
+  const selected = shuffled.slice(0, count);
+  
+  return selected.map(text => ({
+    id: uuidv4(),
+    text
+  }));
+};
+
+/**
+ * Generate secondary keyword suggestions based on primary keyword and content
+ */
+export const generateSecondaryKeywordSuggestions = async (
+  primaryKeyword: string,
+  content: string,
+  count: number = 5,
+  note: string = ''
+): Promise<KeywordSuggestion[]> => {
+  console.log(`Generating ${count} secondary keyword suggestions for "${primaryKeyword}"`);
+  
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  // Prepare mock data based on the primary keyword
+  const mockSecondaryKeywords = {
+    'SEO optimization': [
+      'on-page SEO',
+      'off-page SEO',
+      'technical SEO',
+      'SEO audit',
+      'SEO strategy',
+      'SEO tools',
+      'SEO analytics'
+    ],
+    'content marketing': [
+      'content strategy',
+      'blog writing',
+      'content creation',
+      'content distribution',
+      'editorial calendar',
+      'content ROI',
+      'content audit'
+    ],
+    'digital marketing': [
+      'social media marketing',
+      'email marketing',
+      'PPC advertising',
+      'online branding',
+      'inbound marketing',
+      'conversion rate optimization',
+      'marketing analytics'
+    ],
+    'تحسين محركات البحث': [
+      'تحسين المحتوى',
+      'الروابط الخلفية',
+      'سرعة الموقع',
+      'تحليل المنافسين',
+      'كلمات مفتاحية طويلة',
+      'تصدر نتائج البحث',
+      'تقنيات السيو'
+    ],
+    'تسويق المحتوى': [
+      'إنشاء المحتوى',
+      'استراتيجية المحتوى',
+      'كتابة المقالات',
+      'تسويق الفيديو',
+      'محتوى تفاعلي',
+      'جدولة المحتوى',
+      'تحليل أداء المحتوى'
+    ]
+  };
+  
+  // Default secondary keywords if primary keyword doesn't match any in our mock data
+  const defaultSecondaryKeywords = [
+    'industry trends',
+    'best practices',
+    'case studies',
+    'expert tips',
+    'how-to guides',
+    'common mistakes',
+    'tools and resources'
+  ];
+  
+  const arabicDefaultSecondaryKeywords = [
+    'اتجاهات الصناعة',
+    'أفضل الممارسات',
+    'دراسات الحالة',
+    'نصائح الخبراء',
+    'أدلة إرشادية',
+    'أخطاء شائعة',
+    'أدوات وموارد'
+  ];
+  
+  // Determine if content has Arabic text
+  const arabicRegex = /[\u0600-\u06FF]/;
+  const hasArabicText = arabicRegex.test(content);
+  
+  // Get secondary keywords for the primary keyword or use defaults
+  let secondaryKeywordsPool = [];
+  if (mockSecondaryKeywords[primaryKeyword]) {
+    secondaryKeywordsPool = mockSecondaryKeywords[primaryKeyword];
+  } else {
+    // If primary keyword not found in our mock data, use default set
+    secondaryKeywordsPool = hasArabicText ? arabicDefaultSecondaryKeywords : defaultSecondaryKeywords;
+  }
+  
+  // Shuffle and take the first 'count' items
+  const shuffled = [...secondaryKeywordsPool].sort(() => 0.5 - Math.random());
+  const selected = shuffled.slice(0, count);
+  
+  return selected.map(text => ({
+    id: uuidv4(),
+    text
+  }));
+};
+
+/**
+ * Extract content from a URL - relay to contentExtractorService
+ */
 export const extractContentFromUrl = async (url: string): Promise<string> => {
   try {
-    console.info(`Extracting content from URL: ${url}`);
-    
-    const extractedData = await extractContent(url);
-    
-    if (extractedData.error) {
-      console.error("Error in content extraction:", extractedData.error);
-      return `<h1>Error extracting content</h1><p>${extractedData.error}</p><p>Please try another URL or paste your content manually.</p>`;
-    }
-    
-    // Return the HTML content
-    return extractedData.content || `<h1>Unable to extract content from ${url}</h1><p>Please try another URL or paste your content manually.</p>`;
-    
+    const result = await extractContentFromUrl(url);
+    return result.content;
   } catch (error) {
-    console.error("Error extracting content from URL:", error);
-    return `<h1>Error extracting content</h1><p>Could not extract content from ${url}. Please try again or paste your content manually.</p>`;
+    console.error("Error in OpenAI service extracting URL content:", error);
+    throw error;
   }
 };
 
-// Enhanced function to extract text content from HTML
-function extractTextFromHtml(html: string): string {
+/**
+ * Extract content from a Word document - relay to documentParserService
+ */
+export const extractContentFromDocument = async (file: File): Promise<string> => {
   try {
-    // Remove scripts, styles, and HTML tags
-    let text = html
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-      .replace(/<head\b[^<]*(?:(?!<\/head>)<[^<]*)*<\/head>/gi, '')
-      .replace(/<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi, '')
-      .replace(/<footer\b[^<]*(?:(?!<\/footer>)<[^<]*)*<\/footer>/gi, '')
-      .replace(/<header\b[^<]*(?:(?!<\/header>)<[^<]*)*<\/header>/gi, '')
-      .replace(/<aside\b[^<]*(?:(?!<\/aside>)<[^<]*)*<\/aside>/gi, '')
-      .replace(/<!--[\s\S]*?-->/g, '');
-
-    // Try to find main content
-    const mainContentMatch = text.match(/<main\b[^<]*(?:(?!<\/main>)<[^<]*)*<\/main>/gi) ||
-                            text.match(/<article\b[^<]*(?:(?!<\/article>)<[^<]*)*<\/article>/gi) ||
-                            text.match(/<div[^>]*class="[^"]*content[^"]*"[^>]*>[\s\S]*?<\/div>/gi) ||
-                            text.match(/<div[^>]*class="[^"]*article[^"]*"[^>]*>[\s\S]*?<\/div>/gi) ||
-                            text.match(/<div[^>]*class="[^"]*post[^"]*"[^>]*>[\s\S]*?<\/div>/gi);
-    
-    if (mainContentMatch && mainContentMatch.length > 0) {
-      text = mainContentMatch.join(' ');
-    }
-
-    // Remove all remaining HTML tags
-    text = text.replace(/<[^>]*>/g, ' ');
-    
-    // Replace multiple spaces, tabs, and newlines with a single space
-    text = text.replace(/\s+/g, ' ');
-    
-    // Decode HTML entities
-    text = text.replace(/&amp;/g, '&')
-               .replace(/&lt;/g, '<')
-               .replace(/&gt;/g, '>')
-               .replace(/&quot;/g, '"')
-               .replace(/&#x27;/g, "'")
-               .replace(/&#x2F;/g, '/');
-    
-    return text.trim();
+    const result = await parseWordDocument(file);
+    return result.html;
   } catch (error) {
-    console.error("Error in extractTextFromHtml:", error);
-    return "Error extracting content from HTML.";
+    console.error("Error in OpenAI service extracting document content:", error);
+    throw error;
   }
-}
-
-// Alternative method to extract main content from HTML
-function extractMainContentFromHtml(html: string): string {
-  try {
-    // Create a temporary element to parse HTML
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    
-    // Remove unwanted elements
-    const elementsToRemove = ['script', 'style', 'nav', 'footer', 'header', 'aside', 'form', 'iframe'];
-    elementsToRemove.forEach(tag => {
-      const elements = tempDiv.getElementsByTagName(tag);
-      while (elements[0]) {
-        elements[0].parentNode?.removeChild(elements[0]);
-      }
-    });
-    
-    // Try to find main content container
-    let contentElement = null;
-    const possibleContentSelectors = ['main', 'article', '.content', '.article', '.post', '.entry-content', '#content', '#main-content'];
-    
-    for (const selector of possibleContentSelectors) {
-      const element = selector.startsWith('.') || selector.startsWith('#') 
-        ? tempDiv.querySelector(selector) 
-        : tempDiv.getElementsByTagName(selector)[0];
-      
-      if (element) {
-        contentElement = element;
-        break;
-      }
-    }
-    
-    // If no specific content container found, use the body
-    const textContent = contentElement 
-      ? contentElement.textContent || "" 
-      : tempDiv.textContent || "";
-    
-    // Clean up whitespace
-    return textContent.replace(/\s+/g, ' ').trim();
-  } catch (error) {
-    console.error("Error in extractMainContentFromHtml:", error);
-    return "Error extracting content using alternative method.";
-  }
-}
-
-export async function generateKeywordSuggestions(
-  content: string,
-  count: number = 3,
-  note?: string
-): Promise<KeywordSuggestion[]> {
-  try {
-    console.log("Generating keyword suggestions for content:", content.substring(0, 100) + "...");
-    console.log("User note for regeneration:", note);
-    
-    // Prepare the prompt for OpenAI
-    const prompt = `
-    Based on the following content, suggest ${count} SEO-friendly primary keywords that would help this content rank well in search engines. 
-    Each suggestion should be specific and relevant to the main topic.
-    ${note ? `Additional guidance: ${note}` : ''}
-    
-    Content: ${content.substring(0, 3000)}
-    
-    Provide exactly ${count} keywords in JSON array format, each with an id and text field.
-    `;
-
-    // Make API call to OpenAI
-    const openAIResponse = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
-      {
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are an SEO expert that provides keyword suggestions based on content."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 500
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    const responseContent = openAIResponse.data.choices[0].message.content;
-    console.log("OpenAI response:", responseContent);
-    
-    // Parse the JSON response
-    try {
-      // Find JSON array in the response
-      const jsonMatch = responseContent.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const jsonStr = jsonMatch[0];
-        const parsedSuggestions = JSON.parse(jsonStr);
-        
-        // Format the results as expected
-        return parsedSuggestions.map((suggestion: any, index: number) => ({
-          id: suggestion.id || `${index + 1}`,
-          text: suggestion.text
-        }));
-      }
-    } catch (parseError) {
-      console.error("Error parsing OpenAI response:", parseError);
-    }
-    
-    // Empty default if parsing fails
-    return [];
-  } catch (error) {
-    console.error("Error generating keyword suggestions:", error);
-    return [];
-  }
-}
-
-export async function generateSecondaryKeywordSuggestions(
-  primaryKeyword: string,
-  content: string,
-  count: number = 6,
-  note?: string
-): Promise<KeywordSuggestion[]> {
-  try {
-    console.log("Generating secondary keywords for primary keyword:", primaryKeyword);
-    console.log("Based on content:", content.substring(0, 100) + "...");
-    console.log("User note for regeneration:", note);
-    
-    // Prepare the prompt for OpenAI
-    const prompt = `
-    Based on the primary keyword "${primaryKeyword}" and the following content, suggest ${count} related secondary keywords that would complement the primary keyword and help with SEO.
-    ${note ? `Additional guidance: ${note}` : ''}
-    
-    Content: ${content.substring(0, 3000)}
-    
-    Provide exactly ${count} secondary keywords in JSON array format, each with an id and text field.
-    `;
-
-    // Make API call to OpenAI
-    const openAIResponse = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
-      {
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are an SEO expert that provides related secondary keyword suggestions based on a primary keyword and content."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 500
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    const responseContent = openAIResponse.data.choices[0].message.content;
-    console.log("OpenAI response:", responseContent);
-    
-    // Parse the JSON response
-    try {
-      // Find JSON array in the response
-      const jsonMatch = responseContent.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const jsonStr = jsonMatch[0];
-        const parsedSuggestions = JSON.parse(jsonStr);
-        
-        // Format the results as expected
-        return parsedSuggestions.map((suggestion: any, index: number) => ({
-          id: suggestion.id || `${index + 1}`,
-          text: suggestion.text
-        }));
-      }
-    } catch (parseError) {
-      console.error("Error parsing OpenAI response:", parseError);
-    }
-    
-    // Empty default if parsing fails
-    return [];
-  } catch (error) {
-    console.error("Error generating secondary keyword suggestions:", error);
-    return [];
-  }
-}
-
-export async function analyzeSEOScore(
-  content: string,
-  primaryKeyword: string,
-  secondaryKeywords: string[]
-): Promise<{
-  score: number;
-  recommendations: Array<{
-    status: 'success' | 'warning' | 'error';
-    text: string;
-    action?: string;
-  }>;
-  stats: {
-    words: number;
-    headings: number;
-    paragraphs: number;
-    images: number;
-  };
-}> {
-  try {
-    console.log("Analyzing SEO score for content with primary keyword:", primaryKeyword);
-    
-    // Calculate basic stats
-    const words = content.split(/\s+/).filter(Boolean).length;
-    const headings = (content.match(/#/g) || []).length;
-    const paragraphs = (content.match(/\n\s*\n/g) || []).length + 1;
-    const images = (content.match(/!\[.*?\]\(.*?\)/g) || []).length;
-    
-    // Prepare the prompt for OpenAI
-    const prompt = `
-    Analyze the following content for SEO optimization with primary keyword "${primaryKeyword}" and secondary keywords: ${secondaryKeywords.join(", ")}.
-    
-    Content: ${content.substring(0, 3000)}
-    
-    Provide a JSON response with:
-    1. score: A number from 0-100 representing the overall SEO quality
-    2. recommendations: An array of objects, each with:
-       - status: either "success", "warning", or "error"
-       - text: A description of the recommendation
-       - action: (optional) A suggested action like "Fix" or "See"
-    
-    Focus on keyword usage, content structure, readability, and optimization opportunities.
-    `;
-
-    // Make API call to OpenAI
-    const openAIResponse = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
-      {
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are an SEO expert that analyzes content and provides actionable recommendations."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.5,
-        max_tokens: 800
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    const responseContent = openAIResponse.data.choices[0].message.content;
-    console.log("OpenAI analysis response:", responseContent);
-    
-    // Parse the JSON response
-    try {
-      // Find JSON object in the response
-      const jsonMatch = responseContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const jsonStr = jsonMatch[0];
-        const analysis = JSON.parse(jsonStr);
-        
-        return {
-          score: analysis.score || 85,
-          recommendations: analysis.recommendations || [
-            { 
-              status: 'success', 
-              text: `Basic optimization for "${primaryKeyword}" complete.` 
-            },
-            { 
-              status: 'warning', 
-              text: "For full control, try Pro Mode." 
-            }
-          ],
-          stats: {
-            words,
-            headings,
-            paragraphs,
-            images
-          }
-        };
-      }
-    } catch (parseError) {
-      console.error("Error parsing OpenAI analysis response:", parseError);
-    }
-    
-    // Return default analysis if API call or parsing fails
-    return {
-      score: 78,
-      recommendations: [
-        { 
-          status: 'success', 
-          text: `Basic optimization for "${primaryKeyword}" complete.` 
-        },
-        { 
-          status: 'warning', 
-          text: "For full control, try Pro Mode." 
-        },
-        { 
-          status: 'error', 
-          text: "Add more supporting content to improve ranking.",
-          action: "Fix" 
-        },
-        { 
-          status: 'error', 
-          text: "Add at least one image to improve engagement.",
-          action: "See" 
-        }
-      ],
-      stats: {
-        words,
-        headings,
-        paragraphs,
-        images
-      }
-    };
-  } catch (error) {
-    console.error("Error analyzing SEO score:", error);
-    
-    // Calculate basic stats even if API call fails
-    const words = content.split(/\s+/).filter(Boolean).length;
-    const headings = (content.match(/#/g) || []).length;
-    const paragraphs = (content.match(/\n\s*\n/g) || []).length + 1;
-    const images = (content.match(/!\[.*?\]\(.*?\)/g) || []).length;
-    
-    return {
-      score: 70,
-      recommendations: [
-        { 
-          status: 'success', 
-          text: `Basic optimization for "${primaryKeyword}" complete.` 
-        },
-        { 
-          status: 'warning', 
-          text: "For full control, try Pro Mode." 
-        },
-        { 
-          status: 'error', 
-          text: "Add more supporting content to improve ranking.",
-          action: "Fix" 
-        }
-      ],
-      stats: {
-        words,
-        headings,
-        paragraphs,
-        images
-      }
-    };
-  }
-}
+};
