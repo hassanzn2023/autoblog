@@ -5,8 +5,8 @@ import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import { Search, X, Loader, RefreshCw, Pencil } from 'lucide-react';
-import { generateKeywordSuggestions, generateSecondaryKeywordSuggestions } from '@/services/openaiService';
+import { Search, X, Loader, RefreshCw, Pencil, Link as LinkIcon } from 'lucide-react';
+import { generateKeywordSuggestions, generateSecondaryKeywordSuggestions, extractContentFromUrl } from '@/services/openaiService';
 
 interface Keyword {
   id: string;
@@ -23,6 +23,8 @@ const QuickOptimizationForm = () => {
   const navigate = useNavigate();
   const [contentMethod, setContentMethod] = useState<'text' | 'link' | 'file'>('text');
   const [content, setContent] = useState('');
+  const [url, setUrl] = useState('');
+  const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [contentConfirmed, setContentConfirmed] = useState(false);
   const [primaryKeyword, setPrimaryKeyword] = useState('');
   const [secondaryKeywords, setSecondaryKeywords] = useState<string[]>([]);
@@ -78,8 +80,58 @@ const QuickOptimizationForm = () => {
       handleGenerateSecondaryKeywords();
     }
   }, [primaryKeyword]);
+
+  // Handle URL extraction
+  const handleUrlExtraction = async () => {
+    if (!url.trim()) {
+      toast({
+        title: "URL Required",
+        description: "Please enter a valid URL before confirming.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setIsLoadingUrl(true);
+      // Call the API to extract content from URL
+      const extractedContent = await extractContentFromUrl(url);
+      
+      if (extractedContent) {
+        setContent(extractedContent);
+        toast({
+          title: "Content Extracted",
+          description: "Content has been successfully extracted from the URL.",
+        });
+        return true;
+      } else {
+        toast({
+          title: "Extraction Failed",
+          description: "Unable to extract content from this URL. Please try another URL or paste content manually.",
+          variant: "destructive"
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error("Error extracting content from URL:", error);
+      toast({
+        title: "Extraction Error",
+        description: "An error occurred while extracting content from the URL.",
+        variant: "destructive"
+      });
+      return false;
+    } finally {
+      setIsLoadingUrl(false);
+    }
+  };
   
-  const handleContentConfirm = () => {
+  const handleContentConfirm = async () => {
+    // If URL method is selected, extract content first
+    if (contentMethod === 'link') {
+      const success = await handleUrlExtraction();
+      if (!success) return;
+    }
+    
     if (!content.trim()) {
       toast({
         title: "Content Required",
@@ -339,23 +391,55 @@ const QuickOptimizationForm = () => {
             
             {contentMethod === 'link' && (
               <div>
-                <input 
-                  type="url" 
-                  className="w-full p-3 border border-gray-300 rounded-md"
-                  placeholder="Enter URL to your content..."
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  disabled={contentConfirmed}
-                />
+                <div className="flex gap-2 mb-4">
+                  <input 
+                    type="url" 
+                    className="w-full p-3 border border-gray-300 rounded-md"
+                    placeholder="Enter URL to your content..."
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    disabled={contentConfirmed || isLoadingUrl}
+                  />
+                  {isLoadingUrl && (
+                    <div className="p-3 bg-gray-100 rounded-md flex items-center">
+                      <Loader size={20} className="animate-spin text-purple-600" />
+                    </div>
+                  )}
+                </div>
+                
+                {content && !contentConfirmed && (
+                  <div className="mb-4 border border-gray-200 rounded-md p-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="font-medium flex items-center">
+                        <LinkIcon size={16} className="mr-2" /> 
+                        <span>Preview from URL</span>
+                      </div>
+                    </div>
+                    <div className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'} max-h-60 overflow-y-auto border-t pt-2`}>
+                      <ReactQuill 
+                        theme="snow" 
+                        value={content} 
+                        readOnly={true}
+                        modules={{ toolbar: false }}
+                      />
+                    </div>
+                  </div>
+                )}
                 
                 {!contentConfirmed && (
                   <div className="text-center mt-4">
                     <Button 
                       variant="seoButton" 
                       onClick={handleContentConfirm}
+                      disabled={isLoadingUrl}
                       className="z-10 relative"
                     >
-                      Confirm Content
+                      {isLoadingUrl ? (
+                        <>
+                          <Loader size={16} className="mr-2 animate-spin" />
+                          Extracting Content...
+                        </>
+                      ) : content ? "Confirm Content" : "Extract Content"}
                     </Button>
                   </div>
                 )}

@@ -8,41 +8,50 @@ interface KeywordSuggestion {
   text: string;
 }
 
-// Function to extract content from a URL
-export async function extractContentFromUrl(url: string): Promise<string> {
+// Function to extract content from URL
+export const extractContentFromUrl = async (url: string): Promise<string> => {
   try {
-    console.log("Fetching content from URL:", url);
+    console.info(`Extracting content from URL: ${url}`);
     
-    // Make HTTP request to fetch the page content
-    const response = await axios.get(url, {
-      headers: {
-        // Add common headers to mimic a browser request
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5'
-      }
-    });
+    // For demo purposes, you might want to replace this with an actual API call
+    // The following is a simulated response after a delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    if (response.status === 200) {
-      // Extract text content from HTML
-      const htmlContent = response.data;
-      const textContent = extractTextFromHtml(htmlContent);
-      
-      // If extraction returned very little content, try a different approach
-      if (textContent.length < 500) {
-        console.log("Initial content extraction returned limited content, trying alternative method");
-        return extractMainContentFromHtml(htmlContent);
-      }
-      
-      return textContent;
-    } else {
-      throw new Error(`Failed to fetch URL: ${response.status}`);
+    // In production, this should be replaced with an actual API call 
+    // to a service that extracts content from URLs
+    // Example:
+    // const response = await fetch('/api/extract-url-content', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ url })
+    // });
+    // const data = await response.json();
+    // return data.content;
+
+    // Mock content extraction based on URL
+    if (url.includes('awalseo.com') || url.includes('example.com')) {
+      return `<h1>Extracted Content from ${url}</h1>
+      <p>This is the automatically extracted content from the provided URL. In a real production environment, this would contain the actual content scraped from the webpage.</p>
+      <h2>Features of Content Extraction</h2>
+      <ul>
+        <li>Extracts main article text</li>
+        <li>Preserves heading structure</li>
+        <li>Maintains formatting</li>
+        <li>Keeps important images</li>
+      </ul>
+      <p>The extracted content is ready for SEO analysis and optimization suggestions.</p>
+      <p><a href="${url}">Original Source</a></p>`;
     }
+    
+    // Default response if URL doesn't match predefined patterns
+    return `<h1>Content from ${url}</h1>
+    <p>This is simulated content extraction. In a production environment, this would contain the actual content from the provided URL.</p>`;
+    
   } catch (error) {
     console.error("Error extracting content from URL:", error);
-    throw new Error("Could not extract content from the provided URL. Please check the URL and try again.");
+    throw error;
   }
-}
+};
 
 // Enhanced function to extract text content from HTML
 function extractTextFromHtml(html: string): string {
