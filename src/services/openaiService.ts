@@ -1,7 +1,6 @@
 
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
-import { extractContentFromUrl } from './contentExtractorService';
 import { parseWordDocument } from './documentParserService';
 
 // Simulate the keyword generation with mock data
@@ -86,7 +85,7 @@ export const generateSecondaryKeywordSuggestions = async (
   await new Promise(resolve => setTimeout(resolve, 1000));
   
   // Prepare mock data based on the primary keyword
-  const mockSecondaryKeywords = {
+  const mockSecondaryKeywords: Record<string, string[]> = {
     'SEO optimization': [
       'on-page SEO',
       'off-page SEO',
@@ -179,15 +178,72 @@ export const generateSecondaryKeywordSuggestions = async (
 };
 
 /**
- * Extract content from a URL - relay to contentExtractorService
+ * Extract content from a URL
  */
 export const extractContentFromUrl = async (url: string): Promise<string> => {
   try {
-    const result = await extractContentFromUrl(url);
-    return result.content;
+    // Use multiple CORS proxies as fallbacks
+    const corsProxies = [
+      'https://corsproxy.io/?',
+      'https://api.allorigins.win/raw?url=',
+      'https://cors-anywhere.herokuapp.com/'
+    ];
+    
+    // Try each proxy until successful
+    let htmlContent = '';
+    let proxyIndex = 0;
+    let success = false;
+    
+    while (!success && proxyIndex < corsProxies.length) {
+      try {
+        const proxy = corsProxies[proxyIndex];
+        const response = await axios.get(`${proxy}${url}`);
+        htmlContent = response.data;
+        success = true;
+      } catch (error) {
+        console.log(`Proxy ${proxyIndex + 1} failed, trying next...`);
+        proxyIndex++;
+      }
+    }
+    
+    if (!success) {
+      throw new Error('All proxies failed to fetch the URL');
+    }
+    
+    // Extract main content using browser's DOMParser
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlContent, 'text/html');
+    
+    // Try to find the main content (simple heuristics)
+    const mainSelectors = [
+      'main',
+      'article',
+      '.content',
+      '.main-content',
+      '#content',
+      '.post-content'
+    ];
+    
+    let mainContent = '';
+    
+    for (const selector of mainSelectors) {
+      const elements = doc.querySelectorAll(selector);
+      if (elements.length > 0) {
+        const mainElement = elements[0];
+        mainContent = mainElement.innerHTML;
+        break;
+      }
+    }
+    
+    // If no main content found, take the body content
+    if (!mainContent) {
+      mainContent = doc.body.innerHTML;
+    }
+    
+    return mainContent;
   } catch (error) {
-    console.error("Error in OpenAI service extracting URL content:", error);
-    throw error;
+    console.error("Error extracting content from URL:", error);
+    throw new Error(error instanceof Error ? error.message : 'Failed to extract content from URL');
   }
 };
 

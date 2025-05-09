@@ -5,13 +5,19 @@ import { toast } from '@/hooks/use-toast';
 import { 
   generateKeywordSuggestions, 
   generateSecondaryKeywordSuggestions,
-  analyzeSEOScore,
   extractContentFromUrl
 } from '@/services/openaiService';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+
+// Define props interface for SEOChecker
+interface SEOCheckerProps {
+  initialContent?: string;
+  initialPrimaryKeyword?: string;
+  initialSecondaryKeywords?: string[];
+}
 
 // Helper function to detect language
 const isRTL = (text: string) => {
@@ -398,7 +404,7 @@ const SEOCheckerResult = () => {
 };
 
 // Main SEO Checker component that shows either the form or results
-const SEOChecker = () => {
+const SEOChecker: React.FC<SEOCheckerProps> = ({ initialContent, initialPrimaryKeyword, initialSecondaryKeywords }) => {
   const location = useLocation();
   
   // Check if we're viewing results or the input form
