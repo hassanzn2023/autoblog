@@ -1,16 +1,17 @@
-
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AlertTriangle, Check, FileText, Link, Upload, RefreshCw, Search, Pencil } from 'lucide-react';
+import { FileText, Link, Upload, RefreshCw, Search, Pencil, AlertTriangle, Check, Loader } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { 
   generateKeywordSuggestions, 
   generateSecondaryKeywordSuggestions,
-  analyzeSEOScore
+  analyzeSEOScore,
+  extractContentFromUrl
 } from '@/services/openaiService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 
 const SEOScoreMeter = ({ score }: { score: number }) => {
   const rotation = (score / 100) * 180 - 90;
@@ -200,6 +201,8 @@ const QuickOptimizationForm = () => {
   const navigate = useNavigate();
   const [contentMethod, setContentMethod] = useState<'text' | 'link' | 'file'>('text');
   const [content, setContent] = useState('');
+  const [contentUrl, setContentUrl] = useState('');
+  const [contentFile, setContentFile] = useState<File | null>(null);
   const [contentConfirmed, setContentConfirmed] = useState(false);
   const [primaryKeyword, setPrimaryKeyword] = useState('');
   const [secondaryKeywords, setSecondaryKeywords] = useState('');
@@ -209,15 +212,71 @@ const QuickOptimizationForm = () => {
   const [secondaryKeywordSuggestions, setSecondaryKeywordSuggestions] = useState<Array<{id: string, text: string}>>([]);
   const [regenerationNote, setRegenerationNote] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [fetchingUrl, setFetchingUrl] = useState(false);
   
   const handleContentConfirm = async () => {
-    if (!content.trim()) {
+    if (contentMethod === 'text' && !content.trim()) {
       toast({
         title: "Content Required",
         description: "Please add your content before confirming.",
         variant: "destructive"
       });
       return;
+    }
+    
+    if (contentMethod === 'link' && !contentUrl.trim()) {
+      toast({
+        title: "URL Required",
+        description: "Please enter a valid URL.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (contentMethod === 'file' && !contentFile) {
+      toast({
+        title: "File Required",
+        description: "Please upload a file.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // If content is from URL, fetch it
+    if (contentMethod === 'link') {
+      setFetchingUrl(true);
+      try {
+        const extractedContent = await extractContentFromUrl(contentUrl);
+        setContent(extractedContent);
+        toast({
+          title: "URL Content Extracted",
+          description: "Successfully extracted content from the URL.",
+        });
+      } catch (error) {
+        toast({
+          title: "URL Extraction Failed",
+          description: error instanceof Error ? error.message : "Could not extract content from the provided URL.",
+          variant: "destructive"
+        });
+        setFetchingUrl(false);
+        return;
+      }
+      setFetchingUrl(false);
+    }
+    
+    // If content is from file, read it
+    if (contentMethod === 'file' && contentFile) {
+      try {
+        const text = await readFileAsText(contentFile);
+        setContent(text);
+      } catch (error) {
+        toast({
+          title: "File Reading Failed",
+          description: "Could not read the uploaded file.",
+          variant: "destructive"
+        });
+        return;
+      }
     }
     
     setContentConfirmed(true);
@@ -233,9 +292,29 @@ const QuickOptimizationForm = () => {
       setPrimaryKeywordSuggestions(suggestions);
     } catch (error) {
       console.error("Error getting keyword suggestions:", error);
+      toast({
+        title: "Suggestion Generation Failed",
+        description: "Could not generate keyword suggestions.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  const readFileAsText = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result) {
+          resolve(e.target.result as string);
+        } else {
+          reject(new Error("Failed to read file"));
+        }
+      };
+      reader.onerror = () => reject(new Error("File reading error"));
+      reader.readAsText(file);
+    });
   };
   
   const handlePrimaryKeywordSelect = async (keyword: string) => {
@@ -249,6 +328,11 @@ const QuickOptimizationForm = () => {
       setSecondaryKeywordSuggestions(suggestions);
     } catch (error) {
       console.error("Error getting secondary keyword suggestions:", error);
+      toast({
+        title: "Suggestion Generation Failed",
+        description: "Could not generate secondary keyword suggestions.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -269,8 +353,17 @@ const QuickOptimizationForm = () => {
       const suggestions = await generateKeywordSuggestions(content, 3, regenerationNote);
       setPrimaryKeywordSuggestions(suggestions);
       setRegenerationNote('');
+      toast({
+        title: "Keywords Regenerated",
+        description: "New primary keyword suggestions have been generated.",
+      });
     } catch (error) {
       console.error("Error regenerating keyword suggestions:", error);
+      toast({
+        title: "Regeneration Failed",
+        description: "Could not regenerate keyword suggestions.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -287,8 +380,17 @@ const QuickOptimizationForm = () => {
       );
       setSecondaryKeywordSuggestions(suggestions);
       setRegenerationNote('');
+      toast({
+        title: "Keywords Regenerated",
+        description: "New secondary keyword suggestions have been generated.",
+      });
     } catch (error) {
       console.error("Error regenerating secondary keyword suggestions:", error);
+      toast({
+        title: "Regeneration Failed",
+        description: "Could not regenerate secondary keyword suggestions.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -346,7 +448,7 @@ const QuickOptimizationForm = () => {
     } catch (error) {
       console.error("Error analyzing content:", error);
       toast({
-        title: "Error",
+        title: "Analysis Failed",
         description: "There was an error analyzing your content. Please try again.",
         variant: "destructive"
       });
@@ -372,6 +474,7 @@ const QuickOptimizationForm = () => {
                   checked={contentMethod === 'text'} 
                   onChange={() => setContentMethod('text')} 
                   className="mr-2" 
+                  disabled={contentConfirmed}
                 />
                 <FileText size={16} className="mr-1 text-gray-500" />
                 Add Text
@@ -384,6 +487,7 @@ const QuickOptimizationForm = () => {
                   checked={contentMethod === 'link'} 
                   onChange={() => setContentMethod('link')} 
                   className="mr-2" 
+                  disabled={contentConfirmed}
                 />
                 <Link size={16} className="mr-1 text-gray-500" />
                 Add Link
@@ -396,6 +500,7 @@ const QuickOptimizationForm = () => {
                   checked={contentMethod === 'file'} 
                   onChange={() => setContentMethod('file')} 
                   className="mr-2" 
+                  disabled={contentConfirmed}
                 />
                 <Upload size={16} className="mr-1 text-gray-500" />
                 Upload File
@@ -403,8 +508,8 @@ const QuickOptimizationForm = () => {
             </div>
             
             {contentMethod === 'text' && (
-              <textarea 
-                className="w-full h-32 p-3 border border-gray-300 rounded-md"
+              <Textarea 
+                className="w-full h-32"
                 placeholder="Paste your article content here..."
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
@@ -413,14 +518,22 @@ const QuickOptimizationForm = () => {
             )}
             
             {contentMethod === 'link' && (
-              <Input 
-                type="url" 
-                className="w-full p-3"
-                placeholder="Enter URL to your content..."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                disabled={contentConfirmed}
-              />
+              <div className="space-y-2">
+                <Input 
+                  type="url" 
+                  className="w-full"
+                  placeholder="Enter URL to your content..."
+                  value={contentUrl}
+                  onChange={(e) => setContentUrl(e.target.value)}
+                  disabled={contentConfirmed || fetchingUrl}
+                />
+                {fetchingUrl && (
+                  <div className="flex items-center text-sm text-blue-600">
+                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                    <span>Fetching content from URL...</span>
+                  </div>
+                )}
+              </div>
             )}
             
             {contentMethod === 'file' && (
@@ -431,18 +544,20 @@ const QuickOptimizationForm = () => {
                   className="hidden"
                   onChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
-                      setContent(e.target.files[0].name);
+                      setContentFile(e.target.files[0]);
+                      setContent(e.target.files[0].name); // Just for display
                     }
                   }}
                   disabled={contentConfirmed}
+                  accept=".txt,.doc,.docx,.pdf,.md"
                 />
                 <label 
                   htmlFor="file-upload"
-                  className="cursor-pointer text-seo-purple hover:text-seo-purple/80"
+                  className={`cursor-pointer text-blue-600 hover:text-blue-800 ${contentConfirmed ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   Click to upload or drag and drop
                 </label>
-                {content && <p className="mt-2 text-sm text-gray-500">{content}</p>}
+                {content && contentMethod === 'file' && <p className="mt-2 text-sm text-gray-500">{content}</p>}
               </div>
             )}
             
@@ -450,9 +565,16 @@ const QuickOptimizationForm = () => {
               <Button 
                 className="bg-[#F76D01] hover:bg-[#E25C00] text-white"
                 onClick={handleContentConfirm}
-                disabled={isLoading}
+                disabled={isLoading || fetchingUrl}
               >
-                Confirm Content
+                {isLoading || fetchingUrl ? (
+                  <>
+                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                    {fetchingUrl ? "Fetching Content..." : "Processing..."}
+                  </>
+                ) : (
+                  "Confirm Content"
+                )}
               </Button>
             ) : (
               <div className="flex items-center text-green-600">
@@ -493,18 +615,27 @@ const QuickOptimizationForm = () => {
                 <div className="mt-3 p-4 border border-gray-200 rounded-lg bg-white">
                   <div className="mb-3 font-medium">Suggested (select one):</div>
                   <div className="space-y-2">
-                    {primaryKeywordSuggestions.map((keyword) => (
-                      <label key={keyword.id} className="flex items-center cursor-pointer">
-                        <input 
-                          type="radio" 
-                          name="primaryKeyword" 
-                          className="mr-2"
-                          checked={primaryKeyword === keyword.text}
-                          onChange={() => handlePrimaryKeywordSelect(keyword.text)}
-                        />
-                        {keyword.text}
-                      </label>
-                    ))}
+                    {isLoading ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader className="h-6 w-6 animate-spin text-blue-600" />
+                        <span className="ml-2 text-sm text-gray-600">Generating suggestions...</span>
+                      </div>
+                    ) : primaryKeywordSuggestions.length > 0 ? (
+                      primaryKeywordSuggestions.map((keyword) => (
+                        <label key={keyword.id} className="flex items-center cursor-pointer">
+                          <input 
+                            type="radio" 
+                            name="primaryKeyword" 
+                            className="mr-2"
+                            checked={primaryKeyword === keyword.text}
+                            onChange={() => handlePrimaryKeywordSelect(keyword.text)}
+                          />
+                          {keyword.text}
+                        </label>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500">No suggestions available. Try adding more content.</p>
+                    )}
                   </div>
                   
                   <div className="mt-4 flex justify-between items-center">
@@ -526,7 +657,11 @@ const QuickOptimizationForm = () => {
                       onClick={handleRegeneratePrimaryKeywords}
                       disabled={isLoading}
                     >
-                      <RefreshCw size={16} />
+                      {isLoading ? (
+                        <Loader className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw size={16} />
+                      )}
                       Regenerate
                     </Button>
                   </div>
@@ -537,8 +672,8 @@ const QuickOptimizationForm = () => {
             <div className="space-y-2">
               <label className="block font-medium">Secondary Keywords (Optional):</label>
               <div className="flex gap-2">
-                <textarea 
-                  className="flex-1 p-3 border border-gray-300 rounded-md"
+                <Textarea 
+                  className="flex-1"
                   placeholder="Enter your secondary keywords, separated by commas..."
                   value={secondaryKeywords}
                   onChange={(e) => setSecondaryKeywords(e.target.value)}
@@ -559,17 +694,26 @@ const QuickOptimizationForm = () => {
                 <div className="mt-3 p-4 border border-gray-200 rounded-lg bg-white">
                   <div className="mb-3 font-medium">Suggested (select multiple):</div>
                   <div className="space-y-2">
-                    {secondaryKeywordSuggestions.map((keyword) => (
-                      <label key={keyword.id} className="flex items-center cursor-pointer">
-                        <Checkbox
-                          id={`secondary-${keyword.id}`}
-                          className="mr-2"
-                          checked={secondaryKeywords.includes(keyword.text)}
-                          onCheckedChange={() => handleSecondaryKeywordSelect(keyword.text)}
-                        />
-                        <span>{keyword.text}</span>
-                      </label>
-                    ))}
+                    {isLoading ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader className="h-6 w-6 animate-spin text-blue-600" />
+                        <span className="ml-2 text-sm text-gray-600">Generating suggestions...</span>
+                      </div>
+                    ) : secondaryKeywordSuggestions.length > 0 ? (
+                      secondaryKeywordSuggestions.map((keyword) => (
+                        <label key={keyword.id} className="flex items-center cursor-pointer">
+                          <Checkbox
+                            id={`secondary-${keyword.id}`}
+                            className="mr-2"
+                            checked={secondaryKeywords.includes(keyword.text)}
+                            onCheckedChange={() => handleSecondaryKeywordSelect(keyword.text)}
+                          />
+                          <span>{keyword.text}</span>
+                        </label>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500">No suggestions available. Try selecting a different primary keyword.</p>
+                    )}
                   </div>
                   
                   <div className="mt-4 flex justify-between items-center">
@@ -591,7 +735,11 @@ const QuickOptimizationForm = () => {
                       onClick={handleRegenerateSecondaryKeywords}
                       disabled={isLoading}
                     >
-                      <RefreshCw size={16} />
+                      {isLoading ? (
+                        <Loader className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw size={16} />
+                      )}
                       Regenerate
                     </Button>
                   </div>
@@ -606,7 +754,14 @@ const QuickOptimizationForm = () => {
           onClick={handleStartOptimization}
           disabled={isLoading}
         >
-          {isLoading ? "Analyzing..." : "Start Quick Optimization"}
+          {isLoading ? (
+            <>
+              <Loader className="mr-2 h-4 w-4 animate-spin" />
+              "Analyzing..."
+            </>
+          ) : (
+            "Start Quick Optimization"
+          )}
         </Button>
       </div>
     </div>
