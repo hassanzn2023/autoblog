@@ -2,6 +2,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+import { Search } from 'lucide-react';
 
 interface Keyword {
   id: string;
@@ -31,6 +35,24 @@ const QuickOptimizationForm = () => {
     { id: '4', text: 'office chair for back pain' },
     { id: '5', text: 'standing desk benefits' },
     { id: '6', text: 'home office setup ideas' },
+  ];
+  
+  // ReactQuill modules configuration
+  const modules = {
+    toolbar: [
+      [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+      ['link', 'image'],
+      ['clean']
+    ],
+  };
+
+  const formats = [
+    'header',
+    'bold', 'italic', 'underline', 'strike',
+    'list', 'bullet',
+    'link', 'image'
   ];
   
   const handleContentConfirm = () => {
@@ -118,6 +140,7 @@ const QuickOptimizationForm = () => {
                   checked={contentMethod === 'text'} 
                   onChange={() => setContentMethod('text')} 
                   className="mr-2" 
+                  disabled={contentConfirmed}
                 />
                 Add Text
               </label>
@@ -129,6 +152,7 @@ const QuickOptimizationForm = () => {
                   checked={contentMethod === 'link'} 
                   onChange={() => setContentMethod('link')} 
                   className="mr-2" 
+                  disabled={contentConfirmed}
                 />
                 Add Link
               </label>
@@ -140,19 +164,24 @@ const QuickOptimizationForm = () => {
                   checked={contentMethod === 'file'} 
                   onChange={() => setContentMethod('file')} 
                   className="mr-2" 
+                  disabled={contentConfirmed}
                 />
                 Upload File
               </label>
             </div>
             
             {contentMethod === 'text' && (
-              <textarea 
-                className="w-full h-32 p-3 border border-gray-300 rounded-md"
-                placeholder="Paste your article content here..."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                disabled={contentConfirmed}
-              />
+              <div className="quill-container">
+                <ReactQuill 
+                  theme="snow" 
+                  value={content} 
+                  onChange={setContent} 
+                  modules={modules} 
+                  formats={formats}
+                  readOnly={contentConfirmed}
+                  placeholder="Paste your article content here..."
+                />
+              </div>
             )}
             
             {contentMethod === 'link' && (
@@ -181,21 +210,21 @@ const QuickOptimizationForm = () => {
                 />
                 <label 
                   htmlFor="file-upload"
-                  className="cursor-pointer text-seo-purple hover:text-seo-purple/80"
+                  className={`cursor-pointer text-purple-600 hover:text-purple-800 ${contentConfirmed ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   Click to upload or drag and drop
                 </label>
-                {content && <p className="mt-2 text-sm text-gray-500">{content}</p>}
+                {content && contentMethod === 'file' && <p className="mt-2 text-sm text-gray-500">{content}</p>}
               </div>
             )}
             
             {!contentConfirmed ? (
-              <button 
-                className="seo-button seo-button-primary"
+              <Button 
+                variant="seoButton" 
                 onClick={handleContentConfirm}
               >
                 Confirm Content
-              </button>
+              </Button>
             ) : (
               <div className="flex items-center text-green-600">
                 <CheckIcon className="mr-2" />
@@ -221,9 +250,10 @@ const QuickOptimizationForm = () => {
                   onChange={(e) => setPrimaryKeyword(e.target.value)}
                 />
                 <button 
-                  className="seo-button seo-button-secondary"
-                  onClick={() => setShowPrimaryKeywordSuggestions(true)}
+                  className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md flex items-center gap-1"
+                  onClick={() => setShowPrimaryKeywordSuggestions(!showPrimaryKeywordSuggestions)}
                 >
+                  <Search size={16} className="text-gray-600" />
                   Suggest
                 </button>
               </div>
@@ -254,7 +284,7 @@ const QuickOptimizationForm = () => {
                         placeholder="Regeneration note..."
                       />
                     </div>
-                    <button className="seo-button seo-button-secondary">
+                    <button className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md">
                       Regenerate
                     </button>
                   </div>
@@ -273,9 +303,10 @@ const QuickOptimizationForm = () => {
                   rows={2}
                 />
                 <button 
-                  className="seo-button seo-button-secondary h-fit"
-                  onClick={() => setShowSecondaryKeywordSuggestions(true)}
+                  className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md h-fit flex items-center gap-1"
+                  onClick={() => setShowSecondaryKeywordSuggestions(!showSecondaryKeywordSuggestions)}
                 >
+                  <Search size={16} className="text-gray-600" />
                   Suggest
                 </button>
               </div>
@@ -305,7 +336,7 @@ const QuickOptimizationForm = () => {
                         placeholder="Regeneration note..."
                       />
                     </div>
-                    <button className="seo-button seo-button-secondary">
+                    <button className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md">
                       Regenerate
                     </button>
                   </div>
@@ -315,12 +346,13 @@ const QuickOptimizationForm = () => {
           </div>
         </div>
         
-        <button 
-          className="seo-button seo-button-primary w-full text-center py-3"
+        <Button 
+          variant="seoButton" 
+          className="w-full text-center py-3"
           onClick={handleStartOptimization}
         >
           Start Quick Optimization
-        </button>
+        </Button>
       </div>
     </div>
   );
