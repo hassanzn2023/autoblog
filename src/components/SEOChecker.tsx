@@ -1,8 +1,16 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AlertTriangle, Check, Info, X } from 'lucide-react';
+import { AlertTriangle, Check, FileText, Link, Upload, RefreshCw, Search, Pencil } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { 
+  generateKeywordSuggestions, 
+  generateSecondaryKeywordSuggestions,
+  analyzeSEOScore
+} from '@/services/openaiService';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const SEOScoreMeter = ({ score }: { score: number }) => {
   const rotation = (score / 100) * 180 - 90;
@@ -62,7 +70,7 @@ const Recommendation = ({ status, text, action }: RecommendationProps) => {
   const statusIcons = {
     success: <Check size={18} className="text-green-500" />,
     warning: <AlertTriangle size={18} className="text-yellow-500" />,
-    error: <X size={18} className="text-red-500" />
+    error: <AlertTriangle size={18} className="text-red-500" />
   };
   
   return (
@@ -74,9 +82,9 @@ const Recommendation = ({ status, text, action }: RecommendationProps) => {
         {text}
       </div>
       {action && (
-        <button className="bg-gray-100 hover:bg-gray-200 py-1 px-3 rounded-md text-sm">
+        <Button variant="outline" size="sm">
           {action}
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -197,23 +205,12 @@ const QuickOptimizationForm = () => {
   const [secondaryKeywords, setSecondaryKeywords] = useState('');
   const [showPrimaryKeywordSuggestions, setShowPrimaryKeywordSuggestions] = useState(false);
   const [showSecondaryKeywordSuggestions, setShowSecondaryKeywordSuggestions] = useState(false);
+  const [primaryKeywordSuggestions, setPrimaryKeywordSuggestions] = useState<Array<{id: string, text: string}>>([]);
+  const [secondaryKeywordSuggestions, setSecondaryKeywordSuggestions] = useState<Array<{id: string, text: string}>>([]);
+  const [regenerationNote, setRegenerationNote] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   
-  const primaryKeywordSuggestions = [
-    { id: '1', text: 'best coffee beans 2024' },
-    { id: '2', text: 'top ergonomic chairs' },
-    { id: '3', text: 'learn javascript fast' },
-  ];
-  
-  const secondaryKeywordSuggestions = [
-    { id: '1', text: 'dark roast coffee' },
-    { id: '2', text: 'light roast coffee' },
-    { id: '3', text: 'coffee grinding tips' },
-    { id: '4', text: 'office chair for back pain' },
-    { id: '5', text: 'standing desk benefits' },
-    { id: '6', text: 'home office setup ideas' },
-  ];
-  
-  const handleContentConfirm = () => {
+  const handleContentConfirm = async () => {
     if (!content.trim()) {
       toast({
         title: "Content Required",
@@ -228,11 +225,33 @@ const QuickOptimizationForm = () => {
       title: "Content Confirmed",
       description: "Your content has been added successfully.",
     });
+    
+    // Generate primary keyword suggestions after content is confirmed
+    setIsLoading(true);
+    try {
+      const suggestions = await generateKeywordSuggestions(content);
+      setPrimaryKeywordSuggestions(suggestions);
+    } catch (error) {
+      console.error("Error getting keyword suggestions:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
   
-  const handlePrimaryKeywordSelect = (keyword: string) => {
+  const handlePrimaryKeywordSelect = async (keyword: string) => {
     setPrimaryKeyword(keyword);
     setShowPrimaryKeywordSuggestions(false);
+    
+    // Generate secondary keyword suggestions based on the primary keyword
+    setIsLoading(true);
+    try {
+      const suggestions = await generateSecondaryKeywordSuggestions(keyword, content);
+      setSecondaryKeywordSuggestions(suggestions);
+    } catch (error) {
+      console.error("Error getting secondary keyword suggestions:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   const handleSecondaryKeywordSelect = (keyword: string) => {
@@ -244,7 +263,38 @@ const QuickOptimizationForm = () => {
     setShowSecondaryKeywordSuggestions(false);
   };
   
-  const handleStartOptimization = () => {
+  const handleRegeneratePrimaryKeywords = async () => {
+    setIsLoading(true);
+    try {
+      const suggestions = await generateKeywordSuggestions(content, 3, regenerationNote);
+      setPrimaryKeywordSuggestions(suggestions);
+      setRegenerationNote('');
+    } catch (error) {
+      console.error("Error regenerating keyword suggestions:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleRegenerateSecondaryKeywords = async () => {
+    setIsLoading(true);
+    try {
+      const suggestions = await generateSecondaryKeywordSuggestions(
+        primaryKeyword, 
+        content, 
+        6, 
+        regenerationNote
+      );
+      setSecondaryKeywordSuggestions(suggestions);
+      setRegenerationNote('');
+    } catch (error) {
+      console.error("Error regenerating secondary keyword suggestions:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleStartOptimization = async () => {
     if (!contentConfirmed) {
       toast({
         title: "Content Required",
@@ -264,21 +314,44 @@ const QuickOptimizationForm = () => {
     }
     
     // Simulate loading
+    setIsLoading(true);
     toast({
       title: "Optimization Started",
       description: "Analyzing and optimizing your content...",
     });
     
-    // Navigate to the results page after a delay
-    setTimeout(() => {
+    // Process secondary keywords
+    const secondaryKeywordsArray = secondaryKeywords
+      .split(',')
+      .map(k => k.trim())
+      .filter(k => k !== '');
+    
+    try {
+      // Analyze content using OpenAI
+      const analysis = await analyzeSEOScore(
+        content,
+        primaryKeyword,
+        secondaryKeywordsArray
+      );
+      
+      // Navigate to the results page after analysis is complete
       navigate('/seo-checker', { 
         state: { 
           content, 
-          primaryKeyword, 
-          secondaryKeywords: secondaryKeywords.split(',').map(k => k.trim()).filter(k => k !== '') 
+          primaryKeyword,
+          secondaryKeywords: secondaryKeywordsArray,
+          analysis
         }
       });
-    }, 1500);
+    } catch (error) {
+      console.error("Error analyzing content:", error);
+      toast({
+        title: "Error",
+        description: "There was an error analyzing your content. Please try again.",
+        variant: "destructive"
+      });
+      setIsLoading(false);
+    }
   };
   
   return (
@@ -300,6 +373,7 @@ const QuickOptimizationForm = () => {
                   onChange={() => setContentMethod('text')} 
                   className="mr-2" 
                 />
+                <FileText size={16} className="mr-1 text-gray-500" />
                 Add Text
               </label>
               
@@ -311,6 +385,7 @@ const QuickOptimizationForm = () => {
                   onChange={() => setContentMethod('link')} 
                   className="mr-2" 
                 />
+                <Link size={16} className="mr-1 text-gray-500" />
                 Add Link
               </label>
               
@@ -322,6 +397,7 @@ const QuickOptimizationForm = () => {
                   onChange={() => setContentMethod('file')} 
                   className="mr-2" 
                 />
+                <Upload size={16} className="mr-1 text-gray-500" />
                 Upload File
               </label>
             </div>
@@ -337,9 +413,9 @@ const QuickOptimizationForm = () => {
             )}
             
             {contentMethod === 'link' && (
-              <input 
+              <Input 
                 type="url" 
-                className="w-full p-3 border border-gray-300 rounded-md"
+                className="w-full p-3"
                 placeholder="Enter URL to your content..."
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
@@ -362,7 +438,7 @@ const QuickOptimizationForm = () => {
                 />
                 <label 
                   htmlFor="file-upload"
-                  className="cursor-pointer text-purple-600 hover:text-purple-800"
+                  className="cursor-pointer text-seo-purple hover:text-seo-purple/80"
                 >
                   Click to upload or drag and drop
                 </label>
@@ -371,15 +447,16 @@ const QuickOptimizationForm = () => {
             )}
             
             {!contentConfirmed ? (
-              <button 
-                className="bg-[#F76D01] hover:bg-[#E25C00] text-white px-4 py-2 rounded-md"
+              <Button 
+                className="bg-[#F76D01] hover:bg-[#E25C00] text-white"
                 onClick={handleContentConfirm}
+                disabled={isLoading}
               >
                 Confirm Content
-              </button>
+              </Button>
             ) : (
               <div className="flex items-center text-green-600">
-                <CheckIcon className="mr-2" />
+                <Check className="mr-2" />
                 <span>Content added/confirmed.</span>
               </div>
             )}
@@ -394,19 +471,22 @@ const QuickOptimizationForm = () => {
             <div className="space-y-2">
               <label className="block font-medium">Primary Keyword:</label>
               <div className="flex gap-2">
-                <input 
+                <Input 
                   type="text" 
-                  className="flex-1 p-3 border border-gray-300 rounded-md"
+                  className="flex-1"
                   placeholder="Enter your main keyword..."
                   value={primaryKeyword}
                   onChange={(e) => setPrimaryKeyword(e.target.value)}
                 />
-                <button 
-                  className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md"
+                <Button 
+                  variant="outline"
+                  className="flex items-center gap-1"
                   onClick={() => setShowPrimaryKeywordSuggestions(!showPrimaryKeywordSuggestions)}
+                  disabled={!contentConfirmed || isLoading}
                 >
+                  <Search size={16} />
                   Suggest
-                </button>
+                </Button>
               </div>
               
               {showPrimaryKeywordSuggestions && (
@@ -428,16 +508,27 @@ const QuickOptimizationForm = () => {
                   </div>
                   
                   <div className="mt-4 flex justify-between items-center">
-                    <div className="text-sm text-gray-500">
-                      <input 
-                        type="text" 
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                        placeholder="Regeneration note..."
-                      />
+                    <div className="text-sm text-gray-500 flex-1 mr-2">
+                      <div className="flex items-center gap-1">
+                        <Input 
+                          type="text" 
+                          className="w-full"
+                          placeholder="Regeneration note..."
+                          value={regenerationNote}
+                          onChange={(e) => setRegenerationNote(e.target.value)}
+                        />
+                        <Pencil size={16} className="text-gray-400" />
+                      </div>
                     </div>
-                    <button className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md">
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-1"
+                      onClick={handleRegeneratePrimaryKeywords}
+                      disabled={isLoading}
+                    >
+                      <RefreshCw size={16} />
                       Regenerate
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
@@ -453,12 +544,15 @@ const QuickOptimizationForm = () => {
                   onChange={(e) => setSecondaryKeywords(e.target.value)}
                   rows={2}
                 />
-                <button 
-                  className="bg-gray-100 hover:bg-gray-200 h-fit px-4 py-2 rounded-md"
+                <Button
+                  variant="outline"
+                  className="h-fit flex items-center gap-1"
                   onClick={() => setShowSecondaryKeywordSuggestions(!showSecondaryKeywordSuggestions)}
+                  disabled={!primaryKeyword.trim() || isLoading}
                 >
+                  <Search size={16} />
                   Suggest
-                </button>
+                </Button>
               </div>
               
               {showSecondaryKeywordSuggestions && (
@@ -467,28 +561,39 @@ const QuickOptimizationForm = () => {
                   <div className="space-y-2">
                     {secondaryKeywordSuggestions.map((keyword) => (
                       <label key={keyword.id} className="flex items-center cursor-pointer">
-                        <input 
-                          type="checkbox" 
+                        <Checkbox
+                          id={`secondary-${keyword.id}`}
                           className="mr-2"
                           checked={secondaryKeywords.includes(keyword.text)}
-                          onChange={() => handleSecondaryKeywordSelect(keyword.text)}
+                          onCheckedChange={() => handleSecondaryKeywordSelect(keyword.text)}
                         />
-                        {keyword.text}
+                        <span>{keyword.text}</span>
                       </label>
                     ))}
                   </div>
                   
                   <div className="mt-4 flex justify-between items-center">
-                    <div className="text-sm text-gray-500">
-                      <input 
-                        type="text" 
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                        placeholder="Regeneration note..."
-                      />
+                    <div className="text-sm text-gray-500 flex-1 mr-2">
+                      <div className="flex items-center gap-1">
+                        <Input 
+                          type="text" 
+                          className="w-full"
+                          placeholder="Regeneration note..."
+                          value={regenerationNote}
+                          onChange={(e) => setRegenerationNote(e.target.value)}
+                        />
+                        <Pencil size={16} className="text-gray-400" />
+                      </div>
                     </div>
-                    <button className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md">
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-1"
+                      onClick={handleRegenerateSecondaryKeywords}
+                      disabled={isLoading}
+                    >
+                      <RefreshCw size={16} />
                       Regenerate
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
@@ -496,33 +601,17 @@ const QuickOptimizationForm = () => {
           </div>
         </div>
         
-        <button 
-          className="bg-[#F76D01] hover:bg-[#E25C00] text-white w-full text-center py-3 rounded-md"
+        <Button 
+          className="bg-[#F76D01] hover:bg-[#E25C00] text-white w-full text-center py-3"
           onClick={handleStartOptimization}
+          disabled={isLoading}
         >
-          Start Quick Optimization
-        </button>
+          {isLoading ? "Analyzing..." : "Start Quick Optimization"}
+        </Button>
       </div>
     </div>
   );
 };
-
-const CheckIcon = ({ className = "" }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M20 6L9 17l-5-5" />
-  </svg>
-);
 
 // Main SEO Checker component that shows either the form or results
 const SEOChecker = () => {
