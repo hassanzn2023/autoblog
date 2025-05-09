@@ -24,7 +24,7 @@ const buttonVariants = cva(
         success:
           "bg-green-500 text-white hover:bg-green-600",
         seoButton: 
-          "bg-[#F76D01] hover:bg-[#E25C00] text-white font-medium py-3 rounded-md transition-all transform hover:scale-[1.02]",
+          "bg-[#F76D01] hover:bg-[#E25C00] text-white font-medium py-3 rounded-md transition-all transform hover:scale-[1.02] z-10 relative",
       },
       size: {
         default: "h-10 px-4 py-2",

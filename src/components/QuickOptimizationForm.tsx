@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import { Search } from 'lucide-react';
+import { Search, X, Loader, RefreshCw, Pencil } from 'lucide-react';
+import { generateKeywordSuggestions, generateSecondaryKeywordSuggestions } from '@/services/openaiService';
 
 interface Keyword {
   id: string;
@@ -18,24 +19,16 @@ const QuickOptimizationForm = () => {
   const [content, setContent] = useState('');
   const [contentConfirmed, setContentConfirmed] = useState(false);
   const [primaryKeyword, setPrimaryKeyword] = useState('');
-  const [secondaryKeywords, setSecondaryKeywords] = useState('');
+  const [secondaryKeywords, setSecondaryKeywords] = useState<string[]>([]);
   const [showPrimaryKeywordSuggestions, setShowPrimaryKeywordSuggestions] = useState(false);
   const [showSecondaryKeywordSuggestions, setShowSecondaryKeywordSuggestions] = useState(false);
-  
-  const primaryKeywordSuggestions: Keyword[] = [
-    { id: '1', text: 'best coffee beans 2024' },
-    { id: '2', text: 'top ergonomic chairs' },
-    { id: '3', text: 'learn javascript fast' },
-  ];
-  
-  const secondaryKeywordSuggestions: Keyword[] = [
-    { id: '1', text: 'dark roast coffee' },
-    { id: '2', text: 'light roast coffee' },
-    { id: '3', text: 'coffee grinding tips' },
-    { id: '4', text: 'office chair for back pain' },
-    { id: '5', text: 'standing desk benefits' },
-    { id: '6', text: 'home office setup ideas' },
-  ];
+  const [primaryKeywordSuggestions, setPrimaryKeywordSuggestions] = useState<Keyword[]>([]);
+  const [secondaryKeywordSuggestions, setSecondaryKeywordSuggestions] = useState<Keyword[]>([]);
+  const [regenerationNote, setRegenerationNote] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingPrimary, setIsGeneratingPrimary] = useState(false);
+  const [isGeneratingSecondary, setIsGeneratingSecondary] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
   
   // ReactQuill modules configuration
   const modules = {
@@ -54,6 +47,20 @@ const QuickOptimizationForm = () => {
     'list', 'bullet',
     'link', 'image'
   ];
+
+  // Auto-generate keyword suggestions after content is confirmed
+  useEffect(() => {
+    if (contentConfirmed && content) {
+      handleGeneratePrimaryKeywords();
+    }
+  }, [contentConfirmed]);
+
+  // Auto-generate secondary keywords when primary keyword is selected
+  useEffect(() => {
+    if (primaryKeyword && contentConfirmed && content) {
+      handleGenerateSecondaryKeywords();
+    }
+  }, [primaryKeyword]);
   
   const handleContentConfirm = () => {
     if (!content.trim()) {
@@ -77,12 +84,124 @@ const QuickOptimizationForm = () => {
     setShowPrimaryKeywordSuggestions(false);
   };
   
-  const handleSecondaryKeywordSelect = (keyword: string) => {
-    const keywords = secondaryKeywords.split(',').map(k => k.trim()).filter(k => k !== '');
-    if (!keywords.includes(keyword)) {
-      const newKeywords = [...keywords, keyword].join(', ');
-      setSecondaryKeywords(newKeywords);
+  const handleSecondaryKeywordToggle = (keyword: string) => {
+    // Check if the keyword is already selected
+    if (secondaryKeywords.includes(keyword)) {
+      // Remove the keyword if already selected
+      setSecondaryKeywords(secondaryKeywords.filter(k => k !== keyword));
+    } else {
+      // Add the keyword if not already selected and if less than 5 are selected
+      if (secondaryKeywords.length < 5) {
+        setSecondaryKeywords([...secondaryKeywords, keyword]);
+      } else {
+        toast({
+          title: "Maximum Keywords Reached",
+          description: "You can select up to 5 secondary keywords.",
+          variant: "default"
+        });
+      }
     }
+  };
+  
+  const handleGeneratePrimaryKeywords = async () => {
+    if (!content) {
+      toast({
+        title: "Content Required",
+        description: "Please add your content before generating keywords.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsGeneratingPrimary(true);
+    setShowPrimaryKeywordSuggestions(true);
+    
+    try {
+      const suggestions = await generateKeywordSuggestions(
+        content,
+        3,
+        regenerationNote
+      );
+      
+      if (suggestions && suggestions.length > 0) {
+        setPrimaryKeywordSuggestions(suggestions);
+        setRegenerationNote('');
+        toast({
+          title: "Primary Keywords Generated",
+          description: "Please select a primary keyword.",
+        });
+      } else {
+        toast({
+          title: "Generation Failed",
+          description: "Unable to generate keyword suggestions. Please try again.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error generating primary keywords:", error);
+      toast({
+        title: "Generation Error",
+        description: "An error occurred while generating keywords.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingPrimary(false);
+    }
+  };
+  
+  const handleGenerateSecondaryKeywords = async () => {
+    if (!primaryKeyword || !content) {
+      toast({
+        title: "Information Required",
+        description: "Please confirm your content and select a primary keyword first.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsGeneratingSecondary(true);
+    setShowSecondaryKeywordSuggestions(true);
+    
+    try {
+      const suggestions = await generateSecondaryKeywordSuggestions(
+        primaryKeyword,
+        content,
+        5,
+        regenerationNote
+      );
+      
+      if (suggestions && suggestions.length > 0) {
+        setSecondaryKeywordSuggestions(suggestions);
+        setRegenerationNote('');
+        toast({
+          title: "Secondary Keywords Generated",
+          description: "Please select up to 5 secondary keywords.",
+        });
+      } else {
+        toast({
+          title: "Generation Failed",
+          description: "Unable to generate secondary keyword suggestions. Please try again.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error generating secondary keywords:", error);
+      toast({
+        title: "Generation Error",
+        description: "An error occurred while generating keywords.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingSecondary(false);
+    }
+  };
+  
+  const handleRegeneratePrimaryKeywords = async () => {
+    await handleGeneratePrimaryKeywords();
+  };
+  
+  const handleRegenerateSecondaryKeywords = async () => {
+    await handleGenerateSecondaryKeywords();
   };
   
   const handleStartOptimization = () => {
@@ -104,7 +223,8 @@ const QuickOptimizationForm = () => {
       return;
     }
     
-    // Simulate loading
+    // Show loading state only in button
+    setIsOptimizing(true);
     toast({
       title: "Optimization Started",
       description: "Analyzing and optimizing your content...",
@@ -116,9 +236,10 @@ const QuickOptimizationForm = () => {
         state: { 
           content, 
           primaryKeyword, 
-          secondaryKeywords: secondaryKeywords.split(',').map(k => k.trim()).filter(k => k !== '') 
+          secondaryKeywords
         }
       });
+      setIsOptimizing(false);
     }, 1000);
   };
   
@@ -171,7 +292,7 @@ const QuickOptimizationForm = () => {
             </div>
             
             {contentMethod === 'text' && (
-              <div className="quill-container h-64">
+              <div className="quill-container h-64 mb-8">
                 <ReactQuill 
                   theme="snow" 
                   value={content} 
@@ -181,6 +302,7 @@ const QuickOptimizationForm = () => {
                   readOnly={contentConfirmed}
                   placeholder="Paste your article content here..."
                   style={{ height: '200px' }}
+                  className="h-52"
                 />
               </div>
             )}
@@ -219,19 +341,22 @@ const QuickOptimizationForm = () => {
               </div>
             )}
             
-            {!contentConfirmed ? (
-              <Button 
-                variant="seoButton" 
-                onClick={handleContentConfirm}
-              >
-                Confirm Content
-              </Button>
-            ) : (
-              <div className="flex items-center text-green-600">
-                <CheckIcon className="mr-2" />
-                <span>Content added/confirmed.</span>
-              </div>
-            )}
+            <div className="mt-10">
+              {!contentConfirmed ? (
+                <Button 
+                  variant="seoButton" 
+                  onClick={handleContentConfirm}
+                  className="z-10 relative"
+                >
+                  Confirm Content
+                </Button>
+              ) : (
+                <div className="flex items-center text-green-600">
+                  <CheckIcon className="mr-2" />
+                  <span>Content added/confirmed.</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         
@@ -253,6 +378,7 @@ const QuickOptimizationForm = () => {
                 <button 
                   className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md flex items-center gap-1 transition-colors"
                   onClick={() => setShowPrimaryKeywordSuggestions(!showPrimaryKeywordSuggestions)}
+                  disabled={!contentConfirmed || isGeneratingPrimary}
                 >
                   <Search size={16} className="text-gray-600" />
                   Suggest
@@ -263,18 +389,27 @@ const QuickOptimizationForm = () => {
                 <div className="mt-3 p-4 border border-gray-200 rounded-lg bg-white shadow-sm">
                   <div className="mb-3 font-medium">Suggested (select one):</div>
                   <div className="space-y-2">
-                    {primaryKeywordSuggestions.map((keyword) => (
-                      <label key={keyword.id} className="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded">
-                        <input 
-                          type="radio" 
-                          name="primaryKeyword" 
-                          className="mr-2"
-                          checked={primaryKeyword === keyword.text}
-                          onChange={() => handlePrimaryKeywordSelect(keyword.text)}
-                        />
-                        {keyword.text}
-                      </label>
-                    ))}
+                    {isGeneratingPrimary ? (
+                      <div className="flex justify-center py-4">
+                        <Loader size={24} className="animate-spin text-[#F76D01]" />
+                        <span className="ml-2">Generating suggestions...</span>
+                      </div>
+                    ) : primaryKeywordSuggestions.length > 0 ? (
+                      primaryKeywordSuggestions.map((keyword) => (
+                        <label key={keyword.id} className="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded">
+                          <input 
+                            type="radio" 
+                            name="primaryKeyword" 
+                            className="mr-2"
+                            checked={primaryKeyword === keyword.text}
+                            onChange={() => handlePrimaryKeywordSelect(keyword.text)}
+                          />
+                          {keyword.text}
+                        </label>
+                      ))
+                    ) : (
+                      <p>No suggestions available</p>
+                    )}
                   </div>
                   
                   <div className="mt-4 flex justify-between items-center">
@@ -283,9 +418,20 @@ const QuickOptimizationForm = () => {
                         type="text" 
                         className="w-full p-2 border border-gray-300 rounded-md"
                         placeholder="Regeneration note..."
+                        value={regenerationNote}
+                        onChange={(e) => setRegenerationNote(e.target.value)}
                       />
                     </div>
-                    <button className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md transition-colors">
+                    <button 
+                      className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md flex items-center gap-1 transition-colors"
+                      onClick={handleRegeneratePrimaryKeywords}
+                      disabled={isGeneratingPrimary}
+                    >
+                      {isGeneratingPrimary ? (
+                        <Loader size={16} className="animate-spin" />
+                      ) : (
+                        <RefreshCw size={16} />
+                      )}
                       Regenerate
                     </button>
                   </div>
@@ -296,16 +442,32 @@ const QuickOptimizationForm = () => {
             <div className="space-y-2">
               <label className="block font-medium">Secondary Keywords (Optional):</label>
               <div className="flex gap-2">
-                <textarea 
-                  className="flex-1 p-3 border border-gray-300 rounded-md"
-                  placeholder="Enter your secondary keywords, separated by commas..."
-                  value={secondaryKeywords}
-                  onChange={(e) => setSecondaryKeywords(e.target.value)}
-                  rows={2}
-                />
+                <div className="flex-1 p-3 border border-gray-300 rounded-md min-h-[80px] bg-white">
+                  {secondaryKeywords.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {secondaryKeywords.map((keyword, index) => (
+                        <div 
+                          key={index} 
+                          className="bg-gray-100 px-2 py-1 rounded-md flex items-center gap-1"
+                        >
+                          <span>{keyword}</span>
+                          <button 
+                            onClick={() => handleSecondaryKeywordToggle(keyword)}
+                            className="text-gray-500 hover:text-red-500"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">Select up to 5 secondary keywords</span>
+                  )}
+                </div>
                 <button 
                   className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md h-fit flex items-center gap-1 transition-colors"
                   onClick={() => setShowSecondaryKeywordSuggestions(!showSecondaryKeywordSuggestions)}
+                  disabled={!primaryKeyword || isGeneratingSecondary}
                 >
                   <Search size={16} className="text-gray-600" />
                   Suggest
@@ -314,30 +476,57 @@ const QuickOptimizationForm = () => {
               
               {showSecondaryKeywordSuggestions && (
                 <div className="mt-3 p-4 border border-gray-200 rounded-lg bg-white shadow-sm">
-                  <div className="mb-3 font-medium">Suggested (select multiple):</div>
+                  <div className="mb-3 font-medium">Suggested (select multiple, max 5):</div>
                   <div className="space-y-2">
-                    {secondaryKeywordSuggestions.map((keyword) => (
-                      <label key={keyword.id} className="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded">
-                        <input 
-                          type="checkbox" 
-                          className="mr-2"
-                          checked={secondaryKeywords.includes(keyword.text)}
-                          onChange={() => handleSecondaryKeywordSelect(keyword.text)}
-                        />
-                        {keyword.text}
-                      </label>
-                    ))}
+                    {isGeneratingSecondary ? (
+                      <div className="flex justify-center py-4">
+                        <Loader size={24} className="animate-spin text-[#F76D01]" />
+                        <span className="ml-2">Generating suggestions...</span>
+                      </div>
+                    ) : secondaryKeywordSuggestions.length > 0 ? (
+                      secondaryKeywordSuggestions.map((keyword) => (
+                        <label key={keyword.id} className="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded">
+                          <input 
+                            type="checkbox" 
+                            className="mr-2"
+                            checked={secondaryKeywords.includes(keyword.text)}
+                            onChange={() => handleSecondaryKeywordToggle(keyword.text)}
+                            disabled={!secondaryKeywords.includes(keyword.text) && secondaryKeywords.length >= 5}
+                          />
+                          {keyword.text}
+                          {!secondaryKeywords.includes(keyword.text) && secondaryKeywords.length >= 5 && (
+                            <span className="ml-2 text-xs text-gray-400">(max 5 reached)</span>
+                          )}
+                        </label>
+                      ))
+                    ) : (
+                      <p>No suggestions available</p>
+                    )}
                   </div>
                   
                   <div className="mt-4 flex justify-between items-center">
-                    <div className="text-sm text-gray-500">
-                      <input 
-                        type="text" 
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                        placeholder="Regeneration note..."
-                      />
+                    <div className="text-sm text-gray-500 flex-1 mr-2">
+                      <div className="flex items-center gap-1">
+                        <input 
+                          type="text" 
+                          className="w-full p-2 border border-gray-300 rounded-md"
+                          placeholder="Regeneration note..."
+                          value={regenerationNote}
+                          onChange={(e) => setRegenerationNote(e.target.value)}
+                        />
+                        <Pencil size={16} className="text-gray-400" />
+                      </div>
                     </div>
-                    <button className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md transition-colors">
+                    <button 
+                      className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md flex items-center gap-1 transition-colors"
+                      onClick={handleRegenerateSecondaryKeywords}
+                      disabled={isGeneratingSecondary}
+                    >
+                      {isGeneratingSecondary ? (
+                        <Loader size={16} className="animate-spin" />
+                      ) : (
+                        <RefreshCw size={16} />
+                      )}
                       Regenerate
                     </button>
                   </div>
@@ -351,8 +540,16 @@ const QuickOptimizationForm = () => {
           variant="seoButton" 
           className="w-full text-center py-3"
           onClick={handleStartOptimization}
+          disabled={isOptimizing}
         >
-          Start Quick Optimization
+          {isOptimizing ? (
+            <div className="flex items-center justify-center">
+              <Loader className="mr-2 h-5 w-5 animate-spin text-white" />
+              <span>Analyzing...</span>
+            </div>
+          ) : (
+            "Start Quick Optimization"
+          )}
         </Button>
       </div>
     </div>
