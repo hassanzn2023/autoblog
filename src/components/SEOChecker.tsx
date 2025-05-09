@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Link, Upload, RefreshCw, Search, Pencil, AlertTriangle, Check, Loader } from 'lucide-react';
@@ -94,109 +95,262 @@ const Recommendation = ({ status, text, action }: RecommendationProps) => {
   );
 };
 
+// Calculate content stats
+const calculateContentStats = (content: string) => {
+  if (!content) return { words: 0, headings: 0, paragraphs: 0, images: 0 };
+  
+  // Count words (split by spaces and filter out empty strings)
+  const words = content.split(/\s+/).filter(word => word.length > 0).length;
+  
+  // Count headings (approximate by looking for # markdown or h1-h6 tags)
+  const headingRegex = /^#+\s+.+$|<h[1-6]>.*<\/h[1-6]>/gim;
+  const headings = (content.match(headingRegex) || []).length;
+  
+  // Count paragraphs (look for double newlines or <p> tags)
+  const paragraphRegex = /\n\s*\n|<p>.*?<\/p>/gs;
+  const paragraphs = (content.match(paragraphRegex) || []).length || 
+                    content.split(/\n+/).filter(p => p.trim().length > 0).length;
+  
+  // Count image references (approximate by looking for markdown or HTML img tags)
+  const imageRegex = /!\[.*?\]\(.*?\)|<img.*?>/gi;
+  const images = (content.match(imageRegex) || []).length;
+  
+  return { words, headings, paragraphs, images };
+};
+
+// Generate SEO recommendations based on content
+const generateRecommendations = (content: string, primaryKeyword: string) => {
+  const stats = calculateContentStats(content);
+  const recommendations: RecommendationProps[] = [];
+  
+  // Add successful keyword integration recommendation
+  recommendations.push({
+    status: 'success',
+    text: `Basic optimization for "${primaryKeyword}" complete.`
+  });
+  
+  // Add warning for Pro mode
+  recommendations.push({
+    status: 'warning',
+    text: "For full control, try Pro Mode."
+  });
+  
+  // Add content length recommendation if needed
+  if (stats.words < 300) {
+    recommendations.push({
+      status: 'error',
+      text: "Add more supporting content to improve ranking.",
+      action: "Fix"
+    });
+  }
+  
+  // Add image recommendation if needed
+  if (stats.images < 1) {
+    recommendations.push({
+      status: 'error',
+      text: "Add at least one image to improve engagement.",
+      action: "See"
+    });
+  }
+  
+  // Add header structure recommendation if needed
+  if (stats.headings < 2 && stats.words > 300) {
+    recommendations.push({
+      status: 'error',
+      text: "Add more headings to structure your content.",
+      action: "Fix"
+    });
+  }
+  
+  return recommendations;
+};
+
+// Calculate SEO score based on content metrics
+const calculateSEOScore = (content: string, primaryKeyword: string) => {
+  const stats = calculateContentStats(content);
+  let score = 50; // Start with a base score
+  
+  // Add points for longer content
+  if (stats.words > 300) score += 10;
+  if (stats.words > 600) score += 5;
+  if (stats.words > 1000) score += 5;
+  
+  // Add points for good structure
+  if (stats.headings >= 1) score += 5;
+  if (stats.headings >= 3) score += 5;
+  if (stats.paragraphs >= 4) score += 5;
+  
+  // Add points for images
+  if (stats.images >= 1) score += 5;
+  if (stats.images >= 2) score += 5;
+  
+  // Check keyword presence and density
+  const keywordRegex = new RegExp(primaryKeyword, 'gi');
+  const keywordOccurrences = (content.match(keywordRegex) || []).length;
+  const keywordDensity = keywordOccurrences / stats.words;
+  
+  if (keywordOccurrences >= 1) score += 5;
+  if (keywordDensity >= 0.01 && keywordDensity <= 0.03) score += 10; // Optimal density
+  else if (keywordDensity > 0.03) score -= 5; // Keyword stuffing penalty
+  
+  return Math.min(100, Math.max(0, Math.round(score))); // Ensure score is between 0-100
+};
+
 // SEO Checker Result Component
 const SEOCheckerResult = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { primaryKeyword } = location.state || { primaryKeyword: "keywords" };
+  const [analyzing, setAnalyzing] = useState(true);
   
-  // This would normally be generated from the optimization results
-  const sampleContent = `
---- NORMAL MODE OPTIMIZED (SIMULATED) ---
-Basic keyword integration for "best coffee beans 2024" and general readability improvements applied.
-
-The Ultimate Guide to the Best Coffee Beans in 2024
-
-Are you a coffee enthusiast searching for the perfect cup of joe? Look no further! In this comprehensive guide, we'll explore the best coffee beans 2024 has to offer, focusing especially on dark roast coffee varieties that deliver rich, bold flavors.
-
-What Makes Great Coffee Beans?
-When searching for the best coffee beans 2024 has introduced to the market, consider these essential factors: origin, processing method, roast level, and freshness. Single-origin beans from Ethiopia, Colombia, and Costa Rica consistently rank among the top choices for discerning coffee lovers.
-
-Dark Roast Coffee: Rich and Bold
-For fans of dark roast coffee, 2024 brings exciting new options. These beans are roasted longer, creating a deeper color and bringing natural oils to the surface. The result is a less acidic brew with notes of chocolate, caramel, and sometimes even smoky flavors that many coffee enthusiasts prefer for their morning cup.
-
-Top Recommendations
-After extensive testing, here are our top picks for the best coffee beans 2024 has to offer:
-1. Ethiopian Yirgacheffe - Perfect for those who enjoy bright, fruity notes with a medium body
-2. Sumatra Mandheling - Excellent dark roast coffee with earthy, herbal characteristics
-3. Colombian Supremo - Balanced with caramel sweetness and mild acidity
-4. Guatemalan Antigua - Notes of chocolate and spice with a smooth finish
-  `;
+  const { 
+    content = "", 
+    primaryKeyword = "",
+    secondaryKeywords = []
+  } = location.state || {};
+  
+  const [contentStats, setContentStats] = useState({ words: 0, headings: 0, paragraphs: 0, images: 0 });
+  const [seoScore, setSeoScore] = useState(0);
+  const [recommendations, setRecommendations] = useState<RecommendationProps[]>([]);
+  
+  useEffect(() => {
+    if (!content || !primaryKeyword) {
+      navigate('/seo-checker');
+      return;
+    }
+    
+    // Calculate content stats and SEO score
+    const stats = calculateContentStats(content);
+    const score = calculateSEOScore(content, primaryKeyword);
+    const recs = generateRecommendations(content, primaryKeyword);
+    
+    // Simulate analysis delay for UX
+    const timer = setTimeout(() => {
+      setContentStats(stats);
+      setSeoScore(score);
+      setRecommendations(recs);
+      setAnalyzing(false);
+    }, 1500);
+    
+    return () => clearTimeout(timer);
+  }, [content, primaryKeyword, navigate]);
+  
+  // Generate word count range guidance
+  const getWordCountRange = () => {
+    const idealMin = Math.max(300, Math.round(contentStats.words * 1.2));
+    const idealMax = Math.round(idealMin * 1.25);
+    return `${idealMin} - ${idealMax}`;
+  };
+  
+  // Generate heading count range guidance
+  const getHeadingCountRange = () => {
+    const min = Math.max(1, Math.floor(contentStats.words / 300));
+    const max = Math.max(2, Math.ceil(contentStats.words / 150));
+    return `${min} - ${max}`;
+  };
+  
+  // Generate paragraph count range guidance
+  const getParagraphCountRange = () => {
+    const min = Math.max(2, Math.floor(contentStats.words / 150));
+    const max = Math.max(4, Math.ceil(contentStats.words / 75));
+    return `${min} - ${max}`;
+  };
+  
+  // Generate image count range guidance
+  const getImageCountRange = () => {
+    const min = Math.max(1, Math.floor(contentStats.words / 400));
+    const max = Math.max(3, Math.ceil(contentStats.words / 200));
+    return `${min} - ${max}`;
+  };
 
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <div className="text-xl font-bold">BlogArticle / شف 🇦🇪</div>
+        <div className="text-xl font-bold">BlogArticle / {primaryKeyword}</div>
         <button 
           className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md"
-          onClick={() => navigate('/autofix/modes')}
+          onClick={() => navigate('/seo-checker')}
         >
           Reset
         </button>
       </div>
       
-      <div className="grid md:grid-cols-5 gap-6">
-        <div className="md:col-span-2 space-y-6">
-          {/* SEO Score */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-medium mb-4">Content SEO Score</h2>
-            <SEOScoreMeter score={85} />
-            <div className="text-center text-sm text-gray-500 mt-2">
-              Suggested 65+
-            </div>
-            <div className="text-center mt-2">
-              <a href="#" className="text-purple-600 text-sm">Learn more about how Content SEO Score works</a>
-            </div>
-          </div>
-          
-          {/* Content Stats */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="grid grid-cols-2 gap-3">
-              <ContentStatBox label="Words" value={182} range="254 - 317" />
-              <ContentStatBox label="Headings" value={1} range="0 - 1" />
-              <ContentStatBox label="Paragraphs" value={4} range="0 - 6" />
-              <ContentStatBox label="Images" value={0} range="0 - 3" />
-            </div>
-          </div>
-          
-          {/* Recommendations */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-medium mb-4">Recommendations</h2>
-            <div className="space-y-1">
-              <Recommendation 
-                status="success" 
-                text={`Basic optimization for "${primaryKeyword}" complete.`} 
-              />
-              <Recommendation 
-                status="warning" 
-                text="For full control, try Pro Mode."
-              />
-              <Recommendation 
-                status="error" 
-                text="Add more supporting content to improve ranking." 
-                action="Fix" 
-              />
-              <Recommendation 
-                status="error" 
-                text="Add at least one image to improve engagement." 
-                action="See" 
-              />
+      {analyzing ? (
+        <div className="flex flex-col items-center justify-center h-96">
+          <Loader className="h-12 w-12 animate-spin text-[#F76D01] mb-4" />
+          <h2 className="text-xl font-medium">Analyzing your content...</h2>
+          <p className="text-gray-500 mt-2">This will take just a moment</p>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-5 gap-6">
+          <div className="md:col-span-2 space-y-6">
+            {/* SEO Score */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h2 className="text-lg font-medium mb-4">Content SEO Score</h2>
+              <SEOScoreMeter score={seoScore} />
+              <div className="text-center text-sm text-gray-500 mt-2">
+                Suggested 65+
+              </div>
+              <div className="flex justify-between mt-4 text-sm">
+                <a href="#" className="text-purple-600">Learn more</a>
+                <a href="#" className="text-purple-600">Score works</a>
+              </div>
             </div>
             
-            <button className="w-full bg-[#F76D01] hover:bg-[#E25C00] text-white py-2 rounded-md mt-6">
-              Improve SEO (Beta)
-            </button>
+            {/* Content Stats */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="grid grid-cols-2 gap-3">
+                <ContentStatBox 
+                  label="Words" 
+                  value={contentStats.words} 
+                  range={getWordCountRange()} 
+                />
+                <ContentStatBox 
+                  label="Headings" 
+                  value={contentStats.headings} 
+                  range={getHeadingCountRange()} 
+                />
+                <ContentStatBox 
+                  label="Paragraphs" 
+                  value={contentStats.paragraphs} 
+                  range={getParagraphCountRange()} 
+                />
+                <ContentStatBox 
+                  label="Images" 
+                  value={contentStats.images} 
+                  range={getImageCountRange()} 
+                />
+              </div>
+            </div>
+            
+            {/* Recommendations */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h2 className="text-lg font-medium mb-4">Recommendations</h2>
+              <div className="space-y-1">
+                {recommendations.map((rec, index) => (
+                  <Recommendation 
+                    key={index}
+                    status={rec.status}
+                    text={rec.text}
+                    action={rec.action}
+                  />
+                ))}
+              </div>
+              
+              <button className="w-full bg-[#F76D01] hover:bg-[#E25C00] text-white py-2 rounded-md mt-6">
+                Improve SEO (Beta)
+              </button>
+            </div>
+          </div>
+          
+          <div className="md:col-span-3">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 h-full">
+              <pre className="whitespace-pre-wrap text-sm font-mono">
+                {content}
+              </pre>
+            </div>
           </div>
         </div>
-        
-        <div className="md:col-span-3">
-          <div className="bg-white rounded-lg border border-gray-200 p-6 h-full">
-            <pre className="whitespace-pre-wrap text-sm font-mono">
-              {sampleContent}
-            </pre>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
