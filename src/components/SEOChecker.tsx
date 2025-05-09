@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Link, Upload, RefreshCw, Search, Pencil, AlertTriangle, Check, Loader } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
 import { 
   generateKeywordSuggestions, 
   generateSecondaryKeywordSuggestions,
@@ -96,27 +95,25 @@ const Recommendation = ({ status, text, action }: RecommendationProps) => {
   );
 };
 
-// Calculate content stats - Enhanced to handle HTML content
+// Calculate content stats
 const calculateContentStats = (content: string) => {
   if (!content) return { words: 0, headings: 0, paragraphs: 0, images: 0 };
   
-  // Create a temporary DOM element to parse the HTML content
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = content;
-  
-  // Get plain text to count words
-  const plainText = tempDiv.textContent || tempDiv.innerText || '';
   // Count words (split by spaces and filter out empty strings)
-  const words = plainText.split(/\s+/).filter(word => word.length > 0).length;
+  const words = content.split(/\s+/).filter(word => word.length > 0).length;
   
-  // Count headings
-  const headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').length;
+  // Count headings (approximate by looking for # markdown or h1-h6 tags)
+  const headingRegex = /^#+\s+.+$|<h[1-6]>.*<\/h[1-6]>/gim;
+  const headings = (content.match(headingRegex) || []).length;
   
-  // Count paragraphs
-  const paragraphs = tempDiv.querySelectorAll('p').length;
+  // Count paragraphs (look for double newlines or <p> tags)
+  const paragraphRegex = /\n\s*\n|<p>.*?<\/p>/gs;
+  const paragraphs = (content.match(paragraphRegex) || []).length || 
+                    content.split(/\n+/).filter(p => p.trim().length > 0).length;
   
-  // Count images
-  const images = tempDiv.querySelectorAll('img').length;
+  // Count image references (approximate by looking for markdown or HTML img tags)
+  const imageRegex = /!\[.*?\]\(.*?\)|<img.*?>/gi;
+  const images = (content.match(imageRegex) || []).length;
   
   return { words, headings, paragraphs, images };
 };
@@ -347,8 +344,9 @@ const SEOCheckerResult = () => {
           
           <div className="md:col-span-3">
             <div className="bg-white rounded-lg border border-gray-200 p-6 h-full">
-              {/* Render HTML content safely instead of using pre tag */}
-              <div className="text-sm" dangerouslySetInnerHTML={{ __html: content }}></div>
+              <pre className="whitespace-pre-wrap text-sm font-mono">
+                {content}
+              </pre>
             </div>
           </div>
         </div>
@@ -369,54 +367,15 @@ const QuickOptimizationForm = () => {
   const [secondaryKeywords, setSecondaryKeywords] = useState('');
   const [showPrimaryKeywordSuggestions, setShowPrimaryKeywordSuggestions] = useState(false);
   const [showSecondaryKeywordSuggestions, setShowSecondaryKeywordSuggestions] = useState(false);
-  const [primaryKeywordSuggestions, setPrimaryKeywordSuggestions] = useState<Array<{id: string, text: string}>>([
-    { id: '1', text: 'best coffee beans 2024' },
-    { id: '2', text: 'top ergonomic chairs' },
-    { id: '3', text: 'learn javascript fast' },
-  ]);
-  const [secondaryKeywordSuggestions, setSecondaryKeywordSuggestions] = useState<Array<{id: string, text: string}>>([
-    { id: '1', text: 'dark roast coffee' },
-    { id: '2', text: 'light roast coffee' },
-    { id: '3', text: 'coffee grinding tips' },
-    { id: '4', text: 'office chair for back pain' },
-    { id: '5', text: 'standing desk benefits' },
-    { id: '6', text: 'home office setup ideas' },
-  ]);
+  const [primaryKeywordSuggestions, setPrimaryKeywordSuggestions] = useState<Array<{id: string, text: string}>>([]);
+  const [secondaryKeywordSuggestions, setSecondaryKeywordSuggestions] = useState<Array<{id: string, text: string}>>([]);
   const [regenerationNote, setRegenerationNote] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [fetchingUrl, setFetchingUrl] = useState(false);
   
-  const quillRef = useRef<ReactQuill>(null);
-  
-  const modules = {
-    toolbar: [
-      [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-      ['bold', 'italic', 'underline', 'strike'],
-      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-      ['link', 'image'],
-      ['clean']
-    ],
-    clipboard: {
-      matchVisual: false,
-    }
-  };
-  
-  const formats = [
-    'header',
-    'bold', 'italic', 'underline', 'strike',
-    'list', 'bullet',
-    'link', 'image'
-  ];
-  
   const handleContentConfirm = async () => {
-    // Get content from rich text editor if that's the selected method
-    let contentToUse = content;
-    if (contentMethod === 'text' && quillRef.current) {
-      contentToUse = quillRef.current.getEditor().root.innerHTML;
-    }
-    
     // Validate content based on selected method
-    if (contentMethod === 'text' && !contentToUse.trim()) {
+    if (contentMethod === 'text' && !content.trim()) {
       toast({
         title: "Content Required",
         description: "Please add your content before confirming.",
@@ -447,49 +406,18 @@ const QuickOptimizationForm = () => {
     if (contentMethod === 'link') {
       setFetchingUrl(true);
       try {
-        // Simple extraction without API
-        const response = await fetch(contentUrl);
-        if (!response.ok) {
-          throw new Error("Failed to fetch URL content");
-        }
-        
-        const htmlText = await response.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlText, 'text/html');
-        
-        // Extract main content (focusing on article or main content)
-        let extractedContent = '';
-        const article = doc.querySelector('article') || doc.querySelector('main') || doc.querySelector('.content');
-        
-        if (article) {
-          extractedContent = article.innerHTML;
-        } else {
-          // Fallback to body content, removing headers, footers, navs, etc.
-          const body = doc.body;
-          body.querySelectorAll('header, footer, nav, script, style, .sidebar, .menu, .navigation').forEach(el => el.remove());
-          extractedContent = body.innerHTML;
-        }
-        
+        const extractedContent = await extractContentFromUrl(contentUrl);
         if (!extractedContent || extractedContent.length < 100) {
           toast({
             title: "URL Extraction Warning",
             description: "The extracted content seems too short. Please check the URL or try a different method.",
-            variant: "warning"
+            variant: "default"
           });
         }
-        
-        // Set the extracted content
         setContent(extractedContent);
-        contentToUse = extractedContent;
-        
-        if (quillRef.current) {
-          quillRef.current.getEditor().clipboard.dangerouslyPasteHTML(extractedContent);
-        }
-        
         toast({
           title: "URL Content Extracted",
           description: "Successfully extracted content from the URL.",
-          variant: "success"
         });
       } catch (error) {
         toast({
@@ -508,16 +436,6 @@ const QuickOptimizationForm = () => {
       try {
         const text = await readFileAsText(contentFile);
         setContent(text);
-        contentToUse = text;
-        
-        if (quillRef.current) {
-          // Check if it's HTML content
-          if (text.trim().startsWith('<') && text.includes('</')) {
-            quillRef.current.getEditor().clipboard.dangerouslyPasteHTML(text);
-          } else {
-            quillRef.current.getEditor().setText(text);
-          }
-        }
       } catch (error) {
         toast({
           title: "File Reading Failed",
@@ -528,20 +446,27 @@ const QuickOptimizationForm = () => {
       }
     }
     
-    // Save the content and mark as confirmed
-    setContent(contentToUse);
     setContentConfirmed(true);
     toast({
       title: "Content Confirmed",
       description: "Your content has been added successfully.",
-      variant: "success"
     });
     
-    // Simulate keyword suggestions instead of using API
+    // Generate primary keyword suggestions after content is confirmed
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      const suggestions = await generateKeywordSuggestions(content);
+      setPrimaryKeywordSuggestions(suggestions);
+    } catch (error) {
+      console.error("Error getting keyword suggestions:", error);
+      toast({
+        title: "Suggestion Generation Failed",
+        description: "Could not generate keyword suggestions.",
+        variant: "destructive"
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
   
   const readFileAsText = (file: File): Promise<string> => {
@@ -559,12 +484,26 @@ const QuickOptimizationForm = () => {
     });
   };
   
-  const handlePrimaryKeywordSelect = (keyword: string) => {
+  const handlePrimaryKeywordSelect = async (keyword: string) => {
     setPrimaryKeyword(keyword);
     setShowPrimaryKeywordSuggestions(false);
     
-    // Show secondary keyword suggestions
-    setShowSecondaryKeywordSuggestions(true);
+    // Generate secondary keyword suggestions based on the primary keyword
+    setIsLoading(true);
+    try {
+      const suggestions = await generateSecondaryKeywordSuggestions(keyword, content);
+      setSecondaryKeywordSuggestions(suggestions);
+      setShowSecondaryKeywordSuggestions(true);
+    } catch (error) {
+      console.error("Error getting secondary keyword suggestions:", error);
+      toast({
+        title: "Suggestion Generation Failed",
+        description: "Could not generate secondary keyword suggestions.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   const handleSecondaryKeywordSelect = (keyword: string) => {
@@ -575,8 +514,8 @@ const QuickOptimizationForm = () => {
     }
   };
   
-  const handleRegeneratePrimaryKeywords = () => {
-    if (!contentConfirmed) {
+  const handleRegeneratePrimaryKeywords = async () => {
+    if (!content) {
       toast({
         title: "Content Required",
         description: "Please confirm your content before regenerating keywords.",
@@ -586,57 +525,63 @@ const QuickOptimizationForm = () => {
     }
     
     setIsLoading(true);
-    
-    // Simulate regenerating keywords
-    setTimeout(() => {
-      const newSuggestions = [
-        { id: '4', text: 'best online courses 2024' },
-        { id: '5', text: 'remote work productivity tips' },
-        { id: '6', text: 'home office essentials' },
-      ];
-      setPrimaryKeywordSuggestions(newSuggestions);
+    try {
+      const suggestions = await generateKeywordSuggestions(content, 3, regenerationNote);
+      setPrimaryKeywordSuggestions(suggestions);
       setRegenerationNote('');
       toast({
         title: "Keywords Regenerated",
         description: "New primary keyword suggestions have been generated.",
       });
+    } catch (error) {
+      console.error("Error regenerating keyword suggestions:", error);
+      toast({
+        title: "Regeneration Failed",
+        description: "Could not regenerate keyword suggestions.",
+        variant: "destructive"
+      });
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
   
-  const handleRegenerateSecondaryKeywords = () => {
-    if (!primaryKeyword) {
+  const handleRegenerateSecondaryKeywords = async () => {
+    if (!primaryKeyword || !content) {
       toast({
-        title: "Primary Keyword Required",
-        description: "Please select a primary keyword first.",
+        title: "Information Required",
+        description: "Please confirm your content and select a primary keyword first.",
         variant: "destructive"
       });
       return;
     }
     
     setIsLoading(true);
-    
-    // Simulate regenerating keywords
-    setTimeout(() => {
-      const newSuggestions = [
-        { id: '7', text: 'budget office chairs' },
-        { id: '8', text: 'ergonomic desk setup' },
-        { id: '9', text: 'lumbar support pillows' },
-        { id: '10', text: 'posture improvement' },
-        { id: '11', text: 'office chair alternatives' },
-        { id: '12', text: 'standing desk converters' },
-      ];
-      setSecondaryKeywordSuggestions(newSuggestions);
+    try {
+      const suggestions = await generateSecondaryKeywordSuggestions(
+        primaryKeyword, 
+        content, 
+        6, 
+        regenerationNote
+      );
+      setSecondaryKeywordSuggestions(suggestions);
       setRegenerationNote('');
       toast({
         title: "Keywords Regenerated",
         description: "New secondary keyword suggestions have been generated.",
       });
+    } catch (error) {
+      console.error("Error regenerating secondary keyword suggestions:", error);
+      toast({
+        title: "Regeneration Failed",
+        description: "Could not regenerate secondary keyword suggestions.",
+        variant: "destructive"
+      });
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
   
-  const handleStartOptimization = () => {
+  const handleStartOptimization = async () => {
     if (!contentConfirmed) {
       toast({
         title: "Content Required",
@@ -668,30 +613,42 @@ const QuickOptimizationForm = () => {
       .map(k => k.trim())
       .filter(k => k !== '');
     
-    // Navigate to the results page after a delay
-    setTimeout(() => {
-      // Analyze the content locally without API
-      const stats = calculateContentStats(content);
-      const score = calculateSEOScore(content, primaryKeyword);
-      const recommendations = generateRecommendations(content, primaryKeyword);
+    try {
+      // Analyze content using OpenAI
+      const analysis = await analyzeSEOScore(
+        content,
+        primaryKeyword,
+        secondaryKeywordsArray
+      );
       
-      const analysis = {
-        score: score,
-        stats: stats,
-        recommendations: recommendations
-      };
-      
+      // Navigate to the results page after analysis is complete
       navigate('/seo-checker', { 
         state: { 
-          content: content, 
+          content, 
           primaryKeyword,
           secondaryKeywords: secondaryKeywordsArray,
           analysis
         }
       });
-    }, 1500);
+    } catch (error) {
+      console.error("Error analyzing content:", error);
+      toast({
+        title: "Analysis Failed",
+        description: "There was an error analyzing your content. Please try again.",
+        variant: "destructive"
+      });
+      setIsLoading(false);
+    }
   };
   
+  // Reset suggestions when switching content methods
+  useEffect(() => {
+    if (!contentConfirmed) {
+      setPrimaryKeywordSuggestions([]);
+      setSecondaryKeywordSuggestions([]);
+    }
+  }, [contentMethod, contentConfirmed]);
+
   return (
     <div className="max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Quick SEO Optimization</h1>
@@ -744,20 +701,13 @@ const QuickOptimizationForm = () => {
             </div>
             
             {contentMethod === 'text' && (
-              <div className="border border-gray-200 rounded-lg">
-                {!contentConfirmed ? (
-                  <ReactQuill
-                    ref={quillRef}
-                    theme="snow"
-                    modules={modules}
-                    formats={formats}
-                    placeholder="Paste your article content here..."
-                    style={{ height: '300px', marginBottom: '40px' }}
-                  />
-                ) : (
-                  <div className="min-h-[300px] p-4 bg-gray-50 rounded-lg overflow-auto" dangerouslySetInnerHTML={{ __html: content }}></div>
-                )}
-              </div>
+              <Textarea 
+                className="w-full h-32"
+                placeholder="Paste your article content here..."
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                disabled={contentConfirmed}
+              />
             )}
             
             {contentMethod === 'link' && (
@@ -776,10 +726,6 @@ const QuickOptimizationForm = () => {
                     <span>Fetching content from URL...</span>
                   </div>
                 )}
-                
-                {contentConfirmed && contentMethod === 'link' && (
-                  <div className="min-h-[200px] p-4 border border-gray-200 bg-gray-50 rounded-lg overflow-auto" dangerouslySetInnerHTML={{ __html: content }}></div>
-                )}
               </div>
             )}
             
@@ -792,12 +738,11 @@ const QuickOptimizationForm = () => {
                   onChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
                       setContentFile(e.target.files[0]);
-                      // Only set name for display now, actual content will be read on confirm
-                      setContent(e.target.files[0].name); 
+                      setContent(e.target.files[0].name); // Just for display
                     }
                   }}
                   disabled={contentConfirmed}
-                  accept=".txt,.doc,.docx,.pdf,.md,.html,.htm"
+                  accept=".txt,.doc,.docx,.pdf,.md"
                 />
                 <label 
                   htmlFor="file-upload"
@@ -805,13 +750,7 @@ const QuickOptimizationForm = () => {
                 >
                   Click to upload or drag and drop
                 </label>
-                {content && contentMethod === 'file' && contentFile && (
-                  <p className="mt-2 text-sm text-gray-500">{contentFile.name}</p>
-                )}
-                
-                {contentConfirmed && contentMethod === 'file' && (
-                  <div className="mt-4 min-h-[200px] p-4 border border-gray-200 bg-gray-50 rounded-lg text-left overflow-auto" dangerouslySetInnerHTML={{ __html: content }}></div>
-                )}
+                {content && contentMethod === 'file' && <p className="mt-2 text-sm text-gray-500">{content}</p>}
               </div>
             )}
             
