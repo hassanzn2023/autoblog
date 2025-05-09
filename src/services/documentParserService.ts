@@ -42,26 +42,24 @@ export async function extractImagesFromWordDocument(file: File): Promise<{[key: 
     // Use custom image handling
     await mammoth.convertToHtml({
       arrayBuffer: arrayBuffer,
-      options: {
-        convertImage: mammoth.images.imgElement(function(image) {
-          return image.read().then(function(imageBuffer) {
-            // Convert image buffer to base64
-            const base64 = arrayBufferToBase64(imageBuffer);
-            const mimeType = image.contentType || 'image/jpeg';
-            const dataUri = `data:${mimeType};base64,${base64}`;
-            
-            // Store in the map
-            const imageId = `image-${Object.keys(imageMap).length + 1}`;
-            imageMap[imageId] = dataUri;
-            
-            // Return attributes for the img element
-            return {
-              src: dataUri,
-              alt: `Image from document (${imageId})`
-            };
-          });
-        })
-      }
+      convertImage: mammoth.images.imgElement(function(image) {
+        return image.read().then(function(imageBuffer) {
+          // Convert image buffer to base64
+          const base64 = arrayBufferToBase64(imageBuffer);
+          const mimeType = image.contentType || 'image/jpeg';
+          const dataUri = `data:${mimeType};base64,${base64}`;
+          
+          // Store in the map
+          const imageId = `image-${Object.keys(imageMap).length + 1}`;
+          imageMap[imageId] = dataUri;
+          
+          // Return attributes for the img element
+          return {
+            src: dataUri,
+            alt: `Image from document (${imageId})`
+          };
+        });
+      })
     });
     
     return imageMap;
