@@ -17,6 +17,12 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { Progress } from '@/components/ui/progress';
 
+// Helper function to detect language
+const isRTL = (text: string) => {
+  const rtlChars = /[\u0591-\u07FF\u200F\u202B\u202E\uFB1D-\uFDFD\uFE70-\uFEFC]/;
+  return rtlChars.test(text);
+};
+
 // SEO Score Meter Component with Improved Animation
 const SEOScoreMeter = ({ score }: { score: number }) => {
   const [animatedScore, setAnimatedScore] = useState(0);
@@ -49,31 +55,24 @@ const SEOScoreMeter = ({ score }: { score: number }) => {
   };
   
   return (
-    <div className="relative w-48 h-24 mx-auto">
-      {/* Meter background */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full rounded-t-full bg-gradient-to-r from-red-400 via-yellow-400 to-green-400"></div>
-      </div>
-      
-      {/* Meter foreground (white cover) */}
-      <div className="absolute top-0 left-0 w-full h-full flex justify-center">
-        <div className="w-40 h-40 bg-white rounded-full translate-y-10"></div>
-      </div>
-      
-      {/* Needle with animation */}
-      <div className="absolute top-0 left-0 w-full h-full flex items-end justify-center origin-bottom">
-        <div 
-          className="w-1 h-16 bg-gray-800 rounded-full origin-bottom transform transition-transform duration-500"
-          style={{ transform: `rotate(${rotation}deg)` }}
+    <div className="seo-meter-container">
+      <div className="seo-meter-gauge">
+        <div className="seo-meter-bg"></div>
+        <div className="seo-meter-mask"></div>
+        <div
+          className="seo-meter-needle"
+          style={{
+            transform: `rotate(${rotation}deg)`
+          }}
         ></div>
-        <div className="absolute bottom-0 w-4 h-4 bg-gray-800 rounded-full -translate-x-2 -translate-y-2"></div>
+        <div className="seo-meter-dot"></div>
       </div>
-      
-      {/* Score text with animation */}
-      <div className="absolute bottom-0 left-0 w-full text-center">
-        <div className={`text-2xl font-bold ${getScoreColor()} transition-colors`}>
-          {animatedScore}/100
+      <div className="seo-meter-score">
+        <div className={`seo-meter-score-value ${getScoreColor()}`}>
+          {animatedScore}
+          <span className="seo-meter-score-max">/100</span>
         </div>
+        <div className="seo-meter-label">Suggested 65+</div>
       </div>
     </div>
   );
@@ -244,6 +243,10 @@ const SEOCheckerResult = () => {
   const [seoScore, setSeoScore] = useState(0);
   const [recommendations, setRecommendations] = useState<RecommendationProps[]>([]);
   
+  // Check if the content is RTL or LTR
+  const isRtlContent = isRTL(content);
+  const fontClass = isRtlContent ? 'font-cairo rtl-support' : 'font-noto-sans ltr-support';
+  
   // ReactQuill read-only modules
   const readOnlyModules = { toolbar: false };
   
@@ -298,7 +301,7 @@ const SEOCheckerResult = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className={`max-w-6xl mx-auto ${fontClass}`}>
       <div className="flex justify-between items-center mb-6">
         <div className="text-xl font-bold">BlogArticle / {primaryKeyword}</div>
         <button 
@@ -326,9 +329,6 @@ const SEOCheckerResult = () => {
             <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
               <h2 className="text-lg font-medium mb-4">Content SEO Score</h2>
               <SEOScoreMeter score={seoScore} />
-              <div className="text-center text-sm text-gray-500 mt-2">
-                Suggested 65+
-              </div>
               <div className="flex justify-between mt-4 text-sm">
                 <a href="#" className="text-purple-600 hover:underline transition-colors">Learn more</a>
                 <a href="#" className="text-purple-600 hover:underline transition-colors">Score works</a>

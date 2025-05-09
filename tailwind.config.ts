@@ -81,6 +81,10 @@ export default {
 					},
 				}
 			},
+			fontFamily: {
+				cairo: ['Cairo', 'sans-serif'],
+				'noto-sans': ['Noto Sans', 'sans-serif'],
+			},
 			borderRadius: {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',

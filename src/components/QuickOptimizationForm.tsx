@@ -13,6 +13,12 @@ interface Keyword {
   text: string;
 }
 
+// Helper function to detect language
+const isRTL = (text: string) => {
+  const rtlChars = /[\u0591-\u07FF\u200F\u202B\u202E\uFB1D-\uFDFD\uFE70-\uFEFC]/;
+  return rtlChars.test(text);
+};
+
 const QuickOptimizationForm = () => {
   const navigate = useNavigate();
   const [contentMethod, setContentMethod] = useState<'text' | 'link' | 'file'>('text');
@@ -29,6 +35,16 @@ const QuickOptimizationForm = () => {
   const [isGeneratingPrimary, setIsGeneratingPrimary] = useState(false);
   const [isGeneratingSecondary, setIsGeneratingSecondary] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
+  
+  // Determine if the content is RTL or LTR
+  const [isRtlContent, setIsRtlContent] = useState(false);
+  
+  // Update RTL detection when content changes
+  useEffect(() => {
+    setIsRtlContent(isRTL(content));
+  }, [content]);
+  
+  const fontClass = isRtlContent ? 'font-cairo rtl-support' : 'font-noto-sans ltr-support';
   
   // ReactQuill modules configuration
   const modules = {
@@ -244,7 +260,7 @@ const QuickOptimizationForm = () => {
   };
   
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className={`max-w-3xl mx-auto ${fontClass}`}>
       <h1 className="text-2xl font-bold mb-6">Quick SEO Optimization</h1>
       
       <div className="space-y-8">
@@ -292,7 +308,7 @@ const QuickOptimizationForm = () => {
             </div>
             
             {contentMethod === 'text' && (
-              <div className="quill-container h-64 mb-8">
+              <div className="quill-container h-64">
                 <ReactQuill 
                   theme="snow" 
                   value={content} 
@@ -302,61 +318,90 @@ const QuickOptimizationForm = () => {
                   readOnly={contentConfirmed}
                   placeholder="Paste your article content here..."
                   style={{ height: '200px' }}
-                  className="h-52"
+                  className={`h-52 ${isRtlContent ? 'rtl-support' : 'ltr-support'}`}
                 />
+                <div className="button-position">
+                  {!contentConfirmed && (
+                    <Button 
+                      variant="seoButton" 
+                      onClick={handleContentConfirm}
+                      className="mt-4 z-10 relative"
+                    >
+                      Confirm Content
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
             
             {contentMethod === 'link' && (
-              <input 
-                type="url" 
-                className="w-full p-3 border border-gray-300 rounded-md"
-                placeholder="Enter URL to your content..."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                disabled={contentConfirmed}
-              />
-            )}
-            
-            {contentMethod === 'file' && (
-              <div className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center">
+              <div>
                 <input 
-                  type="file" 
-                  id="file-upload" 
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      setContent(e.target.files[0].name);
-                    }
-                  }}
+                  type="url" 
+                  className="w-full p-3 border border-gray-300 rounded-md"
+                  placeholder="Enter URL to your content..."
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
                   disabled={contentConfirmed}
                 />
-                <label 
-                  htmlFor="file-upload"
-                  className={`cursor-pointer text-purple-600 hover:text-purple-800 ${contentConfirmed ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  Click to upload or drag and drop
-                </label>
-                {content && contentMethod === 'file' && <p className="mt-2 text-sm text-gray-500">{content}</p>}
+                
+                {!contentConfirmed && (
+                  <div className="text-center mt-4">
+                    <Button 
+                      variant="seoButton" 
+                      onClick={handleContentConfirm}
+                      className="z-10 relative"
+                    >
+                      Confirm Content
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
             
-            <div className="mt-10">
-              {!contentConfirmed ? (
-                <Button 
-                  variant="seoButton" 
-                  onClick={handleContentConfirm}
-                  className="z-10 relative"
-                >
-                  Confirm Content
-                </Button>
-              ) : (
-                <div className="flex items-center text-green-600">
-                  <CheckIcon className="mr-2" />
-                  <span>Content added/confirmed.</span>
+            {contentMethod === 'file' && (
+              <div>
+                <div className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center">
+                  <input 
+                    type="file" 
+                    id="file-upload" 
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setContent(e.target.files[0].name);
+                      }
+                    }}
+                    disabled={contentConfirmed}
+                  />
+                  <label 
+                    htmlFor="file-upload"
+                    className={`cursor-pointer text-purple-600 hover:text-purple-800 ${contentConfirmed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    Click to upload or drag and drop
+                  </label>
+                  {content && contentMethod === 'file' && <p className="mt-2 text-sm text-gray-500">{content}</p>}
                 </div>
-              )}
-            </div>
+                
+                {!contentConfirmed && content && (
+                  <div className="text-center mt-4">
+                    <Button 
+                      variant="seoButton" 
+                      onClick={handleContentConfirm}
+                      className="z-10 relative"
+                    >
+                      Confirm Content
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {contentConfirmed && (
+              <div className="flex items-center text-green-600 mt-4">
+                <CheckIcon className="mr-2" />
+                <span>Content added/confirmed.</span>
+              </div>
+            )}
           </div>
         </div>
         
