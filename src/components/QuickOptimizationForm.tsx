@@ -119,7 +119,7 @@ const QuickOptimizationForm = () => {
           secondaryKeywords: secondaryKeywords.split(',').map(k => k.trim()).filter(k => k !== '') 
         }
       });
-    }, 1500);
+    }, 1000);
   };
   
   return (
@@ -128,7 +128,7 @@ const QuickOptimizationForm = () => {
       
       <div className="space-y-8">
         {/* Content Section */}
-        <div className={`p-6 border rounded-lg ${contentConfirmed ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
+        <div className={`p-6 border rounded-lg ${contentConfirmed ? 'border-green-500 bg-green-50' : 'border-gray-200'} shadow-sm hover:shadow-md transition-shadow`}>
           <h2 className="text-lg font-medium mb-4">1. Add your content</h2>
           
           <div className="space-y-4">
@@ -171,7 +171,7 @@ const QuickOptimizationForm = () => {
             </div>
             
             {contentMethod === 'text' && (
-              <div className="quill-container">
+              <div className="quill-container h-64">
                 <ReactQuill 
                   theme="snow" 
                   value={content} 
@@ -180,6 +180,7 @@ const QuickOptimizationForm = () => {
                   formats={formats}
                   readOnly={contentConfirmed}
                   placeholder="Paste your article content here..."
+                  style={{ height: '200px' }}
                 />
               </div>
             )}
@@ -235,7 +236,7 @@ const QuickOptimizationForm = () => {
         </div>
         
         {/* Keywords Section */}
-        <div className="p-6 border border-gray-200 rounded-lg">
+        <div className="p-6 border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
           <h2 className="text-lg font-medium mb-4">2. Add Keywords</h2>
           
           <div className="space-y-6">
@@ -250,7 +251,7 @@ const QuickOptimizationForm = () => {
                   onChange={(e) => setPrimaryKeyword(e.target.value)}
                 />
                 <button 
-                  className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md flex items-center gap-1"
+                  className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md flex items-center gap-1 transition-colors"
                   onClick={() => setShowPrimaryKeywordSuggestions(!showPrimaryKeywordSuggestions)}
                 >
                   <Search size={16} className="text-gray-600" />
@@ -259,11 +260,11 @@ const QuickOptimizationForm = () => {
               </div>
               
               {showPrimaryKeywordSuggestions && (
-                <div className="mt-3 p-4 border border-gray-200 rounded-lg bg-white">
+                <div className="mt-3 p-4 border border-gray-200 rounded-lg bg-white shadow-sm">
                   <div className="mb-3 font-medium">Suggested (select one):</div>
                   <div className="space-y-2">
                     {primaryKeywordSuggestions.map((keyword) => (
-                      <label key={keyword.id} className="flex items-center cursor-pointer">
+                      <label key={keyword.id} className="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded">
                         <input 
                           type="radio" 
                           name="primaryKeyword" 
@@ -284,7 +285,7 @@ const QuickOptimizationForm = () => {
                         placeholder="Regeneration note..."
                       />
                     </div>
-                    <button className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md">
+                    <button className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md transition-colors">
                       Regenerate
                     </button>
                   </div>
@@ -303,7 +304,7 @@ const QuickOptimizationForm = () => {
                   rows={2}
                 />
                 <button 
-                  className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md h-fit flex items-center gap-1"
+                  className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md h-fit flex items-center gap-1 transition-colors"
                   onClick={() => setShowSecondaryKeywordSuggestions(!showSecondaryKeywordSuggestions)}
                 >
                   <Search size={16} className="text-gray-600" />
@@ -312,11 +313,11 @@ const QuickOptimizationForm = () => {
               </div>
               
               {showSecondaryKeywordSuggestions && (
-                <div className="mt-3 p-4 border border-gray-200 rounded-lg bg-white">
+                <div className="mt-3 p-4 border border-gray-200 rounded-lg bg-white shadow-sm">
                   <div className="mb-3 font-medium">Suggested (select multiple):</div>
                   <div className="space-y-2">
                     {secondaryKeywordSuggestions.map((keyword) => (
-                      <label key={keyword.id} className="flex items-center cursor-pointer">
+                      <label key={keyword.id} className="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded">
                         <input 
                           type="checkbox" 
                           className="mr-2"
@@ -336,7 +337,7 @@ const QuickOptimizationForm = () => {
                         placeholder="Regeneration note..."
                       />
                     </div>
-                    <button className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md">
+                    <button className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md transition-colors">
                       Regenerate
                     </button>
                   </div>
