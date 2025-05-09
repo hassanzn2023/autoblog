@@ -39,11 +39,11 @@ export async function extractImagesFromWordDocument(file: File): Promise<{[key: 
     // Map to store image data URLs
     const imageMap: {[key: string]: string} = {};
     
-    // Use custom image handling
-    await mammoth.convertToHtml({
+    // Use mammoth's image handling API correctly
+    const options = {
       arrayBuffer: arrayBuffer,
-      convertImage: mammoth.images.imgElement(function(image) {
-        return image.read().then(function(imageBuffer) {
+      convertImage: mammoth.images.imgElement((image: any) => {
+        return image.read().then((imageBuffer: ArrayBuffer) => {
           // Convert image buffer to base64
           const base64 = arrayBufferToBase64(imageBuffer);
           const mimeType = image.contentType || 'image/jpeg';
@@ -60,7 +60,10 @@ export async function extractImagesFromWordDocument(file: File): Promise<{[key: 
           };
         });
       })
-    });
+    };
+    
+    // Convert the document with image handling
+    await mammoth.convertToHtml(options);
     
     return imageMap;
   } catch (error) {

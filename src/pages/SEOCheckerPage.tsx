@@ -8,9 +8,9 @@ const SEOCheckerPage = () => {
   const { content, primaryKeyword, secondaryKeywords } = location.state || {};
 
   return <SEOChecker 
-    initialContent={content} 
-    initialPrimaryKeyword={primaryKeyword} 
-    initialSecondaryKeywords={secondaryKeywords} 
+    initialContent={content || ''} 
+    initialPrimaryKeyword={primaryKeyword || ''} 
+    initialSecondaryKeywords={secondaryKeywords || []} 
   />;
 };
 
