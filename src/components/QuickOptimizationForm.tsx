@@ -44,7 +44,8 @@ const QuickOptimizationForm = () => {
     setIsRtlContent(isRTL(content));
   }, [content]);
   
-  const fontClass = isRtlContent ? 'font-cairo rtl-support' : 'font-noto-sans ltr-support';
+  // Apply appropriate font class only to the content
+  const editorFontClass = isRtlContent ? 'font-arabic' : 'font-english';
   
   // ReactQuill modules configuration
   const modules = {
@@ -260,7 +261,7 @@ const QuickOptimizationForm = () => {
   };
   
   return (
-    <div className={`max-w-3xl mx-auto ${fontClass}`}>
+    <div className="max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Quick SEO Optimization</h1>
       
       <div className="space-y-8">
@@ -308,30 +309,32 @@ const QuickOptimizationForm = () => {
             </div>
             
             {contentMethod === 'text' && (
-              <div className="quill-container h-64">
-                <ReactQuill 
-                  theme="snow" 
-                  value={content} 
-                  onChange={setContent} 
-                  modules={modules} 
-                  formats={formats}
-                  readOnly={contentConfirmed}
-                  placeholder="Paste your article content here..."
-                  style={{ height: '200px' }}
-                  className={`h-52 ${isRtlContent ? 'rtl-support' : 'ltr-support'}`}
-                />
-                <div className="button-position">
-                  {!contentConfirmed && (
+              <>
+                <div className="quill-container">
+                  <ReactQuill 
+                    theme="snow" 
+                    value={content} 
+                    onChange={setContent} 
+                    modules={modules} 
+                    formats={formats}
+                    readOnly={contentConfirmed}
+                    placeholder="Paste your article content here..."
+                    className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'}`}
+                  />
+                </div>
+                
+                {!contentConfirmed && (
+                  <div className="text-center mt-4">
                     <Button 
                       variant="seoButton" 
                       onClick={handleContentConfirm}
-                      className="mt-4 z-10 relative"
+                      className="z-10 relative"
                     >
                       Confirm Content
                     </Button>
-                  )}
-                </div>
-              </div>
+                  </div>
+                )}
+              </>
             )}
             
             {contentMethod === 'link' && (

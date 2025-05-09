@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Link, Upload, RefreshCw, Search, Pencil, AlertTriangle, Check, Loader } from 'lucide-react';
@@ -245,7 +244,6 @@ const SEOCheckerResult = () => {
   
   // Check if the content is RTL or LTR
   const isRtlContent = isRTL(content);
-  const fontClass = isRtlContent ? 'font-cairo rtl-support' : 'font-noto-sans ltr-support';
   
   // ReactQuill read-only modules
   const readOnlyModules = { toolbar: false };
@@ -301,9 +299,11 @@ const SEOCheckerResult = () => {
   };
 
   return (
-    <div className={`max-w-6xl mx-auto ${fontClass}`}>
+    <div className="max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <div className="text-xl font-bold">BlogArticle / {primaryKeyword}</div>
+        <div className={`text-xl font-bold ${isRtlContent ? 'font-arabic' : 'font-english'}`}>
+          BlogArticle / {primaryKeyword}
+        </div>
         <button 
           className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md transition-colors"
           onClick={() => navigate('/seo-checker')}
@@ -389,6 +389,7 @@ const SEOCheckerResult = () => {
                   readOnly={true}
                   modules={readOnlyModules}
                   theme="snow"
+                  className={`${isRtlContent ? 'font-arabic rtl-content' : 'font-english ltr-content'}`}
                 />
               </div>
             </div>
