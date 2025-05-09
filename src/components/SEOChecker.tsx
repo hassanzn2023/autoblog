@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 
+// SEO Score Meter Component
 const SEOScoreMeter = ({ score }: { score: number }) => {
   const rotation = (score / 100) * 180 - 90;
   
@@ -45,6 +46,7 @@ const SEOScoreMeter = ({ score }: { score: number }) => {
   );
 };
 
+// ContentStatBox Component
 const ContentStatBox = ({ 
   label, 
   value, 
@@ -61,6 +63,7 @@ const ContentStatBox = ({
   </div>
 );
 
+// Recommendation Component
 interface RecommendationProps {
   status: 'success' | 'warning' | 'error';
   text: string;
@@ -91,6 +94,7 @@ const Recommendation = ({ status, text, action }: RecommendationProps) => {
   );
 };
 
+// SEO Checker Result Component
 const SEOCheckerResult = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -197,6 +201,7 @@ After extensive testing, here are our top picks for the best coffee beans 2024 h
   );
 };
 
+// Quick Optimization Form Component
 const QuickOptimizationForm = () => {
   const navigate = useNavigate();
   const [contentMethod, setContentMethod] = useState<'text' | 'link' | 'file'>('text');
@@ -215,6 +220,7 @@ const QuickOptimizationForm = () => {
   const [fetchingUrl, setFetchingUrl] = useState(false);
   
   const handleContentConfirm = async () => {
+    // Validate content based on selected method
     if (contentMethod === 'text' && !content.trim()) {
       toast({
         title: "Content Required",
@@ -242,11 +248,18 @@ const QuickOptimizationForm = () => {
       return;
     }
     
-    // If content is from URL, fetch it
+    // Handle URL content extraction
     if (contentMethod === 'link') {
       setFetchingUrl(true);
       try {
         const extractedContent = await extractContentFromUrl(contentUrl);
+        if (!extractedContent || extractedContent.length < 100) {
+          toast({
+            title: "URL Extraction Warning",
+            description: "The extracted content seems too short. Please check the URL or try a different method.",
+            variant: "warning"
+          });
+        }
         setContent(extractedContent);
         toast({
           title: "URL Content Extracted",
@@ -264,7 +277,7 @@ const QuickOptimizationForm = () => {
       setFetchingUrl(false);
     }
     
-    // If content is from file, read it
+    // Handle file content reading
     if (contentMethod === 'file' && contentFile) {
       try {
         const text = await readFileAsText(contentFile);
@@ -326,6 +339,7 @@ const QuickOptimizationForm = () => {
     try {
       const suggestions = await generateSecondaryKeywordSuggestions(keyword, content);
       setSecondaryKeywordSuggestions(suggestions);
+      setShowSecondaryKeywordSuggestions(true);
     } catch (error) {
       console.error("Error getting secondary keyword suggestions:", error);
       toast({
@@ -344,10 +358,18 @@ const QuickOptimizationForm = () => {
       const newKeywords = [...keywords, keyword].join(', ');
       setSecondaryKeywords(newKeywords);
     }
-    setShowSecondaryKeywordSuggestions(false);
   };
   
   const handleRegeneratePrimaryKeywords = async () => {
+    if (!content) {
+      toast({
+        title: "Content Required",
+        description: "Please confirm your content before regenerating keywords.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsLoading(true);
     try {
       const suggestions = await generateKeywordSuggestions(content, 3, regenerationNote);
@@ -370,6 +392,15 @@ const QuickOptimizationForm = () => {
   };
   
   const handleRegenerateSecondaryKeywords = async () => {
+    if (!primaryKeyword || !content) {
+      toast({
+        title: "Information Required",
+        description: "Please confirm your content and select a primary keyword first.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsLoading(true);
     try {
       const suggestions = await generateSecondaryKeywordSuggestions(
@@ -456,6 +487,14 @@ const QuickOptimizationForm = () => {
     }
   };
   
+  // Reset suggestions when switching content methods
+  useEffect(() => {
+    if (!contentConfirmed) {
+      setPrimaryKeywordSuggestions([]);
+      setSecondaryKeywordSuggestions([]);
+    }
+  }, [contentMethod, contentConfirmed]);
+
   return (
     <div className="max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Quick SEO Optimization</h1>
@@ -750,14 +789,14 @@ const QuickOptimizationForm = () => {
         </div>
         
         <Button 
-          className="bg-[#F76D01] hover:bg-[#E25C00] text-white w-full text-center py-3"
+          className="bg-[#F76D01] hover:bg-[#E25C00] text-white w-full text-center py-6 text-lg"
           onClick={handleStartOptimization}
           disabled={isLoading}
         >
           {isLoading ? (
             <>
               <Loader className="mr-2 h-4 w-4 animate-spin" />
-              "Analyzing..."
+              Analyzing...
             </>
           ) : (
             "Start Quick Optimization"

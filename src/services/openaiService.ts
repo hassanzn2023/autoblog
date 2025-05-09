@@ -1,4 +1,3 @@
-
 // OpenAI service for SEO analysis and keyword suggestions
 import axios from 'axios';
 
@@ -15,16 +14,25 @@ export async function extractContentFromUrl(url: string): Promise<string> {
     console.log("Fetching content from URL:", url);
     
     // Make HTTP request to fetch the page content
-    const response = await axios.get(url);
+    const response = await axios.get(url, {
+      headers: {
+        // Add common headers to mimic a browser request
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5'
+      }
+    });
     
     if (response.status === 200) {
-      // Basic HTML content extraction
-      const htmlContent = response.data;
-      
       // Extract text content from HTML
-      // This is a simple implementation - in a production app, 
-      // you'd use a more robust HTML parsing library
+      const htmlContent = response.data;
       const textContent = extractTextFromHtml(htmlContent);
+      
+      // If extraction returned very little content, try a different approach
+      if (textContent.length < 500) {
+        console.log("Initial content extraction returned limited content, trying alternative method");
+        return extractMainContentFromHtml(htmlContent);
+      }
       
       return textContent;
     } else {
@@ -32,46 +40,98 @@ export async function extractContentFromUrl(url: string): Promise<string> {
     }
   } catch (error) {
     console.error("Error extracting content from URL:", error);
-    throw new Error("Could not extract content from the provided URL");
+    throw new Error("Could not extract content from the provided URL. Please check the URL and try again.");
   }
 }
 
-// Helper function to extract text content from HTML
+// Enhanced function to extract text content from HTML
 function extractTextFromHtml(html: string): string {
-  // Remove scripts, styles, and HTML tags
-  let text = html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-    .replace(/<head\b[^<]*(?:(?!<\/head>)<[^<]*)*<\/head>/gi, '')
-    .replace(/<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi, '')
-    .replace(/<footer\b[^<]*(?:(?!<\/footer>)<[^<]*)*<\/footer>/gi, '')
-    .replace(/<header\b[^<]*(?:(?!<\/header>)<[^<]*)*<\/header>/gi, '')
-    .replace(/<!--[\s\S]*?-->/g, '');
+  try {
+    // Remove scripts, styles, and HTML tags
+    let text = html
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+      .replace(/<head\b[^<]*(?:(?!<\/head>)<[^<]*)*<\/head>/gi, '')
+      .replace(/<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi, '')
+      .replace(/<footer\b[^<]*(?:(?!<\/footer>)<[^<]*)*<\/footer>/gi, '')
+      .replace(/<header\b[^<]*(?:(?!<\/header>)<[^<]*)*<\/header>/gi, '')
+      .replace(/<aside\b[^<]*(?:(?!<\/aside>)<[^<]*)*<\/aside>/gi, '')
+      .replace(/<!--[\s\S]*?-->/g, '');
 
-  // Try to find main content
-  const mainContentMatch = text.match(/<main\b[^<]*(?:(?!<\/main>)<[^<]*)*<\/main>/gi) ||
-                          text.match(/<article\b[^<]*(?:(?!<\/article>)<[^<]*)*<\/article>/gi) ||
-                          text.match(/<div[^>]*class="[^"]*content[^"]*"[^>]*>[\s\S]*?<\/div>/gi);
-  
-  if (mainContentMatch && mainContentMatch.length > 0) {
-    text = mainContentMatch.join(' ');
+    // Try to find main content
+    const mainContentMatch = text.match(/<main\b[^<]*(?:(?!<\/main>)<[^<]*)*<\/main>/gi) ||
+                            text.match(/<article\b[^<]*(?:(?!<\/article>)<[^<]*)*<\/article>/gi) ||
+                            text.match(/<div[^>]*class="[^"]*content[^"]*"[^>]*>[\s\S]*?<\/div>/gi) ||
+                            text.match(/<div[^>]*class="[^"]*article[^"]*"[^>]*>[\s\S]*?<\/div>/gi) ||
+                            text.match(/<div[^>]*class="[^"]*post[^"]*"[^>]*>[\s\S]*?<\/div>/gi);
+    
+    if (mainContentMatch && mainContentMatch.length > 0) {
+      text = mainContentMatch.join(' ');
+    }
+
+    // Remove all remaining HTML tags
+    text = text.replace(/<[^>]*>/g, ' ');
+    
+    // Replace multiple spaces, tabs, and newlines with a single space
+    text = text.replace(/\s+/g, ' ');
+    
+    // Decode HTML entities
+    text = text.replace(/&amp;/g, '&')
+               .replace(/&lt;/g, '<')
+               .replace(/&gt;/g, '>')
+               .replace(/&quot;/g, '"')
+               .replace(/&#x27;/g, "'")
+               .replace(/&#x2F;/g, '/');
+    
+    return text.trim();
+  } catch (error) {
+    console.error("Error in extractTextFromHtml:", error);
+    return "Error extracting content from HTML.";
   }
+}
 
-  // Remove all remaining HTML tags
-  text = text.replace(/<[^>]*>/g, ' ');
-  
-  // Replace multiple spaces, tabs, and newlines with a single space
-  text = text.replace(/\s+/g, ' ');
-  
-  // Decode HTML entities
-  text = text.replace(/&amp;/g, '&')
-             .replace(/&lt;/g, '<')
-             .replace(/&gt;/g, '>')
-             .replace(/&quot;/g, '"')
-             .replace(/&#x27;/g, "'")
-             .replace(/&#x2F;/g, '/');
-  
-  return text.trim();
+// Alternative method to extract main content from HTML
+function extractMainContentFromHtml(html: string): string {
+  try {
+    // Create a temporary element to parse HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    
+    // Remove unwanted elements
+    const elementsToRemove = ['script', 'style', 'nav', 'footer', 'header', 'aside', 'form', 'iframe'];
+    elementsToRemove.forEach(tag => {
+      const elements = tempDiv.getElementsByTagName(tag);
+      while (elements[0]) {
+        elements[0].parentNode?.removeChild(elements[0]);
+      }
+    });
+    
+    // Try to find main content container
+    let contentElement = null;
+    const possibleContentSelectors = ['main', 'article', '.content', '.article', '.post', '.entry-content', '#content', '#main-content'];
+    
+    for (const selector of possibleContentSelectors) {
+      const element = selector.startsWith('.') || selector.startsWith('#') 
+        ? tempDiv.querySelector(selector) 
+        : tempDiv.getElementsByTagName(selector)[0];
+      
+      if (element) {
+        contentElement = element;
+        break;
+      }
+    }
+    
+    // If no specific content container found, use the body
+    const textContent = contentElement 
+      ? contentElement.textContent || "" 
+      : tempDiv.textContent || "";
+    
+    // Clean up whitespace
+    return textContent.replace(/\s+/g, ' ').trim();
+  } catch (error) {
+    console.error("Error in extractMainContentFromHtml:", error);
+    return "Error extracting content using alternative method.";
+  }
 }
 
 export async function generateKeywordSuggestions(
@@ -141,19 +201,11 @@ export async function generateKeywordSuggestions(
       console.error("Error parsing OpenAI response:", parseError);
     }
     
-    // Fallback if parsing fails
-    return [
-      { id: '1', text: 'SEO optimization techniques' },
-      { id: '2', text: 'content marketing strategy' },
-      { id: '3', text: 'digital marketing best practices' },
-    ].slice(0, count);
+    // Empty default if parsing fails
+    return [];
   } catch (error) {
     console.error("Error generating keyword suggestions:", error);
-    return [
-      { id: '1', text: 'SEO optimization techniques' },
-      { id: '2', text: 'content marketing strategy' },
-      { id: '3', text: 'digital marketing best practices' },
-    ].slice(0, count);
+    return [];
   }
 }
 
@@ -225,36 +277,11 @@ export async function generateSecondaryKeywordSuggestions(
       console.error("Error parsing OpenAI response:", parseError);
     }
     
-    // Provide fallback suggestions if API call or parsing fails
-    if (primaryKeyword.toLowerCase().includes('coffee')) {
-      return [
-        { id: '1', text: 'specialty coffee beans' },
-        { id: '2', text: 'arabica coffee varieties' },
-        { id: '3', text: 'coffee brewing methods' },
-        { id: '4', text: 'fair trade coffee' },
-        { id: '5', text: 'fresh roasted coffee' },
-        { id: '6', text: 'single origin coffee' },
-      ].slice(0, count);
-    } else {
-      return [
-        { id: '1', text: 'seo content strategy' },
-        { id: '2', text: 'keyword research tools' },
-        { id: '3', text: 'search engine ranking factors' },
-        { id: '4', text: 'on-page optimization' },
-        { id: '5', text: 'meta descriptions' },
-        { id: '6', text: 'content marketing' },
-      ].slice(0, count);
-    }
+    // Empty default if parsing fails
+    return [];
   } catch (error) {
     console.error("Error generating secondary keyword suggestions:", error);
-    return [
-      { id: '1', text: 'seo content strategy' },
-      { id: '2', text: 'keyword research tools' },
-      { id: '3', text: 'search engine ranking factors' },
-      { id: '4', text: 'on-page optimization' },
-      { id: '5', text: 'meta descriptions' },
-      { id: '6', text: 'content marketing' },
-    ].slice(0, count);
+    return [];
   }
 }
 
