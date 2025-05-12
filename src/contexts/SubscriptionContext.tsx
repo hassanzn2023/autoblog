@@ -1,11 +1,16 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { DatabaseTypes } from '@/types/database.types';
+import { Database } from '@/types/database.types';
 
-type Subscription = DatabaseTypes['public']['Tables']['subscriptions']['Row'];
-type Credit = DatabaseTypes['public']['Tables']['credits']['Row'];
+// Define types directly from Database type
+type Subscription = Database['public']['Tables']['subscriptions']['Row'];
+type Credit = Database['public']['Tables']['credits']['Row'];
+type CreditInsert = Database['public']['Tables']['credits']['Insert'];
+type ApiUsageInsert = Database['public']['Tables']['api_usage']['Insert'];
+type SubscriptionInsert = Database['public']['Tables']['subscriptions']['Insert'];
 
 interface SubscriptionContextProps {
   subscription: Subscription | null;
@@ -44,37 +49,39 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       const { data, error } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('user_id', user.id as string)
+        .eq('user_id', user.id)
         .single();
         
       if (error) {
         if (error.code === 'PGRST116') {
           // No subscription found, create a new free subscription
+          const newSubscription: SubscriptionInsert = {
+            user_id: user.id,
+            plan_type: 'free',
+            status: 'active',
+            expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          };
+
           const { error: createError } = await supabase
             .from('subscriptions')
-            .insert({
-              user_id: user.id,
-              plan_type: 'free',
-              status: 'active',
-              expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-            } as DatabaseTypes['public']['Tables']['subscriptions']['Insert']);
+            .insert(newSubscription);
             
           if (createError) throw createError;
           
           // Fetch the newly created subscription
-          const { data: newSubscription, error: fetchError } = await supabase
+          const { data: newSubData, error: fetchError } = await supabase
             .from('subscriptions')
             .select('*')
-            .eq('user_id', user.id as string)
+            .eq('user_id', user.id)
             .single();
             
           if (fetchError) throw fetchError;
-          setSubscription(newSubscription as Subscription);
+          setSubscription(newSubData);
         } else {
           throw error;
         }
       } else {
-        setSubscription(data as Subscription);
+        setSubscription(data);
       }
     } catch (error: any) {
       console.error('Error fetching subscription:', error.message);
@@ -97,11 +104,11 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       const { data, error } = await supabase
         .from('credits')
         .select('*')
-        .eq('user_id', user.id as string);
+        .eq('user_id', user.id);
         
       if (error) throw error;
       
-      setCredits(data as Credit[] || []);
+      setCredits(data || []);
     } catch (error: any) {
       console.error('Error fetching credits:', error.message);
       toast({
@@ -144,28 +151,32 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       }
       
       // Record credit usage
+      const creditUsage: CreditInsert = {
+        user_id: user.id,
+        workspace_id: workspaceId,
+        credit_amount: amount,
+        transaction_type: 'used',
+      };
+
       const { error: creditError } = await supabase
         .from('credits')
-        .insert({
-          user_id: user.id,
-          workspace_id: workspaceId,
-          credit_amount: amount,
-          transaction_type: 'used',
-        } as DatabaseTypes['public']['Tables']['credits']['Insert']);
+        .insert(creditUsage);
         
       if (creditError) throw creditError;
       
       // Record API usage
+      const apiUsage: ApiUsageInsert = {
+        user_id: user.id,
+        workspace_id: workspaceId,
+        api_type: apiType,
+        usage_amount: 1,
+        credits_consumed: amount,
+        operation_type: operation,
+      };
+
       const { error: apiUsageError } = await supabase
         .from('api_usage')
-        .insert({
-          user_id: user.id,
-          workspace_id: workspaceId,
-          api_type: apiType,
-          usage_amount: 1,
-          credits_consumed: amount,
-          operation_type: operation,
-        } as DatabaseTypes['public']['Tables']['api_usage']['Insert']);
+        .insert(apiUsage);
         
       if (apiUsageError) throw apiUsageError;
       

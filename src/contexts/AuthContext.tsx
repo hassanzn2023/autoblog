@@ -5,7 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Database } from '@/types/database.types';
 
+// Define types directly from Database type
 type Profile = Database['public']['Tables']['profiles']['Row'];
+type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
 
 interface AuthContextProps {
   session: Session | null;
@@ -13,7 +15,7 @@ interface AuthContextProps {
   profile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  updateProfile: (updates: Database['public']['Tables']['profiles']['Update']) => Promise<void>;
+  updateProfile: (updates: ProfileUpdate) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -68,8 +70,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return null;
       }
 
-      setProfile(data as Profile);
-      return data as Profile;
+      setProfile(data || null);
+      return data;
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
       return null;
@@ -98,7 +100,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const updateProfile = async (updates: Database['public']['Tables']['profiles']['Update']) => {
+  const updateProfile = async (updates: ProfileUpdate) => {
     try {
       setLoading(true);
       if (!user?.id) throw new Error("User ID is missing");

@@ -6,7 +6,10 @@ import { useWorkspace } from './WorkspaceContext';
 import { toast } from '@/hooks/use-toast';
 import { Database } from '@/types/database.types';
 
+// Define types directly from Database type
 type APIKey = Database['public']['Tables']['api_keys']['Row'];
+type APIKeyInsert = Database['public']['Tables']['api_keys']['Insert'];
+type APIKeyUpdate = Database['public']['Tables']['api_keys']['Update'];
 
 interface APIKeysContextProps {
   apiKeys: APIKey[];
@@ -43,12 +46,12 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       const { data, error } = await supabase
         .from('api_keys')
         .select('*')
-        .eq('user_id', user.id as unknown as string)
-        .eq('workspace_id', currentWorkspace.id as unknown as string);
+        .eq('user_id', user.id)
+        .eq('workspace_id', currentWorkspace.id);
         
       if (error) throw error;
       
-      setApiKeys(data as unknown as APIKey[]);
+      setApiKeys(data || []);
     } catch (error: any) {
       console.error('Error fetching API keys:', error.message);
       toast({
@@ -70,20 +73,20 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       
       if (existingKey) {
         // Update existing key
-        const updateData = {
+        const updateData: APIKeyUpdate = {
           api_key: key,
           is_active: true,
         };
 
         const { error } = await supabase
           .from('api_keys')
-          .update(updateData as unknown as Database['public']['Tables']['api_keys']['Update'])
-          .eq('id', existingKey.id as unknown as string);
+          .update(updateData)
+          .eq('id', existingKey.id);
           
         if (error) throw error;
       } else {
         // Create new key
-        const insertData = {
+        const insertData: APIKeyInsert = {
           user_id: user.id,
           workspace_id: currentWorkspace.id,
           api_type: type,
@@ -93,7 +96,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
 
         const { error } = await supabase
           .from('api_keys')
-          .insert(insertData as unknown as Database['public']['Tables']['api_keys']['Insert']);
+          .insert(insertData);
           
         if (error) throw error;
       }
@@ -118,16 +121,16 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
     if (!user || !currentWorkspace) return;
     
     try {
-      const updateData = {
+      const updateData: APIKeyUpdate = {
         api_key: key,
         is_active: active,
       };
 
       const { error } = await supabase
         .from('api_keys')
-        .update(updateData as unknown as Database['public']['Tables']['api_keys']['Update'])
-        .eq('id', id as unknown as string)
-        .eq('user_id', user.id as unknown as string);
+        .update(updateData)
+        .eq('id', id)
+        .eq('user_id', user.id);
         
       if (error) throw error;
       
@@ -154,8 +157,8 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       const { error } = await supabase
         .from('api_keys')
         .delete()
-        .eq('id', id as unknown as string)
-        .eq('user_id', user.id as unknown as string);
+        .eq('id', id)
+        .eq('user_id', user.id);
         
       if (error) throw error;
       
