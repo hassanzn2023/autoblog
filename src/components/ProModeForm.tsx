@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Accordion,
@@ -7,15 +7,30 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Check, ChevronDown, X } from 'lucide-react';
+import { Check, ChevronDown, X, AlertTriangle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useAPIKeys } from '@/contexts/APIKeysContext';
+import { generateKeywordSuggestions } from '@/services/openaiService';
+import CreditStatus from './CreditStatus';
 
 const ProModeForm = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { currentWorkspace } = useWorkspace();
+  const { useCredits, remainingCredits } = useSubscription();
+  const { getAPIKey } = useAPIKeys();
+  
   const [content, setContent] = useState('');
   const [contentMethod, setContentMethod] = useState<'text' | 'link' | 'file'>('text');
   const [contentConfirmed, setContentConfirmed] = useState(false);
   const [activeStep, setActiveStep] = useState<string>("add-content");
+  const [primaryKeyword, setPrimaryKeyword] = useState('');
+  const [secondaryKeywords, setSecondaryKeywords] = useState('');
+  const [suggestedKeywords, setSuggestedKeywords] = useState<{id: string, text: string}[]>([]);
+  const [isLoadingKeywords, setIsLoadingKeywords] = useState(false);
   
   // Track completion status of each step
   const [completedSteps, setCompletedSteps] = useState<Record<string, boolean>>({
@@ -63,6 +78,79 @@ const ProModeForm = () => {
     });
   };
   
+  const handleSuggestKeywords = async () => {
+    if (!user || !currentWorkspace) {
+      toast({
+        title: "Authentication Required",
+        description: "Please login to use this feature",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const openAIKey = getAPIKey('openai');
+    if (!openAIKey) {
+      toast({
+        title: "API Key Required",
+        description: "OpenAI API key is required for this feature. Please add it in Settings.",
+        variant: "destructive"
+      });
+      navigate('/settings');
+      return;
+    }
+    
+    if (remainingCredits < 5) {
+      toast({
+        title: "Insufficient Credits",
+        description: "You need at least 5 credits to use this feature",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setIsLoadingKeywords(true);
+      
+      // Request to use 5 credits for this operation
+      const creditsApproved = await useCredits(5, currentWorkspace.id, 'keyword_suggestion', 'openai');
+      if (!creditsApproved) {
+        throw new Error("Failed to allocate credits for this operation");
+      }
+      
+      // Generate keywords
+      const keywords = await generateKeywordSuggestions(
+        content, 
+        3, 
+        '', 
+        user.id, 
+        currentWorkspace.id
+      );
+      
+      setSuggestedKeywords(keywords);
+      
+      if (keywords.length > 0 && !primaryKeyword) {
+        setPrimaryKeyword(keywords[0].text);
+      }
+      
+      toast({
+        title: "Keywords Generated",
+        description: "Keyword suggestions have been generated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate keyword suggestions",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingKeywords(false);
+    }
+  };
+  
+  const handleSelectKeyword = (keyword: string) => {
+    setPrimaryKeyword(keyword);
+  };
+  
   const handleStartOptimization = () => {
     // Check if all steps are completed
     const allCompleted = Object.values(completedSteps).every(status => status);
@@ -76,23 +164,55 @@ const ProModeForm = () => {
       return;
     }
     
-    // Simulate loading
-    toast({
-      title: "Optimization Started",
-      description: "Analyzing and optimizing your content...",
+    // Navigate to the results page
+    navigate('/seo-checker', { 
+      state: { 
+        content, 
+        primaryKeyword, 
+        secondaryKeywords: secondaryKeywords.split(',').map(k => k.trim()).filter(Boolean)
+      } 
     });
-    
-    // Navigate to the results page after a delay
-    setTimeout(() => {
-      navigate('/seo-checker');
-    }, 1500);
   };
   
   const isAllCompleted = Object.values(completedSteps).every(status => status);
   
+  // Check for required API key
+  const openAIKey = getAPIKey('openai');
+  const hasRequiredApiKey = !!openAIKey;
+  
   return (
     <div className="max-w-6xl mx-auto">
-      <h1 className="text-xl font-bold mb-6">SEO Checker and Optimizer (Pro Mode)</h1>
+      <h1 className="text-xl font-bold mb-2">SEO Checker and Optimizer (Pro Mode)</h1>
+      
+      {!hasRequiredApiKey && (
+        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mb-6 rounded-md">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-amber-700">
+                OpenAI API key is required for full functionality. Please add your API key in settings.
+              </p>
+              <div className="mt-2">
+                <button 
+                  onClick={() => navigate('/settings')} 
+                  className="inline-flex items-center px-3 py-1 border border-transparent text-xs leading-4 font-medium rounded-md text-amber-700 bg-amber-100 hover:bg-amber-200"
+                >
+                  Go to Settings
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <p className="text-gray-500">Complete all steps to optimize your content</p>
+        </div>
+        <CreditStatus variant="compact" showButton={false} />
+      </div>
       
       <div className="grid md:grid-cols-5 gap-6">
         <div className="md:col-span-2">
@@ -272,11 +392,38 @@ const ProModeForm = () => {
                         type="text" 
                         className="flex-1 p-2 border border-gray-300 rounded-md"
                         placeholder="Enter your main keyword..."
+                        value={primaryKeyword}
+                        onChange={(e) => setPrimaryKeyword(e.target.value)}
                       />
-                      <button className="seo-button seo-button-secondary">
-                        Suggest
+                      <button 
+                        className="seo-button seo-button-secondary"
+                        onClick={handleSuggestKeywords}
+                        disabled={!contentConfirmed || isLoadingKeywords || !hasRequiredApiKey}
+                      >
+                        {isLoadingKeywords ? "Loading..." : "Suggest"}
                       </button>
                     </div>
+                    
+                    {suggestedKeywords.length > 0 && (
+                      <div className="mt-3">
+                        <label className="text-sm text-gray-500 mb-2 block">Suggestions:</label>
+                        <div className="flex flex-wrap gap-2">
+                          {suggestedKeywords.map(keyword => (
+                            <button
+                              key={keyword.id}
+                              onClick={() => handleSelectKeyword(keyword.text)}
+                              className={`text-xs py-1 px-2 rounded-full ${
+                                primaryKeyword === keyword.text 
+                                  ? 'bg-seo-purple text-white' 
+                                  : 'bg-gray-100 hover:bg-gray-200'
+                              }`}
+                            >
+                              {keyword.text}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
                   <div>
@@ -286,8 +433,13 @@ const ProModeForm = () => {
                         className="flex-1 p-2 border border-gray-300 rounded-md"
                         placeholder="Enter your secondary keywords, separated by commas..."
                         rows={2}
+                        value={secondaryKeywords}
+                        onChange={(e) => setSecondaryKeywords(e.target.value)}
                       />
-                      <button className="seo-button seo-button-secondary h-fit">
+                      <button 
+                        className="seo-button seo-button-secondary h-fit"
+                        disabled={!primaryKeyword || !hasRequiredApiKey}
+                      >
                         Suggest
                       </button>
                     </div>
@@ -296,6 +448,7 @@ const ProModeForm = () => {
                   <button 
                     className="seo-button seo-button-primary"
                     onClick={() => handleStepComplete("basic-settings")}
+                    disabled={!primaryKeyword}
                   >
                     Confirm Settings
                   </button>
@@ -356,9 +509,24 @@ const ProModeForm = () => {
         
         <div className="md:col-span-3">
           <div className="bg-white rounded-lg border border-gray-200 p-6 h-full flex items-center justify-center">
-            <div className="text-center text-gray-500">
-              <p>Your confirmed content will appear here for optimization.</p>
-            </div>
+            {contentConfirmed ? (
+              <div className="w-full">
+                <h3 className="text-lg font-medium mb-4">Content Preview</h3>
+                <div className="border border-gray-200 rounded p-4 max-h-96 overflow-auto">
+                  <div dangerouslySetInnerHTML={{ __html: content }} />
+                </div>
+                <div className="mt-4">
+                  <h4 className="font-medium mb-2">Primary Keyword:</h4>
+                  <div className="bg-gray-100 p-2 rounded">
+                    {primaryKeyword || "Not set"}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center text-gray-500">
+                <p>Your confirmed content will appear here for optimization.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

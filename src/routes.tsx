@@ -27,127 +27,152 @@ import BenefitsPage from './pages/BenefitsPage';
 import RequestFeaturePage from './pages/RequestFeaturePage';
 import ApiDashboardPage from './pages/ApiDashboardPage';
 import GetStartedPage from './pages/GetStartedPage';
+import AuthPage from './pages/AuthPage';
+import SettingsPage from './pages/SettingsPage';
+import { AuthProvider } from './contexts/AuthContext';
+import { WorkspaceProvider } from './contexts/WorkspaceContext';
+import { APIKeysProvider } from './contexts/APIKeysContext';
+import { SubscriptionProvider } from './contexts/SubscriptionContext';
+import AuthRequired from './components/AuthRequired';
 
 const routes = [
   {
     path: '/',
-    element: <Layout />,
+    element: (
+      <AuthProvider>
+        <WorkspaceProvider>
+          <APIKeysProvider>
+            <SubscriptionProvider>
+              <Layout />
+            </SubscriptionProvider>
+          </APIKeysProvider>
+        </WorkspaceProvider>
+      </AuthProvider>
+    ),
     children: [
       {
         index: true,
-        element: <Index />
+        element: <AuthRequired><Index /></AuthRequired>
+      },
+      {
+        path: 'auth',
+        element: <AuthPage />
+      },
+      {
+        path: 'settings',
+        element: <AuthRequired><SettingsPage /></AuthRequired>
       },
       {
         path: 'get-started',
-        element: <GetStartedPage />
+        element: <AuthRequired><GetStartedPage /></AuthRequired>
       },
       {
         path: 'history',
-        element: <HistoryPage />
+        element: <AuthRequired><HistoryPage /></AuthRequired>
       },
       {
         path: 'content-settings',
-        element: <AutoblogTemplatePage />
+        element: <AuthRequired><AutoblogTemplatePage /></AuthRequired>
       },
       {
         path: 'autoblog',
-        element: <AutoblogPage />
+        element: <AuthRequired><AutoblogPage /></AuthRequired>
       },
       {
         path: 'autoblog/create',
-        element: <AutoblogCreatePage />
+        element: <AuthRequired><AutoblogCreatePage /></AuthRequired>
       },
       {
         path: 'autoblog/list',
-        element: <AutoblogListPage />
+        element: <AuthRequired><AutoblogListPage /></AuthRequired>
       },
       {
         path: 'autoblog/config',
-        element: <AutoblogConfigPage />
+        element: <AuthRequired><AutoblogConfigPage /></AuthRequired>
       },
       {
         path: 'autoblog/config/:id',
-        element: <AutoblogConfigPage />
+        element: <AuthRequired><AutoblogConfigPage /></AuthRequired>
       },
       {
         path: 'blog',
-        element: <BlogProjectsPage />
+        element: <AuthRequired><BlogProjectsPage /></AuthRequired>
       },
       {
         path: 'blog/create',
-        element: <BlogProjectsPage />
+        element: <AuthRequired><BlogProjectsPage /></AuthRequired>
       },
       {
         path: 'blog/articles',
-        element: <BlogProjectsPage />
+        element: <AuthRequired><BlogProjectsPage /></AuthRequired>
       },
       {
         path: 'blog/config',
-        element: <BlogConfigPage />
+        element: <AuthRequired><BlogConfigPage /></AuthRequired>
       },
       {
         path: 'blog/config/:id',
-        element: <BlogConfigPage />
+        element: <AuthRequired><BlogConfigPage /></AuthRequired>
       },
       {
         path: 'autofix/modes',
-        element: <ModeSelectionPage />
+        element: <AuthRequired><ModeSelectionPage /></AuthRequired>
       },
       {
         path: 'autofix/normal',
-        element: <NormalModePage />
+        element: <AuthRequired><NormalModePage /></AuthRequired>
       },
       {
         path: 'autofix/pro',
-        element: <ProModePage />
+        element: <AuthRequired><ProModePage /></AuthRequired>
       },
       {
         path: 'seo-checker',
-        element: <SEOCheckerPage />
+        element: <AuthRequired><SEOCheckerPage /></AuthRequired>
       },
       {
         path: 'writing-style',
-        element: <WritingStylePage />
+        element: <AuthRequired><WritingStylePage /></AuthRequired>
       },
       {
         path: 'preferences',
-        element: <PreferencesPage />
+        element: <AuthRequired><PreferencesPage /></AuthRequired>
       },
       {
         path: 'profile',
-        element: <ProfilePage />
+        element: <AuthRequired><ProfilePage /></AuthRequired>
       },
       {
         path: 'usage',
-        element: <UsagePage />
+        element: <AuthRequired><UsagePage /></AuthRequired>
       },
       {
         path: 'billing',
-        element: <BillingPage />
+        element: <AuthRequired><BillingPage /></AuthRequired>
       },
       {
         path: 'teams',
-        element: <TeamsPage />
+        element: <AuthRequired><TeamsPage /></AuthRequired>
       },
       {
         path: 'integrations',
-        element: <IntegrationsPage />
+        element: <AuthRequired><IntegrationsPage /></AuthRequired>
       },
       {
         path: 'benefits',
-        element: <BenefitsPage />
+        element: <AuthRequired><BenefitsPage /></AuthRequired>
       },
       {
         path: 'request-feature',
-        element: <RequestFeaturePage />
+        element: <AuthRequired><RequestFeaturePage /></AuthRequired>
       },
       {
         path: 'api-dashboard',
-        element: <ApiDashboardPage />
+        element: <AuthRequired><ApiDashboardPage /></AuthRequired>
       },
       {
         path: 'help',
-        element: <HelpCenterPage />
+        element: <AuthRequired><HelpCenterPage /></AuthRequired>
       },
       {
         path: '*',

@@ -1,1 +1,5 @@
+
 project_id = "thsjfdmivfxdmymcpnxf"
+
+[functions.track-api-usage]
+verify_jwt = true
