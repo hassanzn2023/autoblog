@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,18 +16,22 @@ const AuthPage: React.FC = () => {
   const [lastName, setLastName] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get return URL from location state or default to '/'
+  const from = location.state?.from || '/';
 
   // Check if user is already logged in
   useEffect(() => {
     const checkUser = async () => {
       const { data } = await supabase.auth.getSession();
       if (data.session) {
-        navigate('/');
+        navigate(from, { replace: true });
       }
     };
     
     checkUser();
-  }, [navigate]);
+  }, [navigate, from]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +59,8 @@ const AuthPage: React.FC = () => {
         description: "Signed in successfully"
       });
       
-      navigate('/');
+      // Redirect to the requested page or home
+      navigate(from, { replace: true });
     } catch (error: any) {
       toast({
         title: "Error",
@@ -110,7 +114,7 @@ const AuthPage: React.FC = () => {
       
       // Auto-redirect if no email confirmation is needed
       if (data.session) {
-        navigate('/');
+        navigate(from, { replace: true });
       }
     } catch (error: any) {
       toast({
@@ -129,7 +133,7 @@ const AuthPage: React.FC = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin + '/'
+          redirectTo: window.location.origin + from
         }
       });
       
@@ -140,7 +144,6 @@ const AuthPage: React.FC = () => {
         description: error.message || "Failed to sign in with Google",
         variant: "destructive"
       });
-    } finally {
       setLoading(false);
     }
   };
