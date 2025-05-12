@@ -150,7 +150,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId as string)
+        .eq('id', userId)
         .single();
 
       if (error) {
@@ -160,7 +160,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       console.log('Profile fetched:', data);
       setProfile(data as unknown as ProfileType);
-      return data as ProfileType;
+      return data as unknown as ProfileType;
     } catch (error: any) {
       console.error('Error fetching profile:', error.message);
       return null;

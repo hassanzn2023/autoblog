@@ -54,13 +54,12 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       const { data, error } = await supabase
         .from('api_keys')
         .select('*')
-        .eq('user_id', user.id as string)
-        .eq('workspace_id', currentWorkspace.id as string);
+        .eq('user_id', user.id)
+        .eq('workspace_id', currentWorkspace.id);
         
       if (error) throw error;
       
-      // Use double casting to handle type compatibility
-      setApiKeys((data || []) as unknown as APIKey[]);
+      setApiKeys(data as unknown as APIKey[] || []);
     } catch (error: any) {
       console.error('Error fetching API keys:', error.message);
       toast({
@@ -87,8 +86,8 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
           .update({ 
             api_key: key,
             is_active: true,
-          } as unknown as Database['public']['Tables']['api_keys']['Update'])
-          .eq('id', existingKey.id as string);
+          })
+          .eq('id', existingKey.id);
           
         if (error) throw error;
       } else {
@@ -101,7 +100,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
             api_type: type,
             api_key: key,
             is_active: true,
-          } as unknown as Database['public']['Tables']['api_keys']['Insert']);
+          });
           
         if (error) throw error;
       }
@@ -131,9 +130,9 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
         .update({ 
           api_key: key,
           is_active: active,
-        } as unknown as Database['public']['Tables']['api_keys']['Update'])
-        .eq('id', id as string)
-        .eq('user_id', user.id as string);
+        })
+        .eq('id', id)
+        .eq('user_id', user.id);
         
       if (error) throw error;
       
@@ -160,8 +159,8 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       const { error } = await supabase
         .from('api_keys')
         .delete()
-        .eq('id', id as string)
-        .eq('user_id', user.id as string);
+        .eq('id', id)
+        .eq('user_id', user.id);
         
       if (error) throw error;
       

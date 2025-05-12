@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { supabase, checkSupabaseConnection } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -159,7 +158,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         throw new Error("Database connection failed");
       }
       
-      // Retry direct workspaces fetch first (simpler query)
+      // Try to fetch workspaces directly first
       const { data: directWorkspaces, error: directError } = await supabase
         .from('workspaces')
         .select('*')
@@ -330,37 +329,34 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       
       console.log("Creating default workspace with name:", defaultName);
       
-      // Try to create workspace directly
-      const { data: workspaceData, error: workspaceError } = await supabase
+      // Use our new security definer function to safely create a workspace and add owner
+      const { data, error } = await supabase
+        .rpc('create_workspace_with_owner', { 
+          workspace_name: defaultName, 
+          user_id: user.id 
+        });
+        
+      if (error) {
+        console.error("Error creating workspace via function:", error.message);
+        throw error;
+      }
+      
+      if (!data) {
+        throw new Error("No workspace ID returned after creation");
+      }
+      
+      console.log("Workspace created with ID:", data);
+      
+      // Fetch the newly created workspace
+      const { data: workspaceData, error: fetchError } = await supabase
         .from('workspaces')
-        .insert([{ name: defaultName, created_by: user.id }])
-        .select()
+        .select('*')
+        .eq('id', data)
         .single();
         
-      if (workspaceError) {
-        console.error("Error creating direct workspace:", workspaceError.message);
-        throw workspaceError;
-      }
-      
-      if (!workspaceData) {
-        throw new Error("No workspace data returned after creation");
-      }
-      
-      console.log("Workspace created directly:", workspaceData);
-      
-      // Insert the creator as the owner of the workspace
-      const { error: memberError } = await supabase
-        .from('workspace_members')
-        .insert([{ 
-          workspace_id: workspaceData.id, 
-          user_id: user.id, 
-          role: 'owner' 
-        }]);
-      
-      if (memberError) {
-        console.error("Error adding user as workspace member:", memberError.message);
-      } else {
-        console.log("User added as workspace owner");
+      if (fetchError) {
+        console.error("Error fetching new workspace:", fetchError.message);
+        throw fetchError;
       }
       
       setWorkspaces([workspaceData]);
@@ -424,38 +420,34 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         return null;
       }
 
-      // Create the workspace
-      const { data: workspaceData, error: workspaceError } = await supabase
+      // Use our new security definer function to safely create a workspace and add owner
+      const { data: workspaceId, error: rpcError } = await supabase
+        .rpc('create_workspace_with_owner', { 
+          workspace_name: name, 
+          user_id: user.id 
+        });
+        
+      if (rpcError) {
+        console.error("Error creating workspace via function:", rpcError.message);
+        throw rpcError;
+      }
+      
+      if (!workspaceId) {
+        throw new Error("No workspace ID returned after creation");
+      }
+      
+      console.log("Workspace created with ID:", workspaceId);
+      
+      // Fetch the newly created workspace
+      const { data: workspaceData, error: fetchError } = await supabase
         .from('workspaces')
-        .insert([{ name, created_by: user.id }])
-        .select()
+        .select('*')
+        .eq('id', workspaceId)
         .single();
         
-      if (workspaceError) {
-        console.error("Error creating workspace:", workspaceError.message);
-        throw workspaceError;
-      }
-      
-      if (!workspaceData) {
-        throw new Error("No workspace data returned after creation");
-      }
-      
-      console.log("Workspace created in database:", workspaceData);
-      
-      // Insert the creator as the owner of the workspace
-      const { error: memberError } = await supabase
-        .from('workspace_members')
-        .insert([{ 
-          workspace_id: workspaceData.id, 
-          user_id: user.id, 
-          role: 'owner' 
-        }]);
-      
-      if (memberError) {
-        console.error("Error adding user as workspace member:", memberError.message);
-        // We can continue anyway since we have at least created the workspace
-      } else {
-        console.log("User added as workspace owner");
+      if (fetchError) {
+        console.error("Error fetching new workspace:", fetchError.message);
+        throw fetchError;
       }
       
       // Add the new workspace to the local state

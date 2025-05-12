@@ -260,6 +260,10 @@ export type Database = {
         Args: { user_id_param: string; required_credits: number }
         Returns: boolean
       }
+      create_workspace_with_owner: {
+        Args: { workspace_name: string; user_id: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
