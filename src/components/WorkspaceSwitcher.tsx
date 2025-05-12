@@ -30,8 +30,8 @@ const WorkspaceSwitcher = () => {
   const handleCreateWorkspace = async () => {
     if (!newWorkspaceName.trim()) {
       toast({
-        title: "خطأ",
-        description: "يرجى إدخال اسم مساحة العمل",
+        title: "Error",
+        description: "Please enter a workspace name",
         variant: "destructive",
       });
       return;
@@ -59,9 +59,9 @@ const WorkspaceSwitcher = () => {
       <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
         <PopoverTrigger asChild>
           <button className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium bg-white hover:bg-gray-50 transition-colors rounded-md">
-            <div className="flex items-center space-x-2 rtl:space-x-reverse">
+            <div className="flex items-center space-x-2">
               <div className="w-4 h-4 bg-[#F76D01] rounded-sm"></div>
-              <span className="truncate">{currentWorkspace?.name || 'اختر مساحة العمل'}</span>
+              <span className="truncate">{currentWorkspace?.name || 'Select Workspace'}</span>
             </div>
             <ChevronDown size={16} />
           </button>
@@ -72,13 +72,13 @@ const WorkspaceSwitcher = () => {
               <Button
                 key={workspace.id}
                 variant={currentWorkspace?.id === workspace.id ? "secondary" : "ghost"}
-                className="w-full justify-start text-right"
+                className="w-full justify-start text-left"
                 onClick={() => {
                   setCurrentWorkspace(workspace);
                   setPopoverOpen(false);
                 }}
               >
-                <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 bg-[#F76D01] rounded-sm"></div>
                   <span className="truncate">{workspace.name}</span>
                 </div>
@@ -91,14 +91,14 @@ const WorkspaceSwitcher = () => {
               <Separator className="my-2" />
               <Button
                 variant="ghost"
-                className="w-full justify-start text-right"
+                className="w-full justify-start text-left"
                 onClick={() => {
                   setNewWorkspaceDialogOpen(true);
                   setPopoverOpen(false);
                 }}
               >
-                <Plus className="mr-2 rtl:ml-2 rtl:mr-0" size={16} />
-                إنشاء مساحة عمل جديدة
+                <Plus className="mr-2" size={16} />
+                Create New Workspace
               </Button>
             </>
           )}
@@ -108,32 +108,30 @@ const WorkspaceSwitcher = () => {
       <Dialog open={newWorkspaceDialogOpen} onOpenChange={setNewWorkspaceDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>إنشاء مساحة عمل جديدة</DialogTitle>
+            <DialogTitle>Create New Workspace</DialogTitle>
             <DialogDescription>
-              أضف مساحة عمل جديدة لتنظيم مشاريع SEO الخاصة بك.
+              Add a new workspace to organize your SEO projects.
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="workspace-name">اسم مساحة العمل</Label>
+              <Label htmlFor="workspace-name">Workspace Name</Label>
               <Input
                 id="workspace-name"
-                placeholder="أدخل اسم مساحة العمل"
+                placeholder="Enter workspace name"
                 value={newWorkspaceName}
                 onChange={(e) => setNewWorkspaceName(e.target.value)}
-                className="text-right"
-                dir="rtl"
               />
             </div>
           </div>
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setNewWorkspaceDialogOpen(false)}>
-              إلغاء
+              Cancel
             </Button>
             <Button onClick={handleCreateWorkspace}>
-              إنشاء مساحة العمل
+              Create Workspace
             </Button>
           </DialogFooter>
         </DialogContent>
