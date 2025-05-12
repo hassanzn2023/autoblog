@@ -150,7 +150,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
+        .eq('id', userId as string)
         .single();
 
       if (error) {
@@ -160,8 +160,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       console.log('Profile fetched:', data);
       if (data) {
-        // Use proper type assertion with a null check
-        const typedData = data as ProfileType;
+        // Safe cast with type assertion after existence check
+        const typedData = data as unknown as ProfileType;
         setProfile(typedData);
         return typedData;
       }

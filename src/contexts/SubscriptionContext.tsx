@@ -68,7 +68,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       const { data, error } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', user.id as string)
         .single();
         
       if (error) {
@@ -92,21 +92,19 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
           const { data: newSubscription, error: fetchError } = await supabase
             .from('subscriptions')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('user_id', user.id as string)
             .single();
             
           if (fetchError) throw fetchError;
           
           if (newSubscription) {
-            // Use proper type assertion with a null check
-            setSubscription(newSubscription as Subscription);
+            setSubscription(newSubscription as unknown as Subscription);
           }
         } else {
           throw error;
         }
       } else if (data) {
-        // Use proper type assertion here
-        setSubscription(data as Subscription);
+        setSubscription(data as unknown as Subscription);
       }
     } catch (error: any) {
       console.error('Error fetching subscription:', error.message);
@@ -129,12 +127,11 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       const { data, error } = await supabase
         .from('credits')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id as string);
         
       if (error) throw error;
       
-      // Use proper type assertion here to avoid type errors
-      setCredits(Array.isArray(data) ? data as Credit[] : []);
+      setCredits(Array.isArray(data) ? data as unknown as Credit[] : []);
     } catch (error: any) {
       console.error('Error fetching credits:', error.message);
       toast({

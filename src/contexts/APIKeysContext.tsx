@@ -56,13 +56,12 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       const { data, error } = await supabase
         .from('api_keys')
         .select('*')
-        .eq('user_id', user.id)
-        .eq('workspace_id', currentWorkspace.id);
+        .eq('user_id', user.id as string)
+        .eq('workspace_id', currentWorkspace.id as string);
         
       if (error) throw error;
       
-      // Use proper type assertion here with a null check
-      setApiKeys(Array.isArray(data) ? data as APIKey[] : []);
+      setApiKeys(Array.isArray(data) ? data as unknown as APIKey[] : []);
     } catch (error: any) {
       console.error('Error fetching API keys:', error.message);
       toast({
@@ -91,7 +90,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
         
         const { error } = await supabase
           .from('api_keys')
-          .update(updateData as any)
+          .update(updateData)
           .eq('id', existingKey.id)
           .eq('user_id', user.id);
           
@@ -106,7 +105,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
           is_active: true,
         };
         
-        // When inserting, wrap the data in an array
+        // When inserting, wrap the data in an array for Supabase
         const { error } = await supabase
           .from('api_keys')
           .insert([insertData as any]);
@@ -141,7 +140,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       
       const { error } = await supabase
         .from('api_keys')
-        .update(updateData as any)
+        .update(updateData)
         .eq('id', id)
         .eq('user_id', user.id);
         
