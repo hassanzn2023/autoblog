@@ -9,13 +9,257 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      api_keys: {
+        Row: {
+          api_key: string
+          api_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          last_used_at: string | null
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          api_key: string
+          api_type: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          api_key?: string
+          api_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      api_usage: {
+        Row: {
+          api_type: string
+          credits_consumed: number
+          id: string
+          operation_type: string
+          timestamp: string
+          usage_amount: number
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          api_type: string
+          credits_consumed: number
+          id?: string
+          operation_type: string
+          timestamp?: string
+          usage_amount: number
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          api_type?: string
+          credits_consumed?: number
+          id?: string
+          operation_type?: string
+          timestamp?: string
+          usage_amount?: number
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_usage_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credits: {
+        Row: {
+          created_at: string
+          credit_amount: number
+          id: string
+          transaction_type: string
+          updated_at: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          credit_amount: number
+          id?: string
+          transaction_type: string
+          updated_at?: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          credit_amount?: number
+          id?: string
+          transaction_type?: string
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credits_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          auto_renewal: boolean
+          expires_at: string | null
+          id: string
+          payment_method: string | null
+          plan_type: string
+          starts_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          auto_renewal?: boolean
+          expires_at?: string | null
+          id?: string
+          payment_method?: string | null
+          plan_type: string
+          starts_at?: string
+          status: string
+          user_id: string
+        }
+        Update: {
+          auto_renewal?: boolean
+          expires_at?: string | null
+          id?: string
+          payment_method?: string | null
+          plan_type?: string
+          starts_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      workspace_members: {
+        Row: {
+          created_at: string
+          id: string
+          role: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_members_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspaces: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          settings: Json | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          settings?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          settings?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_user_has_credits: {
+        Args: { user_id_param: string; required_credits: number }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

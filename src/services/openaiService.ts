@@ -1,11 +1,9 @@
-
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { parseWordDocument } from './documentParserService';
-import { extractContentFromUrl as extractContent } from './contentExtractorService';
 import { supabase } from '@/integrations/supabase/client';
 
-// Simulate the keyword generation with mock data
+// Interface for the keyword suggestion
 export interface KeywordSuggestion {
   id: string;
   text: string;
@@ -23,35 +21,22 @@ export const generateKeywordSuggestions = async (
 ): Promise<KeywordSuggestion[]> => {
   console.log(`Generating ${count} keyword suggestions`);
   
-  // Check if user is authenticated and has OpenAI API key
+  // Check if user is authenticated
   if (userId && workspaceId) {
     try {
-      // Get API key from database
-      const { data: apiKeyData, error: apiKeyError } = await supabase
-        .from('api_keys')
-        .select('api_key')
-        .eq('user_id', userId)
-        .eq('workspace_id', workspaceId)
-        .eq('api_type', 'openai')
-        .eq('is_active', true)
-        .single();
+      // Call the Supabase Edge Function
+      const { data, error } = await supabase.functions.invoke('generate-keywords', {
+        body: { content, count, note, userId, workspaceId }
+      });
       
-      if (apiKeyError || !apiKeyData) {
-        console.error("No active OpenAI API key found. Falling back to mock data.");
+      if (error) {
+        console.error("Error calling generate-keywords function:", error);
         return generateMockKeywords(content, count);
       }
       
-      // Use real OpenAI API
-      const openaiApiKey = apiKeyData.api_key;
-      
-      // Record API usage
-      await recordApiUsage(userId, workspaceId, 'openai', 'generate_keywords', 5);
-      
-      // Implement real OpenAI integration here when ready
-      // For now, return mock data
-      return generateMockKeywords(content, count);
+      return data;
     } catch (error) {
-      console.error("Error accessing API key:", error);
+      console.error("Error generating keywords:", error);
       return generateMockKeywords(content, count);
     }
   }
@@ -73,35 +58,22 @@ export const generateSecondaryKeywordSuggestions = async (
 ): Promise<KeywordSuggestion[]> => {
   console.log(`Generating ${count} secondary keyword suggestions for "${primaryKeyword}"`);
   
-  // Check if user is authenticated and has OpenAI API key
+  // Check if user is authenticated
   if (userId && workspaceId) {
     try {
-      // Get API key from database
-      const { data: apiKeyData, error: apiKeyError } = await supabase
-        .from('api_keys')
-        .select('api_key')
-        .eq('user_id', userId)
-        .eq('workspace_id', workspaceId)
-        .eq('api_type', 'openai')
-        .eq('is_active', true)
-        .single();
+      // Call the Supabase Edge Function
+      const { data, error } = await supabase.functions.invoke('generate-secondary-keywords', {
+        body: { primaryKeyword, content, count, note, userId, workspaceId }
+      });
       
-      if (apiKeyError || !apiKeyData) {
-        console.error("No active OpenAI API key found. Falling back to mock data.");
+      if (error) {
+        console.error("Error calling generate-secondary-keywords function:", error);
         return generateMockSecondaryKeywords(primaryKeyword, content, count);
       }
       
-      // Use real OpenAI API
-      const openaiApiKey = apiKeyData.api_key;
-      
-      // Record API usage
-      await recordApiUsage(userId, workspaceId, 'openai', 'generate_secondary_keywords', 3);
-      
-      // Implement real OpenAI integration here when ready
-      // For now, return mock data
-      return generateMockSecondaryKeywords(primaryKeyword, content, count);
+      return data;
     } catch (error) {
-      console.error("Error accessing API key:", error);
+      console.error("Error generating secondary keywords:", error);
       return generateMockSecondaryKeywords(primaryKeyword, content, count);
     }
   }
@@ -113,10 +85,19 @@ export const generateSecondaryKeywordSuggestions = async (
 /**
  * Extract content from a URL
  */
-export const extractContentFromUrl = async (url: string): Promise<string> => {
+export const extractContentFromUrl = async (url: string): Promise<any> => {
   try {
-    const extractedContent = await extractContent(url);
-    return extractedContent.content;
+    // Call the Supabase Edge Function
+    const { data, error } = await supabase.functions.invoke('extract-url-content', {
+      body: { url }
+    });
+    
+    if (error) {
+      console.error("Error calling extract-url-content function:", error);
+      throw new Error(error.message);
+    }
+    
+    return data;
   } catch (error) {
     console.error("Error extracting content from URL:", error);
     throw new Error(error instanceof Error ? error.message : 'Failed to extract content from URL');
@@ -136,9 +117,8 @@ export const extractContentFromDocument = async (file: File): Promise<string> =>
   }
 };
 
-// Helper function to generate mock keywords
+// Helper function to generate mock keywords - for fallback only
 const generateMockKeywords = (content: string, count: number): KeywordSuggestion[] => {
-  // Simulate API call delay
   // Simulate API call delay
   const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
   delay(500);
@@ -191,7 +171,7 @@ const generateMockKeywords = (content: string, count: number): KeywordSuggestion
   }));
 };
 
-// Helper function to generate mock secondary keywords
+// Helper function to generate mock secondary keywords - for fallback only
 const generateMockSecondaryKeywords = (primaryKeyword: string, content: string, count: number): KeywordSuggestion[] => {
   // Simulate API call delay
   const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
