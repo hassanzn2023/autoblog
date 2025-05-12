@@ -8,6 +8,13 @@ const SEOCheckerPage = () => {
   const location = useLocation();
   const { content, primaryKeyword, secondaryKeywords } = location.state || {};
 
+  // Debugging the passed props
+  console.log("SEOCheckerPage received:", {
+    contentLength: content ? content.length : 0,
+    primaryKeyword,
+    secondaryKeywords,
+  });
+
   return (
     <AuthRequired>
       <SEOChecker 

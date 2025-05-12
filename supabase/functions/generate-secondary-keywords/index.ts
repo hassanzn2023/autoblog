@@ -15,6 +15,7 @@ serve(async (req) => {
 
   const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
   if (!OPENAI_API_KEY) {
+    console.error("OPENAI_API_KEY environment variable is not set");
     return new Response(
       JSON.stringify({ error: 'OpenAI API key not configured' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -25,6 +26,7 @@ serve(async (req) => {
     const { primaryKeyword, content, count, note, userId, workspaceId } = await req.json();
     
     if (!primaryKeyword || !content) {
+      console.error("Primary keyword and content are required but were not provided");
       return new Response(
         JSON.stringify({ error: 'Primary keyword and content are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -34,6 +36,7 @@ serve(async (req) => {
     console.log(`Generating ${count || 5} secondary keyword suggestions for "${primaryKeyword}"`);
     console.log(`User ID: ${userId ? userId : 'Not provided'}`);
     console.log(`Workspace ID: ${workspaceId ? workspaceId : 'Not provided'}`);
+    console.log(`Content sample: ${content.substring(0, 100)}...`);
     
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -62,9 +65,11 @@ serve(async (req) => {
       if (apiKeyError) {
         console.error("Error fetching API key:", apiKeyError);
         console.error("Will attempt to use system API key instead");
+      } else {
+        console.log("User API key found");
       }
       
-      // Check credits - for real usage, verify user has enough credits
+      // Check credits - verify user has enough credits
       const { data: hasEnoughCredits, error: creditsError } = await supabase.rpc(
         'check_user_has_credits',
         { user_id_param: userId, required_credits: 3 }
@@ -95,6 +100,8 @@ serve(async (req) => {
           
         if (creditUsageError) {
           console.error("Error recording credit usage:", creditUsageError);
+        } else {
+          console.log("Credit usage recorded successfully");
         }
         
         const { error: apiUsageError } = await supabase
@@ -110,6 +117,8 @@ serve(async (req) => {
           
         if (apiUsageError) {
           console.error("Error recording API usage:", apiUsageError);
+        } else {
+          console.log("API usage recorded successfully");
         }
       } catch (error) {
         console.error("Error recording usage:", error);
@@ -130,17 +139,16 @@ serve(async (req) => {
     const hasArabicText = arabicRegex.test(cleanContent) || arabicRegex.test(primaryKeyword);
     
     console.log(`Content language: ${hasArabicText ? 'Arabic' : 'English'}`);
-    console.log(`Content sample: ${textSample.substring(0, 100)}...`);
     console.log(`Primary keyword: ${primaryKeyword}`);
     
     // Prepare system prompt based on language
     const systemPrompt = hasArabicText 
-      ? 'أنت مساعد مفيد متخصص في تحليل المحتوى واستخراج الكلمات المفتاحية الثانوية المرتبطة بالكلمة الرئيسية. استخرج الكلمات المفتاحية الثانوية من المحتوى المقدم فقط والمرتبطة بالكلمة الرئيسية المحددة. تجنب إعطاء كلمات مفتاحية عامة أو غير مرتبطة بالمحتوى والكلمة الرئيسية.'
-      : 'You are a helpful assistant specialized in content analysis and secondary keyword extraction. Extract secondary keywords directly related to the primary keyword from the provided content only. Avoid giving generic or unrelated keywords.';
+      ? 'أنت مساعد متخصص في تحليل المحتوى واستخراج الكلمات المفتاحية الثانوية المرتبطة بكلمة مفتاحية رئيسية. مهمتك هي تحديد كلمات مفتاحية ثانوية مرتبطة بالكلمة المفتاحية الرئيسية بناءً على المحتوى المقدم.'
+      : 'You are a specialized assistant in content analysis and extraction of secondary keywords related to a primary keyword. Your task is to identify secondary keywords related to the primary keyword based on the provided content.';
     
     const userPrompt = hasArabicText
-      ? `بناءً على المحتوى التالي والكلمة الرئيسية "${primaryKeyword}"، استخرج ${keywordCount} كلمات مفتاحية ثانوية محددة ومرتبطة بالكلمة الرئيسية والمحتوى مباشرة. قم بتنسيق الإخراج كمصفوفة JSON تحت اسم "keywords" فقط بدون أي شرح إضافي.\n\nالمحتوى: ${textSample}`
-      : `Based on the following content and primary keyword "${primaryKeyword}", extract ${keywordCount} specific secondary keywords that are directly relevant to both the primary keyword and the content. Format the output as a JSON array named "keywords" with no additional explanation.\n\nContent: ${textSample}`;
+      ? `بناءً على المحتوى التالي والكلمة المفتاحية الرئيسية "${primaryKeyword}"، استخرج ${keywordCount} كلمات مفتاحية ثانوية مرتبطة. قم بعرضها فقط كمصفوفة JSON تحت اسم "keywords" دون أي تعليقات أو توضيحات إضافية.\n\nالمحتوى: ${textSample}`
+      : `Based on the following content and primary keyword "${primaryKeyword}", extract ${keywordCount} related secondary keywords. Return them only as a JSON array named "keywords" without any additional comments or explanations.\n\nContent: ${textSample}`;
     
     console.log("Calling OpenAI API...");
     
@@ -165,22 +173,27 @@ serve(async (req) => {
             }
           ],
           temperature: 0.7,
-          max_tokens: 200,
+          max_tokens: 500,
           response_format: { "type": "json_object" }
         }),
       });
   
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("OpenAI API error:", errorData);
-        throw new Error(`OpenAI API error: ${errorData.error?.message || JSON.stringify(errorData)}`);
+        const errorText = await response.text();
+        console.error("OpenAI API response not OK:", response.status, errorText);
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(`OpenAI API error: ${errorData.error?.message || JSON.stringify(errorData)}`);
+        } catch (parseError) {
+          throw new Error(`OpenAI API error: ${response.status} - ${errorText.substring(0, 100)}`);
+        }
       }
   
       const openaiResponse = await response.json();
       console.log("OpenAI API response received");
       
       if (!openaiResponse.choices || !openaiResponse.choices[0] || !openaiResponse.choices[0].message || !openaiResponse.choices[0].message.content) {
-        console.error("Unexpected OpenAI API response format:", openaiResponse);
+        console.error("Unexpected OpenAI API response format:", JSON.stringify(openaiResponse));
         throw new Error("Unexpected OpenAI API response format");
       }
       
