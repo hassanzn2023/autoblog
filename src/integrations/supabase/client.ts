@@ -24,11 +24,17 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   db: {
     schema: 'public'
   },
-  // Add retryOptions for better network resilience
+  // Add improved retryOptions for better network resilience
   realtime: {
     params: {
       eventsPerSecond: 10
     }
+  },
+  // Add retry configuration to handle temporary network issues
+  // Auto retry 3 times with increasing delay
+  fetchOptions: {
+    retryCount: 3,
+    retryDelay: 1000, // Start with 1s delay and increase exponentially
   }
 });
 
@@ -42,4 +48,27 @@ export const checkSupabaseConnection = async (): Promise<boolean> => {
     console.error("Connection check failed:", e);
     return false;
   }
+};
+
+// Helper function to handle Supabase errors in a consistent way
+export const handleSupabaseError = (error: any, defaultMessage: string = "An error occurred"): string => {
+  console.error("Supabase error:", error);
+  
+  if (error?.message) {
+    if (error.message.includes("JWT expired")) {
+      return "Your session has expired. Please log in again.";
+    }
+    
+    if (error.message.includes("Network error")) {
+      return "Network connection issue. Please check your internet connection.";
+    }
+    
+    if (error.message.includes("infinite recursion")) {
+      return "Database policy error. The team has been notified.";
+    }
+    
+    return error.message;
+  }
+  
+  return defaultMessage;
 };

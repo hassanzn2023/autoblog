@@ -31,6 +31,15 @@ const WorkspaceSelector = () => {
         </Alert>
       )}
       
+      {connectionStatus === 'reconnecting' && !error && (
+        <Alert variant="info" className="mb-2 py-2">
+          <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+          <AlertDescription className="text-xs">
+            Reconnecting to database...
+          </AlertDescription>
+        </Alert>
+      )}
+      
       {isTemporaryWorkspace && !error && (
         <div className="flex items-center mb-2">
           <Badge variant="outline" className="w-full justify-center text-xs py-1 bg-amber-50 text-amber-700 border-amber-300">
