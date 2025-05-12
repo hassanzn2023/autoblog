@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
+        .eq('id', userId as string)
         .single();
 
       if (error) {
@@ -70,7 +70,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return null;
       }
 
-      setProfile(data || null);
+      setProfile(data as Profile);
       return data;
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
@@ -107,8 +107,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const { error } = await supabase
         .from('profiles')
-        .update(updates)
-        .eq('id', user.id);
+        .update(updates as any)
+        .eq('id', user.id as string);
 
       if (error) throw error;
 

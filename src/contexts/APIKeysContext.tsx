@@ -43,15 +43,17 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
     try {
       setLoading(true);
       
+      // Use type assertion to help TypeScript understand the expected types
       const { data, error } = await supabase
         .from('api_keys')
         .select('*')
-        .eq('user_id', user.id)
-        .eq('workspace_id', currentWorkspace.id);
+        .eq('user_id', user.id as string)
+        .eq('workspace_id', currentWorkspace.id as string);
         
       if (error) throw error;
       
-      setApiKeys(data || []);
+      // Cast data to match our APIKey type
+      setApiKeys(data as APIKey[] || []);
     } catch (error: any) {
       console.error('Error fetching API keys:', error.message);
       toast({
@@ -80,8 +82,8 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
 
         const { error } = await supabase
           .from('api_keys')
-          .update(updateData)
-          .eq('id', existingKey.id);
+          .update(updateData as any)
+          .eq('id', existingKey.id as string);
           
         if (error) throw error;
       } else {
@@ -96,7 +98,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
 
         const { error } = await supabase
           .from('api_keys')
-          .insert(insertData);
+          .insert(insertData as any);
           
         if (error) throw error;
       }
@@ -128,9 +130,9 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
 
       const { error } = await supabase
         .from('api_keys')
-        .update(updateData)
-        .eq('id', id)
-        .eq('user_id', user.id);
+        .update(updateData as any)
+        .eq('id', id as string)
+        .eq('user_id', user.id as string);
         
       if (error) throw error;
       
@@ -157,8 +159,8 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       const { error } = await supabase
         .from('api_keys')
         .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
+        .eq('id', id as string)
+        .eq('user_id', user.id as string);
         
       if (error) throw error;
       
