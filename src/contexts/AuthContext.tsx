@@ -53,6 +53,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setUser(null);
           setProfile(null);
           navigate('/auth', { replace: true });
+        } else if (event === 'USER_UPDATED') {
+          // Handle user update events
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
         } else {
           setSession(currentSession);
           setUser(currentSession?.user ?? null);
@@ -87,6 +91,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (data?.user && window.location.pathname === '/auth') {
         console.log('User detected after auth redirect, navigating to home');
         navigate('/', { replace: true });
+      } else if (error && window.location.pathname !== '/auth') {
+        console.log('Auth error detected, redirecting to auth page');
+        navigate('/auth', { replace: true });
       }
     };
     
@@ -100,22 +107,54 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const fetchProfile = async (userId: string) => {
     try {
       console.log('Fetching profile for user:', userId);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching profile:', error.message);
-        throw error;
-      }
       
-      console.log('Profile fetched:', data);
-      setProfile(data);
-      return data;
+      // Check if profiles table exists
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        if (error) {
+          if (error.code === 'PGRST116') {
+            console.log('Profiles table may not exist yet');
+            // If table doesn't exist, just return basic user info
+            setProfile({
+              id: userId,
+              email: user?.email,
+              created_at: user?.created_at
+            });
+            return {
+              id: userId,
+              email: user?.email,
+              created_at: user?.created_at
+            };
+          } else {
+            console.error('Error fetching profile:', error.message);
+            throw error;
+          }
+        }
+        
+        console.log('Profile fetched:', data);
+        setProfile(data);
+        return data;
+      } catch (error: any) {
+        console.error('Error fetching profile:', error.message);
+        // If there's an error (like table doesn't exist), just return basic user info
+        setProfile({
+          id: userId,
+          email: user?.email,
+          created_at: user?.created_at
+        });
+        return {
+          id: userId,
+          email: user?.email,
+          created_at: user?.created_at
+        };
+      }
     } catch (error: any) {
-      console.error('Error fetching profile:', error.message);
+      console.error('Error in profile handling:', error.message);
       return null;
     }
   };

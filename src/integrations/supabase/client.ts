@@ -15,5 +15,11 @@ export const supabase = createClient<DatabaseTypes>(SUPABASE_URL, SUPABASE_PUBLI
     autoRefreshToken: true,
     detectSessionInUrl: true,  // Enable detecting auth sessions in URL
     flowType: 'pkce',          // Use PKCE flow for better security
+    cookieOptions: {
+      name: 'sb-auth-token',
+      lifetime: 60 * 60 * 24 * 7, // 7 days
+      sameSite: 'lax',
+      secure: window.location.protocol === 'https:'
+    }
   }
 });
