@@ -53,7 +53,22 @@ const WorkspaceSelector = () => {
     });
     setOpen(false);
   };
-
+if (loading) {
+  return (
+    <div className="px-4 py-2 border-b border-gray-200">
+       <Button
+        variant="outline"
+        role="combobox"
+        aria-expanded={open}
+        className="w-full justify-between"
+        disabled={true} // يبقى معطلاً أثناء التحميل
+      >
+        Loading...
+        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      </Button>
+    </div>
+  );
+}
   // Ensure workspaces is always treated as an array
   const workspacesList = Array.isArray(workspaces) ? workspaces : [];
 
