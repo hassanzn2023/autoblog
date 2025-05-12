@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useWorkspace } from './WorkspaceContext';
 import { toast } from '@/hooks/use-toast';
+import { typedSupabaseQuery } from '@/types/database.types';
 
 interface APIKey {
   id: string;
@@ -49,7 +50,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       setLoading(true);
       
       const { data, error } = await supabase
-        .from('api_keys')
+        .from(typedSupabaseQuery('api_keys'))
         .select('*')
         .eq('user_id', user.id)
         .eq('workspace_id', currentWorkspace.id);
@@ -79,7 +80,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       if (existingKey) {
         // Update existing key
         const { error } = await supabase
-          .from('api_keys')
+          .from(typedSupabaseQuery('api_keys'))
           .update({ 
             api_key: key,
             is_active: true,
@@ -90,7 +91,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       } else {
         // Create new key
         const { error } = await supabase
-          .from('api_keys')
+          .from(typedSupabaseQuery('api_keys'))
           .insert({
             user_id: user.id,
             workspace_id: currentWorkspace.id,
@@ -123,7 +124,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
     
     try {
       const { error } = await supabase
-        .from('api_keys')
+        .from(typedSupabaseQuery('api_keys'))
         .update({ 
           api_key: key,
           is_active: active,
@@ -154,7 +155,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
     
     try {
       const { error } = await supabase
-        .from('api_keys')
+        .from(typedSupabaseQuery('api_keys'))
         .delete()
         .eq('id', id)
         .eq('user_id', user.id);

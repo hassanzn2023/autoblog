@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { parseWordDocument } from './documentParserService';
 import { extractContentFromUrl as extractContent } from './contentExtractorService';
 import { supabase } from '@/integrations/supabase/client';
+import { typedSupabaseQuery } from '@/types/database.types';
 
 // Simulate the keyword generation with mock data
 export interface KeywordSuggestion {
@@ -27,7 +28,7 @@ export const generateKeywordSuggestions = async (
     try {
       // Get API key from database
       const { data: apiKeyData, error: apiKeyError } = await supabase
-        .from('api_keys')
+        .from(typedSupabaseQuery('api_keys'))
         .select('api_key')
         .eq('user_id', userId)
         .eq('workspace_id', workspaceId)
@@ -77,7 +78,7 @@ export const generateSecondaryKeywordSuggestions = async (
     try {
       // Get API key from database
       const { data: apiKeyData, error: apiKeyError } = await supabase
-        .from('api_keys')
+        .from(typedSupabaseQuery('api_keys'))
         .select('api_key')
         .eq('user_id', userId)
         .eq('workspace_id', workspaceId)
@@ -138,7 +139,9 @@ export const extractContentFromDocument = async (file: File): Promise<string> =>
 // Helper function to generate mock keywords
 const generateMockKeywords = (content: string, count: number): KeywordSuggestion[] => {
   // Simulate API call delay
-  // ... keep existing code (mock keyword generation)
+  // Simulate API call delay
+  const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+  delay(500);
   
   // Extract first 200 characters for demo purposes
   const textSample = content.replace(/<[^>]*>/g, ' ').slice(0, 200);
@@ -190,7 +193,9 @@ const generateMockKeywords = (content: string, count: number): KeywordSuggestion
 
 // Helper function to generate mock secondary keywords
 const generateMockSecondaryKeywords = (primaryKeyword: string, content: string, count: number): KeywordSuggestion[] => {
-  // ... keep existing code (mock secondary keyword generation)
+  // Simulate API call delay
+  const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+  delay(500);
   
   // Prepare mock data based on the primary keyword
   const mockSecondaryKeywords: Record<string, string[]> = {
@@ -301,7 +306,7 @@ const recordApiUsage = async (userId: string, workspaceId: string, apiType: stri
     
     // Record credit usage
     const { error: creditUsageError } = await supabase
-      .from('credits')
+      .from(typedSupabaseQuery('credits'))
       .insert({
         user_id: userId,
         workspace_id: workspaceId,
@@ -316,7 +321,7 @@ const recordApiUsage = async (userId: string, workspaceId: string, apiType: stri
     
     // Record API usage
     const { error: apiUsageError } = await supabase
-      .from('api_usage')
+      .from(typedSupabaseQuery('api_usage'))
       .insert({
         user_id: userId,
         workspace_id: workspaceId,
