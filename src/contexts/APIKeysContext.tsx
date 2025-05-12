@@ -4,17 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useWorkspace } from './WorkspaceContext';
 import { toast } from '@/hooks/use-toast';
+import { Database } from '@/types/database.types';
 
-interface APIKey {
-  id: string;
-  user_id: string;
-  workspace_id: string;
-  api_type: 'openai' | 'google_lens';
-  api_key: string;
-  is_active: boolean;
-  created_at: string;
-  last_used_at: string | null;
-}
+type APIKey = Database['public']['Tables']['api_keys']['Row'];
 
 interface APIKeysContextProps {
   apiKeys: APIKey[];
