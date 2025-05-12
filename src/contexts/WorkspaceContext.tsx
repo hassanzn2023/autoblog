@@ -3,9 +3,15 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { DatabaseTypes } from '@/types/database.types';
 
-type Workspace = DatabaseTypes['public']['Tables']['workspaces']['Row'];
+interface Workspace {
+  id: string;
+  name: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  settings: any;
+}
 
 interface WorkspaceContextProps {
   currentWorkspace: Workspace | null;
@@ -101,7 +107,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
       const { data: workspaceData, error: workspaceError } = await supabase
         .from('workspaces')
-        .insert([{ name, created_by: user.id } as DatabaseTypes['public']['Tables']['workspaces']['Insert']])
+        .insert([{ name, created_by: user.id }])
         .select()
         .single();
         
@@ -114,7 +120,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           workspace_id: workspaceData.id, 
           user_id: user.id, 
           role: 'owner' 
-        } as DatabaseTypes['public']['Tables']['workspace_members']['Insert']]);
+        }]);
       
       if (memberError) throw memberError;
       
@@ -126,7 +132,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         description: "Workspace created successfully",
       });
       
-      return workspaceData as Workspace;
+      return workspaceData;
     } catch (error: any) {
       console.error('Error creating workspace:', error.message);
       toast({
@@ -144,7 +150,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     try {
       const { error } = await supabase
         .from('workspaces')
-        .update(data as DatabaseTypes['public']['Tables']['workspaces']['Update'])
+        .update(data)
         .eq('id', id);
         
       if (error) throw error;

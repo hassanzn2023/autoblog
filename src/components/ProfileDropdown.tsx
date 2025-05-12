@@ -67,8 +67,8 @@ const ProfileDropdown = () => {
 
   // Generate initials from user profile or email
   const getInitials = () => {
-    if (profile?.first_name || profile?.last_name) {
-      return `${profile.first_name?.[0] || ''}${profile.last_name?.[0] || ''}`.toUpperCase() || 'U';
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name.charAt(0)}${profile.last_name.charAt(0)}`.toUpperCase();
     } else if (user?.email) {
       return user.email.charAt(0).toUpperCase();
     }

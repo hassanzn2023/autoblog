@@ -1,16 +1,29 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase, Tables, TablesInsert } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { Database } from '@/types/database.types';
 
-// Define types directly from Database type
-type Subscription = Tables<'subscriptions'>;
-type Credit = Tables<'credits'>;
-type CreditInsert = TablesInsert<'credits'>;
-type ApiUsageInsert = TablesInsert<'api_usage'>;
-type SubscriptionInsert = TablesInsert<'subscriptions'>;
+interface Subscription {
+  id: string;
+  user_id: string;
+  plan_type: 'free' | 'basic' | 'premium';
+  status: 'active' | 'expired' | 'cancelled';
+  starts_at: string;
+  expires_at: string | null;
+  payment_method: string | null;
+  auto_renewal: boolean;
+}
+
+interface Credit {
+  id: string;
+  user_id: string;
+  workspace_id: string | null;
+  credit_amount: number;
+  created_at: string;
+  updated_at: string;
+  transaction_type: 'initial' | 'purchased' | 'used';
+}
 
 interface SubscriptionContextProps {
   subscription: Subscription | null;
@@ -55,33 +68,31 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       if (error) {
         if (error.code === 'PGRST116') {
           // No subscription found, create a new free subscription
-          const newSubscription: SubscriptionInsert = {
-            user_id: user.id,
-            plan_type: 'free',
-            status: 'active',
-            expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-          };
-
           const { error: createError } = await supabase
             .from('subscriptions')
-            .insert(newSubscription);
+            .insert({
+              user_id: user.id,
+              plan_type: 'free',
+              status: 'active',
+              expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days from now
+            });
             
           if (createError) throw createError;
           
           // Fetch the newly created subscription
-          const { data: newSubData, error: fetchError } = await supabase
+          const { data: newSubscription, error: fetchError } = await supabase
             .from('subscriptions')
             .select('*')
             .eq('user_id', user.id)
             .single();
             
           if (fetchError) throw fetchError;
-          setSubscription(newSubData as Subscription);
+          setSubscription(newSubscription);
         } else {
           throw error;
         }
       } else {
-        setSubscription(data as Subscription);
+        setSubscription(data);
       }
     } catch (error: any) {
       console.error('Error fetching subscription:', error.message);
@@ -108,7 +119,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
         
       if (error) throw error;
       
-      setCredits((data || []) as Credit[]);
+      setCredits(data || []);
     } catch (error: any) {
       console.error('Error fetching credits:', error.message);
       toast({
@@ -151,32 +162,28 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       }
       
       // Record credit usage
-      const creditUsage: CreditInsert = {
-        user_id: user.id,
-        workspace_id: workspaceId,
-        credit_amount: amount,
-        transaction_type: 'used',
-      };
-
       const { error: creditError } = await supabase
         .from('credits')
-        .insert(creditUsage);
+        .insert({
+          user_id: user.id,
+          workspace_id: workspaceId,
+          credit_amount: amount,
+          transaction_type: 'used',
+        });
         
       if (creditError) throw creditError;
       
       // Record API usage
-      const apiUsage: ApiUsageInsert = {
-        user_id: user.id,
-        workspace_id: workspaceId,
-        api_type: apiType,
-        usage_amount: 1,
-        credits_consumed: amount,
-        operation_type: operation,
-      };
-
       const { error: apiUsageError } = await supabase
         .from('api_usage')
-        .insert(apiUsage);
+        .insert({
+          user_id: user.id,
+          workspace_id: workspaceId,
+          api_type: apiType,
+          usage_amount: 1,
+          credits_consumed: amount,
+          operation_type: operation,
+        });
         
       if (apiUsageError) throw apiUsageError;
       
