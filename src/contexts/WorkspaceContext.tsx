@@ -26,7 +26,7 @@ interface WorkspaceContextProps {
 const WorkspaceContext = createContext<WorkspaceContextProps | undefined>(undefined);
 
 export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -62,7 +62,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       
       if (error) throw error;
 
-      if (data) {
+      if (data && data.length > 0) {
         // Process and flatten the data
         const processedWorkspaces: Workspace[] = data.map(item => ({
           id: item.id,
@@ -78,12 +78,25 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (processedWorkspaces.length > 0 && !currentWorkspace) {
           setCurrentWorkspace(processedWorkspaces[0]);
         }
+      } else {
+        // If no workspaces found, create a default one
+        if (user) {
+          const defaultName = profile?.first_name 
+            ? `${profile.first_name} مساحة العمل` 
+            : 'مساحة العمل الافتراضية';
+            
+          const newWorkspace = await createWorkspace(defaultName);
+          if (newWorkspace) {
+            setWorkspaces([newWorkspace]);
+            setCurrentWorkspace(newWorkspace);
+          }
+        }
       }
     } catch (error: any) {
       console.error('Error fetching workspaces:', error.message);
       toast({
-        title: "Error",
-        description: "Failed to load workspaces",
+        title: "خطأ",
+        description: "فشل في تحميل مساحات العمل",
         variant: "destructive",
       });
     } finally {
@@ -98,13 +111,14 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       // First check if user has reached the workspace limit
       if (workspaces.length >= 3) {
         toast({
-          title: "Limit Reached",
-          description: "You can only create up to 3 workspaces",
+          title: "تم الوصول للحد الأقصى",
+          description: "يمكنك إنشاء حتى 3 مساحات عمل فقط",
           variant: "destructive",
         });
         return null;
       }
 
+      // Create the workspace
       const { data: workspaceData, error: workspaceError } = await supabase
         .from('workspaces')
         .insert([{ name, created_by: user.id }])
@@ -128,16 +142,16 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       await fetchWorkspaces();
       
       toast({
-        title: "Success",
-        description: "Workspace created successfully",
+        title: "تم بنجاح",
+        description: "تم إنشاء مساحة العمل بنجاح",
       });
       
       return workspaceData;
     } catch (error: any) {
       console.error('Error creating workspace:', error.message);
       toast({
-        title: "Error",
-        description: error.message || "Failed to create workspace",
+        title: "خطأ",
+        description: error.message || "فشل في إنشاء مساحة العمل",
         variant: "destructive",
       });
       return null;
@@ -158,14 +172,14 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       await fetchWorkspaces();
       
       toast({
-        title: "Success",
-        description: "Workspace updated successfully",
+        title: "تم بنجاح",
+        description: "تم تحديث مساحة العمل بنجاح",
       });
     } catch (error: any) {
       console.error('Error updating workspace:', error.message);
       toast({
-        title: "Error",
-        description: error.message || "Failed to update workspace",
+        title: "خطأ",
+        description: error.message || "فشل في تحديث مساحة العمل",
         variant: "destructive",
       });
     }
