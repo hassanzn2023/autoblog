@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Plus, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
+import { ChevronDown, Plus, Loader2, RefreshCw, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import {
   Popover,
@@ -22,9 +22,10 @@ import { Label } from "@/components/ui/label";
 import { toast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from '@/contexts/AuthContext';
+import { Badge } from '@/components/ui/badge';
 
 const WorkspaceSwitcher = () => {
-  const { currentWorkspace, workspaces, setCurrentWorkspace, createWorkspace, loading, fetchWorkspaces, error } = useWorkspace();
+  const { currentWorkspace, workspaces, setCurrentWorkspace, createWorkspace, loading, fetchWorkspaces, error, connectionStatus } = useWorkspace();
   const { user } = useAuth();
   const [newWorkspaceDialogOpen, setNewWorkspaceDialogOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
@@ -100,6 +101,19 @@ const WorkspaceSwitcher = () => {
     }
   };
 
+  const isTemporaryWorkspace = (workspace: any) => {
+    return workspace?.id?.toString().startsWith('temp-');
+  };
+
+  const getConnectionStatusIcon = () => {
+    if (connectionStatus === 'connected') {
+      return <Wifi size={16} className="text-green-500 ml-1" />;
+    } else if (connectionStatus === 'disconnected') {
+      return <WifiOff size={16} className="text-red-500 ml-1" />;
+    }
+    return null;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-between px-3 py-2 border rounded-md border-gray-200">
@@ -112,7 +126,7 @@ const WorkspaceSwitcher = () => {
   }
 
   // Check if we have any real (non-temporary) workspaces
-  const realWorkspacesCount = workspaces.filter(w => !w.id.toString().startsWith('temp-')).length;
+  const realWorkspacesCount = workspaces.filter(w => !isTemporaryWorkspace(w)).length;
 
   return (
     <>
@@ -123,11 +137,18 @@ const WorkspaceSwitcher = () => {
               <div className="flex items-center space-x-2 text-red-500">
                 <AlertCircle size={16} />
                 <span className="truncate">Connection Error</span>
+                {getConnectionStatusIcon()}
               </div>
             ) : (
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-[#F76D01] rounded-sm"></div>
                 <span className="truncate">{currentWorkspace?.name || 'Select Workspace'}</span>
+                {isTemporaryWorkspace(currentWorkspace) && (
+                  <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300">
+                    Offline
+                  </Badge>
+                )}
+                {getConnectionStatusIcon()}
               </div>
             )}
             <ChevronDown size={16} />
@@ -141,7 +162,7 @@ const WorkspaceSwitcher = () => {
               size="sm" 
               className="h-8 w-8 p-0" 
               onClick={handleRefreshWorkspaces}
-              disabled={isRefreshing}
+              disabled={isRefreshing || connectionStatus === 'disconnected'}
             >
               <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
             </Button>
@@ -159,11 +180,13 @@ const WorkspaceSwitcher = () => {
                   console.log("Switching to workspace:", workspace.name);
                 }}
               >
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 w-full">
                   <div className="w-3 h-3 bg-[#F76D01] rounded-sm"></div>
                   <span className="truncate">{workspace.name}</span>
-                  {workspace.id.toString().startsWith('temp-') && (
-                    <span className="text-xs text-amber-600 ml-1">(Temporary)</span>
+                  {isTemporaryWorkspace(workspace) && (
+                    <Badge variant="outline" className="ml-auto text-xs bg-amber-50 text-amber-700 border-amber-300">
+                      Offline
+                    </Badge>
                   )}
                 </div>
               </Button>
@@ -176,7 +199,7 @@ const WorkspaceSwitcher = () => {
             )}
           </div>
           
-          {realWorkspacesCount < 3 && (
+          {realWorkspacesCount < 3 && connectionStatus === 'connected' && (
             <>
               <Separator className="my-2" />
               <Button
@@ -186,7 +209,7 @@ const WorkspaceSwitcher = () => {
                   setNewWorkspaceDialogOpen(true);
                   setPopoverOpen(false);
                 }}
-                disabled={!!error || workspaces.some(w => w.id.toString().startsWith('temp-'))}
+                disabled={!!error || workspaces.some(w => isTemporaryWorkspace(w))}
               >
                 <Plus className="mr-2" size={16} />
                 Create New Workspace
@@ -194,11 +217,11 @@ const WorkspaceSwitcher = () => {
             </>
           )}
           
-          {error && (
+          {(error || connectionStatus === 'disconnected') && (
             <Alert variant="destructive" className="mt-2">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                {error}
+                {error || "Connection to database lost. Working in offline mode."}
               </AlertDescription>
             </Alert>
           )}
@@ -244,7 +267,7 @@ const WorkspaceSwitcher = () => {
             <Button 
               onClick={handleCreateWorkspace} 
               disabled={isCreating || !newWorkspaceName.trim()}
-              className="bg-[#F76D01] hover:bg-[#E65D00]"
+              className="bg-[#F76D01] hover:bg-[#E25C00]"
             >
               {isCreating ? (
                 <>

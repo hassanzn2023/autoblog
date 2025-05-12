@@ -20,5 +20,26 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     headers: {
       'X-Client-Info': 'supabase-js-web/2.49.4'
     }
+  },
+  db: {
+    schema: 'public'
+  },
+  // Add retryOptions for better network resilience
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
   }
 });
+
+// Helper function to check connection status
+export const checkSupabaseConnection = async (): Promise<boolean> => {
+  try {
+    // Try a simple query that should always work if the connection is active
+    const { data, error } = await supabase.from('workspaces').select('id').limit(1);
+    return !error;
+  } catch (e) {
+    console.error("Connection check failed:", e);
+    return false;
+  }
+};

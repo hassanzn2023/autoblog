@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, checkSupabaseConnection } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { toast } from '@/hooks/use-toast';
 
@@ -13,6 +13,8 @@ interface Workspace {
   settings: any;
 }
 
+type ConnectionStatus = 'checking' | 'connected' | 'disconnected' | 'reconnecting';
+
 interface WorkspaceContextProps {
   currentWorkspace: Workspace | null;
   workspaces: Workspace[];
@@ -22,6 +24,7 @@ interface WorkspaceContextProps {
   fetchWorkspaces: () => Promise<void>;
   loading: boolean;
   error: string | null;
+  connectionStatus: ConnectionStatus;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextProps | undefined>(undefined);
@@ -34,9 +37,66 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [error, setError] = useState<string | null>(null);
   const [fetchAttempts, setFetchAttempts] = useState<number>(0);
   const [useTemporaryWorkspace, setUseTemporaryWorkspace] = useState<boolean>(false);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('checking');
+  const [reconnectInterval, setReconnectInterval] = useState<NodeJS.Timeout | null>(null);
   
   // Maximum number of retry attempts
   const MAX_RETRY_ATTEMPTS = 2;
+
+  // Check connection status periodically
+  useEffect(() => {
+    const checkConnection = async () => {
+      if (user) {
+        const isConnected = await checkSupabaseConnection();
+        
+        if (isConnected) {
+          if (connectionStatus === 'disconnected' || connectionStatus === 'reconnecting') {
+            console.log("Connection restored, refreshing workspaces");
+            setConnectionStatus('connected');
+            fetchWorkspaces();
+            toast({
+              title: "Connection Restored",
+              description: "You are now back online.",
+              variant: "success",
+            });
+          } else {
+            setConnectionStatus('connected');
+          }
+        } else {
+          if (connectionStatus === 'connected' || connectionStatus === 'checking') {
+            console.log("Connection lost");
+            setConnectionStatus('disconnected');
+            toast({
+              title: "Connection Lost",
+              description: "You are now working offline. Some features will be limited.",
+              variant: "warning",
+            });
+            
+            // Create a temporary workspace if needed
+            if (!useTemporaryWorkspace && workspaces.length === 0) {
+              const defaultWorkspace = createLocalDefaultWorkspace();
+              setWorkspaces([defaultWorkspace]);
+              setCurrentWorkspace(defaultWorkspace);
+              setUseTemporaryWorkspace(true);
+            }
+          } else {
+            setConnectionStatus('reconnecting');
+          }
+        }
+      }
+    };
+    
+    // Start periodic check
+    const interval = setInterval(checkConnection, 30000); // Check every 30 seconds
+    
+    // Initial check
+    checkConnection();
+    
+    return () => {
+      clearInterval(interval);
+      if (reconnectInterval) clearInterval(reconnectInterval);
+    };
+  }, [connectionStatus, user, useTemporaryWorkspace, workspaces.length]);
 
   // Clear error when user changes
   useEffect(() => {
@@ -57,6 +117,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       setLoading(false);
       setError(null);
       setUseTemporaryWorkspace(false);
+      setConnectionStatus('checking');
     }
   }, [user]);
 
@@ -79,6 +140,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         setCurrentWorkspace(defaultWorkspace);
         setLoading(false);
         setUseTemporaryWorkspace(true);
+        setConnectionStatus('disconnected');
         setError("Unable to connect to the database. Using a temporary workspace.");
         toast({
           title: "Connection Issue",
@@ -90,6 +152,12 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       
       // Increment fetch attempts
       setFetchAttempts(prev => prev + 1);
+      
+      // Try to check connection first
+      const isConnected = await checkSupabaseConnection();
+      if (!isConnected) {
+        throw new Error("Database connection failed");
+      }
       
       // Retry direct workspaces fetch first (simpler query)
       const { data: directWorkspaces, error: directError } = await supabase
@@ -118,6 +186,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         // Reset fetch attempts on success
         setFetchAttempts(0);
         setUseTemporaryWorkspace(false);
+        setConnectionStatus('connected');
         setLoading(false);
         return;
       }
@@ -172,6 +241,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
             // Reset fetch attempts on success
             setFetchAttempts(0);
             setUseTemporaryWorkspace(false);
+            setConnectionStatus('connected');
             setLoading(false);
             return;
           }
@@ -193,6 +263,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         await createDefaultWorkspaceDirect();
       } catch (innerError: any) {
         console.error("Failed to create default workspace after fetch error:", innerError.message);
+        setConnectionStatus('disconnected');
         setError(`Connection Error: ${error.message}`);
         
         // Create a local workspace as last resort
@@ -296,6 +367,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       setCurrentWorkspace(workspaceData);
       setError(null);
       setUseTemporaryWorkspace(false);
+      setConnectionStatus('connected');
       
       // Reset fetch attempts on success
       setFetchAttempts(0);
@@ -303,6 +375,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     } catch (error: any) {
       console.error("Error creating default workspace:", error.message);
       setError(`Failed to create workspace: ${error.message}`);
+      setConnectionStatus('disconnected');
       
       // If all else fails, create a local workspace
       const defaultWorkspace = createLocalDefaultWorkspace();
@@ -329,7 +402,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       return null;
     }
     
-    if (useTemporaryWorkspace) {
+    if (useTemporaryWorkspace || connectionStatus !== 'connected') {
       toast({
         title: "Database Connection Error",
         description: "Cannot create a new workspace while offline. Please try again later.",
@@ -415,7 +488,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       return;
     }
     
-    if (useTemporaryWorkspace || id.toString().startsWith('temp-')) {
+    if (useTemporaryWorkspace || id.toString().startsWith('temp-') || connectionStatus !== 'connected') {
       toast({
         title: "Database Connection Error",
         description: "Cannot update a workspace while offline. Please try again later.",
@@ -474,7 +547,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         updateWorkspace,
         fetchWorkspaces,
         loading,
-        error
+        error,
+        connectionStatus
       }}
     >
       {children}
