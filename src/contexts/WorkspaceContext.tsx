@@ -60,7 +60,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         `)
         .eq('workspace_members.user_id', user.id);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching workspaces:", error);
+        throw error;
+      }
 
       if (data) {
         // Process and flatten the data
@@ -76,7 +79,12 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         setWorkspaces(processedWorkspaces);
         
         if (processedWorkspaces.length > 0 && !currentWorkspace) {
+          console.log("Setting current workspace to first available workspace");
           setCurrentWorkspace(processedWorkspaces[0]);
+        } else if (processedWorkspaces.length === 0) {
+          // Create default workspace if none exists
+          console.log("No workspaces found, creating default workspace");
+          await createDefaultWorkspace();
         }
       }
     } catch (error: any) {
@@ -91,6 +99,65 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   };
 
+  // Create a default workspace for user if none exists
+  const createDefaultWorkspace = async (): Promise<Workspace | null> => {
+    if (!user) return null;
+    
+    try {
+      // Create the workspace
+      const { data: workspaceData, error: workspaceError } = await supabase
+        .from('workspaces')
+        .insert([{ name: 'مساحة العمل الافتراضية', created_by: user.id }])
+        .select()
+        .single();
+        
+      if (workspaceError) throw workspaceError;
+      
+      // Insert the creator as the owner of the workspace
+      const { error: memberError } = await supabase
+        .from('workspace_members')
+        .insert([{ 
+          workspace_id: workspaceData.id, 
+          user_id: user.id, 
+          role: 'owner' 
+        }]);
+      
+      if (memberError) throw memberError;
+
+      // Add initial credits to the user for this workspace
+      const { error: creditsError } = await supabase
+        .from('credits')
+        .insert({
+          user_id: user.id,
+          workspace_id: workspaceData.id,
+          credit_amount: 50,
+          transaction_type: 'initial'
+        });
+
+      if (creditsError) {
+        console.error("Failed to add initial credits:", creditsError);
+      }
+      
+      // Refresh the workspace list
+      await fetchWorkspaces();
+      
+      toast({
+        title: "مساحة العمل الافتراضية",
+        description: "تم إنشاء مساحة عمل افتراضية بنجاح",
+      });
+      
+      return workspaceData;
+    } catch (error: any) {
+      console.error('Error creating default workspace:', error.message);
+      toast({
+        title: "خطأ",
+        description: error.message || "فشل في إنشاء مساحة العمل الافتراضية",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
   const createWorkspace = async (name: string): Promise<Workspace | null> => {
     if (!user) return null;
     
@@ -98,8 +165,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       // First check if user has reached the workspace limit
       if (workspaces.length >= 3) {
         toast({
-          title: "Limit Reached",
-          description: "You can only create up to 3 workspaces",
+          title: "الحد الأقصى",
+          description: "يمكنك إنشاء 3 مساحات عمل كحد أقصى",
           variant: "destructive",
         });
         return null;
@@ -124,20 +191,34 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       
       if (memberError) throw memberError;
       
+      // Add initial credits to the user for this workspace
+      const { error: creditsError } = await supabase
+        .from('credits')
+        .insert({
+          user_id: user.id,
+          workspace_id: workspaceData.id,
+          credit_amount: 50,
+          transaction_type: 'initial'
+        });
+
+      if (creditsError) {
+        console.error("Failed to add initial credits:", creditsError);
+      }
+      
       // Refresh the workspace list
       await fetchWorkspaces();
       
       toast({
-        title: "Success",
-        description: "Workspace created successfully",
+        title: "تم بنجاح",
+        description: "تم إنشاء مساحة العمل بنجاح",
       });
       
       return workspaceData;
     } catch (error: any) {
       console.error('Error creating workspace:', error.message);
       toast({
-        title: "Error",
-        description: error.message || "Failed to create workspace",
+        title: "خطأ",
+        description: error.message || "فشل في إنشاء مساحة العمل",
         variant: "destructive",
       });
       return null;
@@ -158,14 +239,14 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       await fetchWorkspaces();
       
       toast({
-        title: "Success",
-        description: "Workspace updated successfully",
+        title: "تم بنجاح",
+        description: "تم تحديث مساحة العمل بنجاح",
       });
     } catch (error: any) {
       console.error('Error updating workspace:', error.message);
       toast({
-        title: "Error",
-        description: error.message || "Failed to update workspace",
+        title: "خطأ",
+        description: error.message || "فشل في تحديث مساحة العمل",
         variant: "destructive",
       });
     }
