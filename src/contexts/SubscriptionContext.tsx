@@ -1,29 +1,11 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { DatabaseTypes } from '@/types/database.types';
 
-interface Subscription {
-  id: string;
-  user_id: string;
-  plan_type: 'free' | 'basic' | 'premium';
-  status: 'active' | 'expired' | 'cancelled';
-  starts_at: string;
-  expires_at: string | null;
-  payment_method: string | null;
-  auto_renewal: boolean;
-}
-
-interface Credit {
-  id: string;
-  user_id: string;
-  workspace_id: string | null;
-  credit_amount: number;
-  created_at: string;
-  updated_at: string;
-  transaction_type: 'initial' | 'purchased' | 'used';
-}
+type Subscription = DatabaseTypes['public']['Tables']['subscriptions']['Row'];
+type Credit = DatabaseTypes['public']['Tables']['credits']['Row'];
 
 interface SubscriptionContextProps {
   subscription: Subscription | null;
@@ -62,7 +44,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       const { data, error } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', user.id as any)
         .single();
         
       if (error) {
@@ -74,8 +56,8 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
               user_id: user.id,
               plan_type: 'free',
               status: 'active',
-              expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days from now
-            });
+              expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+            } as any);
             
           if (createError) throw createError;
           
@@ -83,7 +65,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
           const { data: newSubscription, error: fetchError } = await supabase
             .from('subscriptions')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('user_id', user.id as any)
             .single();
             
           if (fetchError) throw fetchError;

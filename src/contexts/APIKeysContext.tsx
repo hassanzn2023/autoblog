@@ -4,9 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useWorkspace } from './WorkspaceContext';
 import { toast } from '@/hooks/use-toast';
-import { Database } from '@/types/database.types';
+import { DatabaseTypes } from '@/types/database.types';
 
-type APIKey = Database['public']['Tables']['api_keys']['Row'];
+type APIKey = DatabaseTypes['public']['Tables']['api_keys']['Row'];
 
 interface APIKeysContextProps {
   apiKeys: APIKey[];
@@ -75,7 +75,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
           .update({ 
             api_key: key,
             is_active: true,
-          })
+          } as any)
           .eq('id', existingKey.id);
           
         if (error) throw error;
@@ -89,7 +89,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
             api_type: type,
             api_key: key,
             is_active: true,
-          });
+          } as any);
           
         if (error) throw error;
       }
@@ -119,7 +119,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
         .update({ 
           api_key: key,
           is_active: active,
-        })
+        } as any)
         .eq('id', id)
         .eq('user_id', user.id);
         
