@@ -1,9 +1,8 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // أضفت useEffect كمثال إذا احتجت إليه
 import { ChevronsUpDown, Check, Plus } from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Button } from '@/components/ui/button';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'; // أضفت CommandList
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -18,33 +17,36 @@ const WorkspaceSelector = () => {
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [creating, setCreating] = useState(false);
 
+  // طباعة القيم عند كل إعادة عرض
+  console.log('[WorkspaceSelector] Rendering. Loading:', loading, 'Workspaces:', workspaces ? JSON.parse(JSON.stringify(workspaces)) : 'undefined', 'Is workspaces array?', Array.isArray(workspaces));
+  
+  // useEffect لمراقبة التغيرات في workspaces من الـ context
+  useEffect(() => {
+    console.log('[WorkspaceSelector] useEffect [workspaces, loading] - Workspaces from context updated or loading changed. Loading:', loading, 'Workspaces:', workspaces ? JSON.parse(JSON.stringify(workspaces)) : 'undefined');
+    if (!loading && !Array.isArray(workspaces)) {
+        console.warn('[WorkspaceSelector] CRITICAL in useEffect: After loading, `workspaces` is NOT an array!', workspaces);
+    }
+  }, [workspaces, loading]);
+
+
   const handleCreateWorkspace = async () => {
     if (!newWorkspaceName.trim()) return;
-    
     setCreating(true);
     try {
-      const workspace = await createWorkspace(newWorkspaceName.trim());
+      const workspace = await createWorkspace(newWorkspaceName.trim()); // هذه الدالة من الـ context
       if (workspace) {
         setDialogOpen(false);
         setNewWorkspaceName('');
-        toast({
-          title: "Success",
-          description: `Workspace "${newWorkspaceName}" created successfully`,
-        });
+        // toast من الـ context الآن
       }
-    } catch (error) {
-      console.error("Error creating workspace:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create workspace. Please try again.",
-        variant: "destructive"
-      });
+    } catch (error) { // هذا الـ catch قد لا يُستدعى إذا كان createWorkspace يعالج الأخطاء ويعيد null
+      console.error("[WorkspaceSelector] Error calling createWorkspace prop:", error);
+      // toast من الـ context الآن
     } finally {
       setCreating(false);
     }
   };
 
-  // Handle click when no workspaces are available
   const handleEmptyWorkspaceClick = () => {
     toast({
       title: "No workspaces available",
@@ -53,24 +55,32 @@ const WorkspaceSelector = () => {
     });
     setOpen(false);
   };
-if (loading) {
-  return (
-    <div className="px-4 py-2 border-b border-gray-200">
-       <Button
-        variant="outline"
-        role="combobox"
-        aria-expanded={open}
-        className="w-full justify-between"
-        disabled={true} // يبقى معطلاً أثناء التحميل
-      >
-        Loading...
-        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-      </Button>
-    </div>
-  );
-}
-  // Ensure workspaces is always treated as an array
+
+  // إضافة شرط التحميل هنا كما ناقشنا سابقًا
+  if (loading) {
+    console.log('[WorkspaceSelector] In loading state, returning loading button.');
+    return (
+      <div className="px-4 py-2 border-b border-gray-200">
+         <Button
+          variant="outline"
+          role="combobox"
+          className="w-full justify-between"
+          disabled={true}
+        >
+          Loading workspaces...
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </div>
+    );
+  }
+
+  // التحقق الدفاعي قبل استخدام workspaces
+  // هذا مهم جدًا، حتى لو كان الـ context من المفترض أن يوفر مصفوفة دائمًا
   const workspacesList = Array.isArray(workspaces) ? workspaces : [];
+  if (!Array.isArray(workspaces)) {
+      console.warn('[WorkspaceSelector] `workspaces` from context is NOT AN ARRAY at render time (after loading check)! Received:', workspaces, '. Using [] instead.');
+  }
+
 
   return (
     <div className="px-4 py-2 border-b border-gray-200">
@@ -81,83 +91,97 @@ if (loading) {
             role="combobox"
             aria-expanded={open}
             className="w-full justify-between"
-            disabled={loading}
+            // لا حاجة لـ disabled={loading} هنا بسبب التحقق أعلاه
           >
-            {loading
-              ? "Loading..."
-              : currentWorkspace?.name || "Select workspace"}
+            {currentWorkspace?.name || "Select workspace"}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[200px] p-0">
           <Command>
             <CommandInput placeholder="Search workspace..." />
-            <CommandEmpty>No workspace found.</CommandEmpty>
-            {workspacesList.length > 0 ? (
-              <CommandGroup>
-                {workspacesList.map((workspace) => (
-                  <CommandItem
-                    key={workspace.id}
-                    onSelect={() => {
-                      switchWorkspace(workspace.id);
-                      setOpen(false);
-                    }}
-                    className="cursor-pointer"
+            <CommandList> {/* إضافة CommandList للفصل الصحيح للعناصر */}
+              <CommandEmpty>No workspace found.</CommandEmpty>
+              {workspacesList.length > 0 ? (
+                <CommandGroup>
+                  {workspacesList.map((workspace) => {
+                    if (!workspace || typeof workspace.id === 'undefined' || typeof workspace.name === 'undefined') {
+                        console.warn('[WorkspaceSelector] Invalid workspace object in map:', workspace);
+                        return null; // تخطي العناصر غير الصالحة
+                    }
+                    return (
+                      <CommandItem
+                        key={workspace.id}
+                        onSelect={() => {
+                          console.log('[WorkspaceSelector] Switching to workspace ID:', workspace.id);
+                          switchWorkspace(workspace.id);
+                          setOpen(false);
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            currentWorkspace?.id === workspace.id ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        {workspace.name}
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              ) : (
+                <CommandGroup>
+                  <CommandItem 
+                    disabled 
+                    className="cursor-not-allowed opacity-70"
+                    onSelect={handleEmptyWorkspaceClick} // تأكد أن هذا لا يسبب مشاكل إذا كانت workspacesList فارغة بسبب خطأ
                   >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        currentWorkspace?.id === workspace.id ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    {workspace.name}
+                    No workspaces available
                   </CommandItem>
-                ))}
-              </CommandGroup>
-            ) : (
-              <CommandGroup>
-                <CommandItem 
-                  disabled 
-                  className="cursor-not-allowed opacity-70"
-                  onSelect={handleEmptyWorkspaceClick}
-                >
-                  No workspaces available
-                </CommandItem>
-              </CommandGroup>
-            )}
-            <CommandGroup>
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogTrigger asChild>
-                  <CommandItem className="cursor-pointer">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create New Workspace
-                  </CommandItem>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create New Workspace</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 py-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Workspace Name</Label>
-                      <Input
-                        id="name"
-                        placeholder="My Workspace"
-                        value={newWorkspaceName}
-                        onChange={(e) => setNewWorkspaceName(e.target.value)}
-                      />
-                    </div>
-                    <Button 
-                      onClick={handleCreateWorkspace} 
-                      disabled={creating || !newWorkspaceName.trim()}
-                      className="w-full"
+                </CommandGroup>
+              )}
+              <CommandGroup> {/* مجموعة منفصلة لزر الإنشاء */}
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                  <DialogTrigger asChild>
+                    <CommandItem 
+                      className="cursor-pointer"
+                      onSelect={() => { // إضافة onSelect لإغلاق Popover عند فتح Dialog
+                          console.log('[WorkspaceSelector] Create New Workspace item selected.');
+                          // setOpen(false); // أزل هذا إذا كنت تريد أن يبقى Popover مفتوحًا
+                          setDialogOpen(true); // افتح الـ Dialog
+                      }}
                     >
-                      {creating ? "Creating..." : "Create Workspace"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </CommandGroup>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create New Workspace
+                    </CommandItem>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New Workspace</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="name-ws-selector">Workspace Name</Label> {/* غيرت id لتجنب التضارب المحتمل */}
+                        <Input
+                          id="name-ws-selector"
+                          placeholder="My Workspace"
+                          value={newWorkspaceName}
+                          onChange={(e) => setNewWorkspaceName(e.target.value)}
+                        />
+                      </div>
+                      <Button 
+                        onClick={handleCreateWorkspace} 
+                        disabled={creating || !newWorkspaceName.trim()}
+                        className="w-full"
+                      >
+                        {creating ? "Creating..." : "Create Workspace"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </CommandGroup>
+            </CommandList>
           </Command>
         </PopoverContent>
       </Popover>
