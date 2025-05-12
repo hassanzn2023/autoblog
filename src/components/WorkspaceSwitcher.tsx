@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/popover";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { DialogTrigger } from './ui/dialog';
+import { toast } from '@/hooks/use-toast';
 
 interface WorkspaceSwitcherProps {
   className?: string;
@@ -27,6 +28,16 @@ interface WorkspaceSwitcherProps {
 export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
   const { workspaces, currentWorkspace, loading, switchWorkspace } = useWorkspace();
   const [open, setOpen] = useState(false);
+
+  // Handle click when no workspaces are available
+  const handleEmptyWorkspaceClick = () => {
+    toast({
+      title: "No workspaces available",
+      description: "Please create a new workspace first.",
+      variant: "default"
+    });
+    setOpen(false);
+  };
 
   if (loading) {
     return (
@@ -57,7 +68,7 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
           <CommandList>
             <CommandInput placeholder="Search workspace..." />
             <CommandEmpty>No workspace found.</CommandEmpty>
-            {workspaces && workspaces.length > 0 ? (
+            {workspaces && Array.isArray(workspaces) && workspaces.length > 0 ? (
               <CommandGroup heading="Workspaces">
                 {workspaces.map((workspace) => (
                   <CommandItem
@@ -80,7 +91,13 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
               </CommandGroup>
             ) : (
               <CommandGroup>
-                <CommandItem disabled>No workspaces available</CommandItem>
+                <CommandItem 
+                  disabled 
+                  className="text-sm cursor-not-allowed opacity-70"
+                  onSelect={handleEmptyWorkspaceClick}
+                >
+                  No workspaces available
+                </CommandItem>
               </CommandGroup>
             )}
           </CommandList>

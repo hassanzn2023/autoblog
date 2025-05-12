@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { toast } from '@/hooks/use-toast';
 
 const WorkspaceSelector = () => {
   const { workspaces, currentWorkspace, switchWorkspace, createWorkspace, loading } = useWorkspace();
@@ -26,10 +27,31 @@ const WorkspaceSelector = () => {
       if (workspace) {
         setDialogOpen(false);
         setNewWorkspaceName('');
+        toast({
+          title: "Success",
+          description: `Workspace "${newWorkspaceName}" created successfully`,
+        });
       }
+    } catch (error) {
+      console.error("Error creating workspace:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create workspace. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setCreating(false);
     }
+  };
+
+  // Handle click when no workspaces are available
+  const handleEmptyWorkspaceClick = () => {
+    toast({
+      title: "No workspaces available",
+      description: "Please create a new workspace using the button below.",
+      variant: "default"
+    });
+    setOpen(false);
   };
 
   return (
@@ -53,7 +75,7 @@ const WorkspaceSelector = () => {
           <Command>
             <CommandInput placeholder="Search workspace..." />
             <CommandEmpty>No workspace found.</CommandEmpty>
-            {workspaces && workspaces.length > 0 ? (
+            {workspaces && Array.isArray(workspaces) && workspaces.length > 0 ? (
               <CommandGroup>
                 {workspaces.map((workspace) => (
                   <CommandItem
@@ -76,7 +98,13 @@ const WorkspaceSelector = () => {
               </CommandGroup>
             ) : (
               <CommandGroup>
-                <CommandItem disabled>No workspaces available</CommandItem>
+                <CommandItem 
+                  disabled 
+                  className="cursor-not-allowed opacity-70"
+                  onSelect={handleEmptyWorkspaceClick}
+                >
+                  No workspaces available
+                </CommandItem>
               </CommandGroup>
             )}
             <CommandGroup>
