@@ -53,26 +53,32 @@ const WorkspaceSelector = () => {
           <Command>
             <CommandInput placeholder="Search workspace..." />
             <CommandEmpty>No workspace found.</CommandEmpty>
-            <CommandGroup>
-              {workspaces.map((workspace) => (
-                <CommandItem
-                  key={workspace.id}
-                  onSelect={() => {
-                    switchWorkspace(workspace.id);
-                    setOpen(false);
-                  }}
-                  className="cursor-pointer"
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      currentWorkspace?.id === workspace.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {workspace.name}
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {workspaces && workspaces.length > 0 ? (
+              <CommandGroup>
+                {workspaces.map((workspace) => (
+                  <CommandItem
+                    key={workspace.id}
+                    onSelect={() => {
+                      switchWorkspace(workspace.id);
+                      setOpen(false);
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        currentWorkspace?.id === workspace.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    {workspace.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ) : (
+              <CommandGroup>
+                <CommandItem disabled>No workspaces available</CommandItem>
+              </CommandGroup>
+            )}
             <CommandGroup>
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>

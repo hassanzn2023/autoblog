@@ -57,26 +57,32 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
           <CommandList>
             <CommandInput placeholder="Search workspace..." />
             <CommandEmpty>No workspace found.</CommandEmpty>
-            <CommandGroup heading="Workspaces">
-              {workspaces.map((workspace) => (
-                <CommandItem
-                  key={workspace.id}
-                  className="text-sm cursor-pointer"
-                  onSelect={() => {
-                    switchWorkspace(workspace.id);
-                    setOpen(false);
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      currentWorkspace?.id === workspace.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  <span className="truncate">{workspace.name}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {workspaces && workspaces.length > 0 ? (
+              <CommandGroup heading="Workspaces">
+                {workspaces.map((workspace) => (
+                  <CommandItem
+                    key={workspace.id}
+                    className="text-sm cursor-pointer"
+                    onSelect={() => {
+                      switchWorkspace(workspace.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        currentWorkspace?.id === workspace.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    <span className="truncate">{workspace.name}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ) : (
+              <CommandGroup>
+                <CommandItem disabled>No workspaces available</CommandItem>
+              </CommandGroup>
+            )}
           </CommandList>
           <CommandSeparator />
           <CommandList>

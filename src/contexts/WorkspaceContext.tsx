@@ -71,7 +71,7 @@ async function fetchWorkspaces(userId: string): Promise<Workspace[]> {
     const { data: workspacesData, error: workspacesError } = await supabase
       .from('workspaces')
       .select('*')
-      .in('id', workspaceIds);
+      .in('id', workspaceIds as any);
 
     if (workspacesError) throw workspacesError;
     
@@ -129,7 +129,9 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (defaultWorkspace) {
           setWorkspaces([defaultWorkspace]);
           setCurrentWorkspace(defaultWorkspace);
-          localStorage.setItem(`workspace_${user.id}`, defaultWorkspace.id);
+          if (user.id) {
+            localStorage.setItem(`workspace_${user.id}`, defaultWorkspace.id);
+          }
         }
       }
     } catch (error: any) {
@@ -181,7 +183,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       setWorkspaces(updatedWorkspaces);
       
       // Find the new workspace in the updated list
-      const newWorkspace = updatedWorkspaces.find(w => w.id === workspaceData.id);
+      const newWorkspace = updatedWorkspaces.find(w => w.id === workspaceData.id) as Workspace;
       
       if (newWorkspace) {
         // Switch to the new workspace
@@ -280,7 +282,9 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         
       if (membershipError) throw membershipError;
       
-      if (!membership || membership.role !== 'owner') {
+      const membershipRole = membership ? (membership as any).role : null;
+      
+      if (!membership || membershipRole !== 'owner') {
         toast({
           title: "Permission Denied",
           description: "Only workspace owners can delete workspaces",

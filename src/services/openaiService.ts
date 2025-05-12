@@ -1,381 +1,346 @@
-import axios from 'axios';
-import { v4 as uuidv4 } from 'uuid';
-import { parseWordDocument } from './documentParserService';
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import axios from 'axios';
 
-// Interface for the keyword suggestion
-export interface KeywordSuggestion {
-  id: string;
-  text: string;
+type MessageRole = 'user' | 'system' | 'assistant';
+
+interface Message {
+  role: MessageRole;
+  content: string;
 }
 
-/**
- * Generate primary keyword suggestions from content
- */
-export const generateKeywordSuggestions = async (
-  content: string,
-  count: number = 3,
-  note: string = '',
-  userId?: string,
-  workspaceId?: string
-): Promise<KeywordSuggestion[]> => {
-  console.log(`Generating ${count} keyword suggestions`);
-  console.log(`User authenticated: ${Boolean(userId && workspaceId)}`);
-  
-  // Check if user is authenticated
-  if (userId && workspaceId) {
-    try {
-      console.log("Calling generate-keywords function with authenticated user");
-      // Call the Supabase Edge Function
-      const { data, error } = await supabase.functions.invoke('generate-keywords', {
-        body: { content, count, note, userId, workspaceId }
-      });
-      
-      if (error) {
-        console.error("Error calling generate-keywords function:", error);
-        toast({
-          title: "Error Generating Keywords",
-          description: error.message || "Failed to generate keywords from OpenAI",
-          variant: "destructive"
-        });
-        return [];
-      }
-      
-      if (!data || !Array.isArray(data) || data.length === 0) {
-        console.error("No keywords returned from edge function:", data);
-        toast({
-          title: "No Keywords Generated",
-          description: "The AI couldn't generate keywords based on your content",
-          variant: "destructive"
-        });
-        return [];
-      }
-      
-      console.log("Keywords generated successfully:", data);
-      return data;
-    } catch (error) {
-      console.error("Error generating keywords:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to generate keywords",
-        variant: "destructive"
-      });
-      return [];
-    }
-  } else {
-    console.log("User not authenticated, cannot generate keywords");
-    toast({
-      title: "Authentication Required",
-      description: "Please log in to generate keywords with AI",
-      variant: "destructive"
-    });
-    return [];
-  }
-};
+interface GenerateTextParams {
+  prompt: string;
+  maxTokens?: number;
+  temperature?: number;
+  openaiApiKey?: string;
+  systemMessage?: string;
+  content?: string; // For chat completion
+  model?: string;
+}
 
-/**
- * Generate secondary keyword suggestions based on primary keyword and content
- */
-export const generateSecondaryKeywordSuggestions = async (
-  primaryKeyword: string,
-  content: string,
-  count: number = 5,
-  note: string = '',
-  userId?: string,
-  workspaceId?: string
-): Promise<KeywordSuggestion[]> => {
-  console.log(`Generating ${count} secondary keyword suggestions for "${primaryKeyword}"`);
-  console.log(`User authenticated: ${Boolean(userId && workspaceId)}`);
-  
-  // Check if user is authenticated
-  if (userId && workspaceId) {
-    try {
-      console.log("Calling generate-secondary-keywords function with authenticated user");
-      // Call the Supabase Edge Function
-      const { data, error } = await supabase.functions.invoke('generate-secondary-keywords', {
-        body: { primaryKeyword, content, count, note, userId, workspaceId }
-      });
-      
-      if (error) {
-        console.error("Error calling generate-secondary-keywords function:", error);
-        toast({
-          title: "Error Generating Keywords",
-          description: error.message || "Failed to generate secondary keywords from OpenAI",
-          variant: "destructive"
-        });
-        return [];
-      }
-      
-      if (!data || !Array.isArray(data) || data.length === 0) {
-        console.error("No secondary keywords returned from edge function:", data);
-        toast({
-          title: "No Keywords Generated",
-          description: "The AI couldn't generate secondary keywords based on your content and primary keyword",
-          variant: "destructive"
-        });
-        return [];
-      }
-      
-      console.log("Secondary keywords generated successfully:", data);
-      return data;
-    } catch (error) {
-      console.error("Error generating secondary keywords:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to generate secondary keywords",
-        variant: "destructive"
-      });
-      return [];
-    }
-  } else {
-    console.log("User not authenticated, cannot generate secondary keywords");
-    toast({
-      title: "Authentication Required",
-      description: "Please log in to generate secondary keywords with AI",
-      variant: "destructive"
-    });
-    return [];
-  }
-};
+interface GenerateKeywordParams {
+  content: string;
+  openaiApiKey?: string;
+  count?: number;
+}
 
-/**
- * Extract content from a URL
- */
-export const extractContentFromUrl = async (url: string): Promise<any> => {
+interface KeywordResponse {
+  keywords: string[];
+  error?: string;
+}
+
+export interface ChatMessage {
+  role: MessageRole;
+  content: string;
+  id?: string;
+}
+
+const defaultModel = 'gpt-3.5-turbo';
+const defaultCreditsPerRequest = 1;
+
+const getApiKey = async (userId: string, workspaceId: string): Promise<string | null> => {
   try {
-    // Call the Supabase Edge Function
-    const { data, error } = await supabase.functions.invoke('extract-url-content', {
-      body: { url }
-    });
-    
+    const { data, error } = await supabase
+      .from('api_keys')
+      .select('api_key')
+      .eq('user_id', userId as any)
+      .eq('workspace_id', workspaceId as any)
+      .eq('api_type', 'openai' as any)
+      .eq('is_active', true)
+      .single();
+
+    if (error || !data) {
+      console.error('Error getting API key:', error?.message);
+      return null;
+    }
+
+    return data.api_key;
+  } catch (error) {
+    console.error('Exception getting API key:', error);
+    return null;
+  }
+};
+
+const hasEnoughCredits = async (userId: string, requiredCredits: number = defaultCreditsPerRequest): Promise<boolean> => {
+  try {
+    // Calculate total available credits
+    const { data, error } = await supabase
+      .from('credits')
+      .select('credit_amount, transaction_type')
+      .eq('user_id', userId as any);
+
     if (error) {
-      console.error("Error calling extract-url-content function:", error);
-      throw new Error(error.message);
-    }
-    
-    return data;
-  } catch (error) {
-    console.error("Error extracting content from URL:", error);
-    throw new Error(error instanceof Error ? error.message : 'Failed to extract content from URL');
-  }
-};
-
-/**
- * Extract content from a Word document - relay to documentParserService
- */
-export const extractContentFromDocument = async (file: File): Promise<string> => {
-  try {
-    const result = await parseWordDocument(file);
-    return result.html;
-  } catch (error) {
-    console.error("Error in OpenAI service extracting document content:", error);
-    throw error;
-  }
-};
-
-// Helper function to generate mock keywords - for fallback only
-const generateMockKeywords = (content: string, count: number): KeywordSuggestion[] => {
-  // Simulate API call delay
-  const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
-  delay(500);
-  
-  // Extract first 200 characters for demo purposes
-  const textSample = content.replace(/<[^>]*>/g, ' ').slice(0, 200);
-  console.log(`Using content sample: ${textSample}`);
-  
-  // Generate mock keywords based on content
-  const mockKeywords = [
-    'SEO optimization',
-    'content marketing',
-    'digital marketing',
-    'search engine ranking',
-    'keyword optimization',
-    'website traffic',
-    'online presence',
-    'search visibility',
-    'organic search',
-    'meta description'
-  ];
-  
-  // Arabic keywords if content contains Arabic text
-  const arabicRegex = /[\u0600-\u06FF]/;
-  const hasArabicText = arabicRegex.test(content);
-  
-  const arabicKeywords = [
-    'تحسين محركات البحث',
-    'تسويق المحتوى',
-    'التسويق الرقمي',
-    'ترتيب محركات البحث',
-    'تحسين الكلمات الرئيسية',
-    'حركة المرور على الموقع',
-    'التواجد عبر الإنترنت',
-    'الظهور في البحث',
-    'البحث العضوي',
-    'وصف ميتا'
-  ];
-  
-  // Pick keywords based on content language
-  const keywordsPool = hasArabicText ? arabicKeywords : mockKeywords;
-  
-  // Shuffle and take the first 'count' items
-  const shuffled = [...keywordsPool].sort(() => 0.5 - Math.random());
-  const selected = shuffled.slice(0, count);
-  
-  return selected.map(text => ({
-    id: uuidv4(),
-    text
-  }));
-};
-
-// Helper function to generate mock secondary keywords - for fallback only
-const generateMockSecondaryKeywords = (primaryKeyword: string, content: string, count: number): KeywordSuggestion[] => {
-  // Simulate API call delay
-  const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
-  delay(500);
-  
-  // Prepare mock data based on the primary keyword
-  const mockSecondaryKeywords: Record<string, string[]> = {
-    'SEO optimization': [
-      'on-page SEO',
-      'off-page SEO',
-      'technical SEO',
-      'SEO audit',
-      'SEO strategy',
-      'SEO tools',
-      'SEO analytics'
-    ],
-    'content marketing': [
-      'content strategy',
-      'blog writing',
-      'content creation',
-      'content distribution',
-      'editorial calendar',
-      'content ROI',
-      'content audit'
-    ],
-    'digital marketing': [
-      'social media marketing',
-      'email marketing',
-      'PPC advertising',
-      'online branding',
-      'inbound marketing',
-      'conversion rate optimization',
-      'marketing analytics'
-    ],
-    'تحسين محركات البحث': [
-      'تحسين المحتوى',
-      'الروابط الخلفية',
-      'سرعة الموقع',
-      'تحليل المنافسين',
-      'كلمات مفتاحية طويلة',
-      'تصدر نتائج البحث',
-      'تقنيات السيو'
-    ],
-    'تسويق المحتوى': [
-      'إنشاء المحتوى',
-      'استراتيجية المحتوى',
-      'كتابة المقالات',
-      'تسويق الفيديو',
-      'محتوى تفاعلي',
-      'جدولة المحتوى',
-      'تحليل أداء المحتوى'
-    ]
-  };
-  
-  // Default secondary keywords if primary keyword doesn't match any in our mock data
-  const defaultSecondaryKeywords = [
-    'industry trends',
-    'best practices',
-    'case studies',
-    'expert tips',
-    'how-to guides',
-    'common mistakes',
-    'tools and resources'
-  ];
-  
-  const arabicDefaultSecondaryKeywords = [
-    'اتجاهات الصناعة',
-    'أفضل الممارسات',
-    'دراسات الحالة',
-    'نصائح الخبراء',
-    'أدلة إرشادية',
-    'أخطاء شائعة',
-    'أدوات وموارد'
-  ];
-  
-  // Determine if content has Arabic text
-  const arabicRegex = /[\u0600-\u06FF]/;
-  const hasArabicText = arabicRegex.test(content);
-  
-  // Get secondary keywords for the primary keyword or use defaults
-  let secondaryKeywordsPool = [];
-  if (mockSecondaryKeywords[primaryKeyword]) {
-    secondaryKeywordsPool = mockSecondaryKeywords[primaryKeyword];
-  } else {
-    // If primary keyword not found in our mock data, use default set
-    secondaryKeywordsPool = hasArabicText ? arabicDefaultSecondaryKeywords : defaultSecondaryKeywords;
-  }
-  
-  // Shuffle and take the first 'count' items
-  const shuffled = [...secondaryKeywordsPool].sort(() => 0.5 - Math.random());
-  const selected = shuffled.slice(0, count);
-  
-  return selected.map(text => ({
-    id: uuidv4(),
-    text
-  }));
-};
-
-// Helper function to record API usage
-const recordApiUsage = async (userId: string, workspaceId: string, apiType: string, operation: string, credits: number) => {
-  try {
-    // Check if user has enough credits
-    const { data: creditsData, error: creditsError } = await supabase.rpc(
-      'check_user_has_credits',
-      { user_id_param: userId, required_credits: credits }
-    );
-    
-    if (creditsError || !creditsData) {
-      console.error("Error checking credits or insufficient credits:", creditsError);
+      console.error('Error checking credits:', error.message);
       return false;
     }
+
+    const credits = data || [];
+    let availableCredits = 0;
+
+    for (const credit of credits) {
+      if (credit.transaction_type === 'used') {
+        availableCredits -= credit.credit_amount;
+      } else {
+        availableCredits += credit.credit_amount;
+      }
+    }
+
+    return availableCredits >= requiredCredits;
+  } catch (error) {
+    console.error('Exception checking credits:', error);
+    return false;
+  }
+};
+
+export const generateText = async (
+  params: GenerateTextParams,
+  userId: string,
+  workspaceId: string
+): Promise<string> => {
+  try {
+    const { prompt, maxTokens = 500, temperature = 0.7, openaiApiKey, systemMessage = '', model = defaultModel } = params;
+
+    // Check if user has enough credits
+    const hasCredits = await hasEnoughCredits(userId);
+    if (!hasCredits) {
+      toast({
+        title: "Insufficient Credits",
+        description: "You don't have enough credits to perform this operation.",
+        variant: "destructive",
+      });
+      return "Error: Insufficient credits.";
+    }
+
+    // Get API key if not provided
+    let apiKey = openaiApiKey;
+    if (!apiKey) {
+      apiKey = await getApiKey(userId, workspaceId);
+      if (!apiKey) {
+        toast({
+          title: "API Key Required",
+          description: "Please set your OpenAI API key in the settings.",
+          variant: "destructive",
+        });
+        return "Error: OpenAI API key not found.";
+      }
+    }
+
+    // Prepare messages
+    const messages: Message[] = [];
     
+    if (systemMessage) {
+      messages.push({
+        role: 'system',
+        content: systemMessage
+      });
+    }
+    
+    messages.push({
+      role: 'user',
+      content: prompt
+    });
+
+    // Call OpenAI API
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model,
+        messages,
+        max_tokens: maxTokens,
+        temperature,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+      }
+    );
+
     // Record credit usage
-    const { error: creditUsageError } = await supabase
+    await recordCreditUsage(userId, workspaceId, defaultCreditsPerRequest, 'text_generation');
+
+    return response.data.choices[0].message.content.trim();
+  } catch (error: any) {
+    console.error('Error generating text:', error.response?.data || error.message);
+    
+    let errorMessage = "Failed to generate text.";
+    if (error.response?.data?.error?.message) {
+      errorMessage = error.response.data.error.message;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    toast({
+      title: "Generation Error",
+      description: errorMessage,
+      variant: "destructive",
+    });
+    
+    return `Error: ${errorMessage}`;
+  }
+};
+
+export const generateKeywords = async (
+  params: GenerateKeywordParams,
+  userId: string,
+  workspaceId: string
+): Promise<KeywordResponse> => {
+  try {
+    const { content, openaiApiKey, count = 10 } = params;
+
+    // Check if user has enough credits
+    const hasCredits = await hasEnoughCredits(userId);
+    if (!hasCredits) {
+      return { keywords: [], error: "Insufficient credits." };
+    }
+
+    // Get API key if not provided
+    let apiKey = openaiApiKey;
+    if (!apiKey) {
+      apiKey = await getApiKey(userId, workspaceId);
+      if (!apiKey) {
+        return { keywords: [], error: "OpenAI API key not found." };
+      }
+    }
+
+    // Call our Supabase Edge Function that handles keyword generation
+    const { data, error } = await supabase.functions.invoke('generate-keywords', {
+      body: { content, apiKey, count },
+    });
+
+    if (error) {
+      console.error('Edge function error:', error);
+      throw new Error(error.message);
+    }
+
+    // Record credit usage
+    await recordCreditUsage(userId, workspaceId, defaultCreditsPerRequest, 'keyword_generation');
+
+    return { keywords: data?.keywords || [] };
+  } catch (error: any) {
+    console.error('Error generating keywords:', error);
+    return { keywords: [], error: error.message };
+  }
+};
+
+const recordCreditUsage = async (
+  userId: string,
+  workspaceId: string,
+  creditAmount: number,
+  operationType: string
+) => {
+  try {
+    // Record credit usage
+    const { error: creditError } = await supabase
       .from('credits')
       .insert({
         user_id: userId,
         workspace_id: workspaceId,
-        credit_amount: credits,
-        transaction_type: 'used'
-      });
-      
-    if (creditUsageError) {
-      console.error("Error recording credit usage:", creditUsageError);
-      return false;
+        credit_amount: creditAmount,
+        transaction_type: 'used',
+      } as any);
+
+    if (creditError) {
+      console.error('Error recording credit usage:', creditError.message);
     }
-    
+
     // Record API usage
-    const { error: apiUsageError } = await supabase
+    const { error: usageError } = await supabase
       .from('api_usage')
       .insert({
         user_id: userId,
         workspace_id: workspaceId,
-        api_type: apiType,
+        api_type: 'openai',
         usage_amount: 1,
-        credits_consumed: credits,
-        operation_type: operation
+        credits_consumed: creditAmount,
+        operation_type: operationType,
+      } as any);
+
+    if (usageError) {
+      console.error('Error recording API usage:', usageError.message);
+    }
+  } catch (error) {
+    console.error('Exception recording usage:', error);
+  }
+};
+
+export const chatWithAI = async (
+  messages: ChatMessage[],
+  userId: string,
+  workspaceId: string,
+  openaiApiKey?: string,
+  model: string = defaultModel
+): Promise<ChatMessage> => {
+  try {
+    // Check if user has enough credits
+    const hasCredits = await hasEnoughCredits(userId);
+    if (!hasCredits) {
+      toast({
+        title: "Insufficient Credits",
+        description: "You don't have enough credits to perform this operation.",
+        variant: "destructive",
       });
-      
-    if (apiUsageError) {
-      console.error("Error recording API usage:", apiUsageError);
-      return false;
+      return { role: 'assistant', content: "Error: Insufficient credits." };
+    }
+
+    // Get API key if not provided
+    let apiKey = openaiApiKey;
+    if (!apiKey) {
+      apiKey = await getApiKey(userId, workspaceId);
+      if (!apiKey) {
+        toast({
+          title: "API Key Required",
+          description: "Please set your OpenAI API key in the settings.",
+          variant: "destructive",
+        });
+        return { role: 'assistant', content: "Error: OpenAI API key not found." };
+      }
+    }
+
+    // Call OpenAI API
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model,
+        messages: messages.map(({ role, content }) => ({ role, content })),
+        max_tokens: 1000,
+        temperature: 0.7,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+      }
+    );
+
+    // Record credit usage (2 credits for chat)
+    await recordCreditUsage(userId, workspaceId, 2, 'chat_completion');
+
+    return {
+      role: 'assistant',
+      content: response.data.choices[0].message.content.trim(),
+      id: Date.now().toString(),
+    };
+  } catch (error: any) {
+    console.error('Error in chat:', error.response?.data || error.message);
+    
+    let errorMessage = "Failed to generate response.";
+    if (error.response?.data?.error?.message) {
+      errorMessage = error.response.data.error.message;
+    } else if (error.message) {
+      errorMessage = error.message;
     }
     
-    return true;
-  } catch (error) {
-    console.error("Error recording API usage:", error);
-    return false;
+    toast({
+      title: "Chat Error",
+      description: errorMessage,
+      variant: "destructive",
+    });
+    
+    return { role: 'assistant', content: `Error: ${errorMessage}` };
   }
 };

@@ -83,31 +83,27 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       
       if (existingKey) {
         // Update existing key
-        const updateData: ApiKeysUpdate = {
-          api_key: key,
-          is_active: true,
-        };
-        
         const { error } = await supabase
           .from('api_keys')
-          .update(updateData as any)
+          .update({
+            api_key: key,
+            is_active: true,
+          } as any)
           .eq('id', existingKey.id as any)
           .eq('user_id', user.id as any);
           
         if (error) throw error;
       } else {
         // Create new key
-        const insertData: ApiKeysInsert = {
-          user_id: user.id,
-          workspace_id: currentWorkspace.id,
-          api_type: type,
-          api_key: key,
-          is_active: true,
-        };
-        
         const { error } = await supabase
           .from('api_keys')
-          .insert(insertData as any);
+          .insert({
+            user_id: user.id,
+            workspace_id: currentWorkspace.id,
+            api_type: type,
+            api_key: key,
+            is_active: true,
+          } as any);
           
         if (error) throw error;
       }
@@ -132,14 +128,12 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
     if (!user || !currentWorkspace) return;
     
     try {
-      const updateData: ApiKeysUpdate = {
-        api_key: key,
-        is_active: active,
-      };
-      
       const { error } = await supabase
         .from('api_keys')
-        .update(updateData as any)
+        .update({
+          api_key: key,
+          is_active: active,
+        } as any)
         .eq('id', id as any)
         .eq('user_id', user.id as any);
         

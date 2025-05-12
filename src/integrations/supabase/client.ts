@@ -24,17 +24,11 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   db: {
     schema: 'public'
   },
-  // Add improved retryOptions for better network resilience
+  // Add improved resilience for network issues
   realtime: {
     params: {
       eventsPerSecond: 10
     }
-  },
-  // Add retry configuration to handle temporary network issues
-  // Auto retry 3 times with increasing delay
-  fetchOptions: {
-    retryCount: 3,
-    retryDelay: 1000, // Start with 1s delay and increase exponentially
   }
 });
 
