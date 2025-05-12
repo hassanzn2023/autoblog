@@ -68,7 +68,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       const { data, error } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', user.id as any)
         .single();
         
       if (error) {
@@ -78,12 +78,12 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
             user_id: user.id,
             plan_type: 'free',
             status: 'active',
-            expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days from now
-          }
+            expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          };
           
           const { error: createError } = await supabase
             .from('subscriptions')
-            .insert(insertData);
+            .insert(insertData as any);
             
           if (createError) throw createError;
           
@@ -91,7 +91,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
           const { data: newSubscription, error: fetchError } = await supabase
             .from('subscriptions')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('user_id', user.id as any)
             .single();
             
           if (fetchError) throw fetchError;
@@ -126,7 +126,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       const { data, error } = await supabase
         .from('credits')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id as any);
         
       if (error) throw error;
       
@@ -182,7 +182,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       
       const { error: creditError } = await supabase
         .from('credits')
-        .insert(creditInsertData);
+        .insert(creditInsertData as any);
         
       if (creditError) throw creditError;
       
@@ -196,7 +196,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
           usage_amount: 1,
           credits_consumed: amount,
           operation_type: operation,
-        });
+        } as any);
         
       if (apiUsageError) throw apiUsageError;
       

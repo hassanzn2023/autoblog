@@ -56,12 +56,12 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       const { data, error } = await supabase
         .from('api_keys')
         .select('*')
-        .eq('user_id', user.id)
-        .eq('workspace_id', currentWorkspace.id);
+        .eq('user_id', user.id as any)
+        .eq('workspace_id', currentWorkspace.id as any);
         
       if (error) throw error;
       
-      setApiKeys(data as APIKey[] || []);
+      setApiKeys((data || []) as unknown as APIKey[]);
     } catch (error: any) {
       console.error('Error fetching API keys:', error.message);
       toast({
@@ -90,9 +90,9 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
         
         const { error } = await supabase
           .from('api_keys')
-          .update(updateData)
-          .eq('id', existingKey.id)
-          .eq('user_id', user.id);
+          .update(updateData as any)
+          .eq('id', existingKey.id as any)
+          .eq('user_id', user.id as any);
           
         if (error) throw error;
       } else {
@@ -107,7 +107,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
         
         const { error } = await supabase
           .from('api_keys')
-          .insert(insertData);
+          .insert(insertData as any);
           
         if (error) throw error;
       }
@@ -139,9 +139,9 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       
       const { error } = await supabase
         .from('api_keys')
-        .update(updateData)
-        .eq('id', id)
-        .eq('user_id', user.id);
+        .update(updateData as any)
+        .eq('id', id as any)
+        .eq('user_id', user.id as any);
         
       if (error) throw error;
       
@@ -168,8 +168,8 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       const { error } = await supabase
         .from('api_keys')
         .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
+        .eq('id', id as any)
+        .eq('user_id', user.id as any);
         
       if (error) throw error;
       

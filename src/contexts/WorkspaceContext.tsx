@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { supabase, checkSupabaseConnection } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -40,7 +41,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [reconnectInterval, setReconnectInterval] = useState<NodeJS.Timeout | null>(null);
   
   // Maximum number of retry attempts
-  const MAX_RETRY_ATTEMPTS = 2;
+  const MAX_RETRY_ATTEMPTS = 3;
 
   // Check connection status periodically
   useEffect(() => {
@@ -95,7 +96,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       clearInterval(interval);
       if (reconnectInterval) clearInterval(reconnectInterval);
     };
-  }, [connectionStatus, user, useTemporaryWorkspace, workspaces.length]);
+  }, [connectionStatus, user, useTemporaryWorkspace, workspaces.length, fetchWorkspaces]);
 
   // Clear error when user changes
   useEffect(() => {
@@ -162,23 +163,23 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       const { data: directWorkspaces, error: directError } = await supabase
         .from('workspaces')
         .select('*')
-        .eq('created_by', user.id)
+        .eq('created_by', user.id as any)
         .order('created_at', { ascending: true });
       
       if (!directError && directWorkspaces && directWorkspaces.length > 0) {
         console.log("Direct workspaces fetched:", directWorkspaces.length);
-        setWorkspaces(directWorkspaces);
+        setWorkspaces(directWorkspaces as Workspace[]);
         
         // If there's no current workspace selected, select the first one
         if (!currentWorkspace) {
           console.log("Setting default workspace:", directWorkspaces[0].name);
-          setCurrentWorkspace(directWorkspaces[0]);
+          setCurrentWorkspace(directWorkspaces[0] as Workspace);
         } else {
           // Ensure the current workspace still exists in the fetched workspaces
           const currentExists = directWorkspaces.some(w => w.id === currentWorkspace.id);
           if (!currentExists && directWorkspaces.length > 0) {
             console.log("Current workspace no longer exists, selecting first workspace");
-            setCurrentWorkspace(directWorkspaces[0]);
+            setCurrentWorkspace(directWorkspaces[0] as Workspace);
           }
         }
         
@@ -196,7 +197,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         const { data: memberships, error: membershipError } = await supabase
           .from('workspace_members')
           .select('workspace_id')
-          .eq('user_id', user.id);
+          .eq('user_id', user.id as any);
 
         if (membershipError) {
           throw membershipError;
@@ -212,7 +213,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           const { data: workspacesData, error: workspacesError } = await supabase
             .from('workspaces')
             .select('*')
-            .in('id', workspaceIds)
+            .in('id', workspaceIds as any)
             .order('created_at', { ascending: true });
           
           if (workspacesError) {
@@ -222,18 +223,18 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           console.log("Workspaces fetched:", workspacesData?.length || 0);
           
           if (workspacesData && workspacesData.length > 0) {
-            setWorkspaces(workspacesData);
+            setWorkspaces(workspacesData as Workspace[]);
             
             // If there's no current workspace selected, select the first one
             if (!currentWorkspace) {
               console.log("Setting default workspace:", workspacesData[0].name);
-              setCurrentWorkspace(workspacesData[0]);
+              setCurrentWorkspace(workspacesData[0] as Workspace);
             } else {
               // Ensure the current workspace still exists in the fetched workspaces
               const currentExists = workspacesData.some(w => w.id === currentWorkspace.id);
               if (!currentExists && workspacesData.length > 0) {
                 console.log("Current workspace no longer exists, selecting first workspace");
-                setCurrentWorkspace(workspacesData[0]);
+                setCurrentWorkspace(workspacesData[0] as Workspace);
               }
             }
             
@@ -247,7 +248,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
         
         // No workspaces or memberships found, create a default one
-        await createDefaultWorkspaceDirect();
+        await createDefaultWorkspace();
         
       } catch (innerError: any) {
         console.error("Failed during membership check:", innerError.message);
@@ -259,7 +260,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       
       // Try to create a default workspace if there was an error
       try {
-        await createDefaultWorkspaceDirect();
+        await createDefaultWorkspace();
       } catch (innerError: any) {
         console.error("Failed to create default workspace after fetch error:", innerError.message);
         setConnectionStatus('disconnected');
@@ -297,7 +298,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
     
     const workspace: Workspace = {
-      id: 'temp-' + Date.now(),
+      id: `temp-${Date.now()}`,
       name: workspaceName,
       created_by: user?.id || 'unknown',
       created_at: new Date().toISOString(),
@@ -309,7 +310,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     return workspace;
   };
 
-  const createDefaultWorkspaceDirect = async () => {
+  const createDefaultWorkspace = async () => {
     if (!user) return;
     
     try {
@@ -329,7 +330,41 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       
       console.log("Creating default workspace with name:", defaultName);
       
-      // Use our new security definer function to safely create a workspace and add owner
+      // First try to use the edge function for creating workspaces
+      try {
+        // Call our edge function to create the workspace (more reliable than direct DB call)
+        const response = await supabase.functions.invoke('handle-workspace-creation', {
+          body: {
+            name: defaultName,
+            user_id: user.id
+          }
+        });
+        
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        
+        if (!response.data || !response.data.workspace) {
+          throw new Error("No workspace returned after creation");
+        }
+        
+        console.log("Workspace created via edge function:", response.data.workspace);
+        
+        setWorkspaces([response.data.workspace]);
+        setCurrentWorkspace(response.data.workspace);
+        setError(null);
+        setUseTemporaryWorkspace(false);
+        setConnectionStatus('connected');
+        
+        // Reset fetch attempts on success
+        setFetchAttempts(0);
+        return;
+      } catch (functionError) {
+        console.error("Error using edge function, falling back to direct method:", functionError);
+        // Continue to fallback method
+      }
+      
+      // Fallback to direct RPC call
       const { data, error } = await supabase
         .rpc('create_workspace_with_owner', { 
           workspace_name: defaultName, 
@@ -351,7 +386,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       const { data: workspaceData, error: fetchError } = await supabase
         .from('workspaces')
         .select('*')
-        .eq('id', data)
+        .eq('id', data as any)
         .single();
         
       if (fetchError) {
@@ -359,8 +394,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         throw fetchError;
       }
       
-      setWorkspaces([workspaceData]);
-      setCurrentWorkspace(workspaceData);
+      setWorkspaces([workspaceData as Workspace]);
+      setCurrentWorkspace(workspaceData as Workspace);
       setError(null);
       setUseTemporaryWorkspace(false);
       setConnectionStatus('connected');
@@ -420,7 +455,44 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         return null;
       }
 
-      // Use our new security definer function to safely create a workspace and add owner
+      // First try to use the edge function for creating workspaces
+      try {
+        const response = await supabase.functions.invoke('handle-workspace-creation', {
+          body: {
+            name: name,
+            user_id: user.id
+          }
+        });
+        
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        
+        if (!response.data || !response.data.workspace) {
+          throw new Error("No workspace returned after creation");
+        }
+        
+        console.log("Workspace created via edge function:", response.data.workspace);
+        
+        // Add the new workspace to the local state
+        const newWorkspace = response.data.workspace as Workspace;
+        const updatedWorkspaces = [...workspaces, newWorkspace];
+        setWorkspaces(updatedWorkspaces);
+        setCurrentWorkspace(newWorkspace);
+        
+        toast({
+          title: "Success",
+          description: "Workspace created successfully",
+          variant: "success",
+        });
+        
+        return newWorkspace;
+      } catch (functionError) {
+        console.error("Error using edge function, falling back to direct method:", functionError);
+        // Continue to fallback method
+      }
+
+      // Fallback to direct RPC call
       const { data: workspaceId, error: rpcError } = await supabase
         .rpc('create_workspace_with_owner', { 
           workspace_name: name, 
@@ -442,7 +514,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       const { data: workspaceData, error: fetchError } = await supabase
         .from('workspaces')
         .select('*')
-        .eq('id', workspaceId)
+        .eq('id', workspaceId as any)
         .single();
         
       if (fetchError) {
@@ -451,9 +523,9 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       }
       
       // Add the new workspace to the local state
-      const updatedWorkspaces = [...workspaces, workspaceData];
+      const updatedWorkspaces = [...workspaces, workspaceData as Workspace];
       setWorkspaces(updatedWorkspaces);
-      setCurrentWorkspace(workspaceData);
+      setCurrentWorkspace(workspaceData as Workspace);
       
       toast({
         title: "Success",
@@ -461,7 +533,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         variant: "success",
       });
       
-      return workspaceData;
+      return workspaceData as Workspace;
     } catch (error: any) {
       console.error('Error creating workspace:', error.message);
       setError(`Failed to create workspace: ${error.message}`);
@@ -494,8 +566,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       
       const { error } = await supabase
         .from('workspaces')
-        .update(data)
-        .eq('id', id);
+        .update(data as any)
+        .eq('id', id as any);
         
       if (error) {
         console.error("Error updating workspace:", error.message);
