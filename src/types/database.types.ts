@@ -209,9 +209,7 @@ export interface DatabaseTypes {
   }
 }
 
-// Helper function to cast tables and handle TypeScript errors
-export const typedSupabaseQuery = <T extends keyof DatabaseTypes['public']['Tables']>(
-  tableName: T
-): T => {
-  return tableName;
+// Helper function for Supabase queries
+export const typedSupabaseQuery = (table: string): string => {
+  return table;
 };

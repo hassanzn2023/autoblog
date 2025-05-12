@@ -3,7 +3,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { typedSupabaseQuery } from '@/types/database.types';
 
 interface Subscription {
   id: string;
@@ -61,7 +60,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       setLoading(true);
       
       const { data, error } = await supabase
-        .from(typedSupabaseQuery('subscriptions'))
+        .from('subscriptions')
         .select('*')
         .eq('user_id', user.id)
         .single();
@@ -70,7 +69,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
         if (error.code === 'PGRST116') {
           // No subscription found, create a new free subscription
           const { error: createError } = await supabase
-            .from(typedSupabaseQuery('subscriptions'))
+            .from('subscriptions')
             .insert({
               user_id: user.id,
               plan_type: 'free',
@@ -82,7 +81,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
           
           // Fetch the newly created subscription
           const { data: newSubscription, error: fetchError } = await supabase
-            .from(typedSupabaseQuery('subscriptions'))
+            .from('subscriptions')
             .select('*')
             .eq('user_id', user.id)
             .single();
@@ -114,7 +113,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       setLoading(true);
       
       const { data, error } = await supabase
-        .from(typedSupabaseQuery('credits'))
+        .from('credits')
         .select('*')
         .eq('user_id', user.id);
         
@@ -164,7 +163,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       
       // Record credit usage
       const { error: creditError } = await supabase
-        .from(typedSupabaseQuery('credits'))
+        .from('credits')
         .insert({
           user_id: user.id,
           workspace_id: workspaceId,
@@ -176,7 +175,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       
       // Record API usage
       const { error: apiUsageError } = await supabase
-        .from(typedSupabaseQuery('api_usage'))
+        .from('api_usage')
         .insert({
           user_id: user.id,
           workspace_id: workspaceId,

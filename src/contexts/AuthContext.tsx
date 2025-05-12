@@ -3,7 +3,6 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { typedSupabaseQuery } from '@/types/database.types';
 
 interface AuthContextProps {
   session: Session | null;
@@ -60,7 +59,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from(typedSupabaseQuery('profiles'))
+        .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();

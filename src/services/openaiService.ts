@@ -1,9 +1,9 @@
+
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { parseWordDocument } from './documentParserService';
 import { extractContentFromUrl as extractContent } from './contentExtractorService';
 import { supabase } from '@/integrations/supabase/client';
-import { typedSupabaseQuery } from '@/types/database.types';
 
 // Simulate the keyword generation with mock data
 export interface KeywordSuggestion {
@@ -28,7 +28,7 @@ export const generateKeywordSuggestions = async (
     try {
       // Get API key from database
       const { data: apiKeyData, error: apiKeyError } = await supabase
-        .from(typedSupabaseQuery('api_keys'))
+        .from('api_keys')
         .select('api_key')
         .eq('user_id', userId)
         .eq('workspace_id', workspaceId)
@@ -78,7 +78,7 @@ export const generateSecondaryKeywordSuggestions = async (
     try {
       // Get API key from database
       const { data: apiKeyData, error: apiKeyError } = await supabase
-        .from(typedSupabaseQuery('api_keys'))
+        .from('api_keys')
         .select('api_key')
         .eq('user_id', userId)
         .eq('workspace_id', workspaceId)
@@ -306,7 +306,7 @@ const recordApiUsage = async (userId: string, workspaceId: string, apiType: stri
     
     // Record credit usage
     const { error: creditUsageError } = await supabase
-      .from(typedSupabaseQuery('credits'))
+      .from('credits')
       .insert({
         user_id: userId,
         workspace_id: workspaceId,
@@ -321,7 +321,7 @@ const recordApiUsage = async (userId: string, workspaceId: string, apiType: stri
     
     // Record API usage
     const { error: apiUsageError } = await supabase
-      .from(typedSupabaseQuery('api_usage'))
+      .from('api_usage')
       .insert({
         user_id: userId,
         workspace_id: workspaceId,
