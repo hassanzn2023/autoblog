@@ -26,6 +26,7 @@ const WorkspaceSwitcher = () => {
   const [newWorkspaceDialogOpen, setNewWorkspaceDialogOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const handleCreateWorkspace = async () => {
     if (!newWorkspaceName.trim()) {
@@ -37,12 +38,30 @@ const WorkspaceSwitcher = () => {
       return;
     }
     
-    const newWorkspace = await createWorkspace(newWorkspaceName);
-    if (newWorkspace) {
-      setCurrentWorkspace(newWorkspace);
-      setNewWorkspaceDialogOpen(false);
-      setNewWorkspaceName('');
-      setPopoverOpen(false);
+    try {
+      setIsCreating(true);
+      const newWorkspace = await createWorkspace(newWorkspaceName);
+      
+      if (newWorkspace) {
+        setCurrentWorkspace(newWorkspace);
+        setNewWorkspaceDialogOpen(false);
+        setNewWorkspaceName('');
+        setPopoverOpen(false);
+        
+        toast({
+          title: "Success",
+          description: `Workspace "${newWorkspaceName}" created successfully`,
+        });
+      }
+    } catch (error: any) {
+      console.error("Workspace creation error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create workspace",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -127,11 +146,11 @@ const WorkspaceSwitcher = () => {
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setNewWorkspaceDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setNewWorkspaceDialogOpen(false)} disabled={isCreating}>
               Cancel
             </Button>
-            <Button onClick={handleCreateWorkspace}>
-              Create Workspace
+            <Button onClick={handleCreateWorkspace} disabled={isCreating || !newWorkspaceName.trim()}>
+              {isCreating ? 'Creating...' : 'Create Workspace'}
             </Button>
           </DialogFooter>
         </DialogContent>

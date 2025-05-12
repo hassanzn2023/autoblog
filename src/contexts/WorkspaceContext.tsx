@@ -46,6 +46,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     
     try {
       setLoading(true);
+      console.log("Fetching workspaces for user:", user.id);
       
       // Directly query workspaces for the user, avoiding nested/recursive queries
       const { data: memberships, error: membershipError } = await supabase
@@ -53,7 +54,12 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         .select('workspace_id, role')
         .eq('user_id', user.id);
 
-      if (membershipError) throw membershipError;
+      if (membershipError) {
+        console.error("Error fetching workspace memberships:", membershipError.message);
+        throw membershipError;
+      }
+      
+      console.log("Memberships found:", memberships?.length || 0);
       
       if (memberships && memberships.length > 0) {
         // Get all workspace IDs from memberships
@@ -65,7 +71,12 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           .select('*')
           .in('id', workspaceIds);
         
-        if (workspacesError) throw workspacesError;
+        if (workspacesError) {
+          console.error("Error fetching workspaces:", workspacesError.message);
+          throw workspacesError;
+        }
+        
+        console.log("Workspaces fetched:", workspacesData?.length || 0);
         
         if (workspacesData && workspacesData.length > 0) {
           setWorkspaces(workspacesData);
@@ -79,8 +90,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (user) {
           const defaultName = profile?.first_name 
             ? `${profile.first_name}'s Workspace` 
-            : 'Default Workspace';
+            : user.email 
+              ? `${user.email.split('@')[0]}'s Workspace` 
+              : 'My Workspace';
             
+          console.log("Creating default workspace with name:", defaultName);
           const newWorkspace = await createWorkspace(defaultName);
           if (newWorkspace) {
             setWorkspaces([newWorkspace]);
@@ -92,7 +106,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       console.error('Error fetching workspaces:', error.message);
       toast({
         title: "Error",
-        description: "Failed to load workspaces",
+        description: "Failed to load workspaces: " + error.message,
         variant: "destructive",
       });
     } finally {
@@ -104,6 +118,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (!user) return null;
     
     try {
+      console.log("Creating new workspace with name:", name);
+      
       // First check if user has reached the workspace limit
       if (workspaces.length >= 3) {
         toast({
@@ -121,7 +137,17 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         .select()
         .single();
         
-      if (workspaceError) throw workspaceError;
+      if (workspaceError) {
+        console.error("Error creating workspace:", workspaceError.message);
+        toast({
+          title: "Error",
+          description: "Failed to create workspace: " + workspaceError.message,
+          variant: "destructive",
+        });
+        throw workspaceError;
+      }
+      
+      console.log("Workspace created:", workspaceData);
       
       // Insert the creator as the owner of the workspace
       const { error: memberError } = await supabase
@@ -132,7 +158,17 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           role: 'owner' 
         }]);
       
-      if (memberError) throw memberError;
+      if (memberError) {
+        console.error("Error adding user as workspace member:", memberError.message);
+        toast({
+          title: "Error",
+          description: "Failed to set workspace permissions: " + memberError.message,
+          variant: "destructive",
+        });
+        throw memberError;
+      }
+      
+      console.log("User added as workspace owner");
       
       // Refresh the workspace list
       await fetchWorkspaces();
@@ -158,12 +194,22 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (!user) return;
     
     try {
+      console.log("Updating workspace:", id, data);
+      
       const { error } = await supabase
         .from('workspaces')
         .update(data)
         .eq('id', id);
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error updating workspace:", error.message);
+        toast({
+          title: "Error",
+          description: "Failed to update workspace: " + error.message,
+          variant: "destructive",
+        });
+        throw error;
+      }
       
       await fetchWorkspaces();
       
