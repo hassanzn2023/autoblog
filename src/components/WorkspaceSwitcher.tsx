@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronDown, Plus, Loader2 } from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import {
@@ -22,11 +22,19 @@ import { Label } from "@/components/ui/label";
 import { toast } from '@/hooks/use-toast';
 
 const WorkspaceSwitcher = () => {
-  const { currentWorkspace, workspaces, setCurrentWorkspace, createWorkspace, loading } = useWorkspace();
+  const { currentWorkspace, workspaces, setCurrentWorkspace, createWorkspace, loading, fetchWorkspaces } = useWorkspace();
   const [newWorkspaceDialogOpen, setNewWorkspaceDialogOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+
+  // Ensure workspaces are loaded properly
+  useEffect(() => {
+    if (workspaces.length === 0 && !loading) {
+      console.log("No workspaces found, triggering fetch");
+      fetchWorkspaces();
+    }
+  }, [workspaces, loading, fetchWorkspaces]);
 
   const handleCreateWorkspace = async () => {
     if (!newWorkspaceName.trim()) {
@@ -54,6 +62,9 @@ const WorkspaceSwitcher = () => {
           description: `Workspace "${newWorkspaceName}" created successfully`,
         });
         console.log("Workspace created:", newWorkspace);
+        
+        // Force refresh workspaces list
+        await fetchWorkspaces();
       }
     } catch (error: any) {
       console.error("Workspace creation error:", error);

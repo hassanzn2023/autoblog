@@ -127,6 +127,10 @@ const AuthPage: React.FC<AuthPageProps> = ({ defaultTab = 'signin' }) => {
       setLoading(true);
       console.log("Attempting to sign up with:", email);
 
+      // Get site URL for the correct redirect
+      const siteUrl = `${window.location.origin}`;
+      console.log("Site URL for redirect:", siteUrl);
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -135,7 +139,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ defaultTab = 'signin' }) => {
             first_name: firstName,
             last_name: lastName,
           },
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${siteUrl}/`,
         },
       });
       
@@ -177,10 +181,15 @@ const AuthPage: React.FC<AuthPageProps> = ({ defaultTab = 'signin' }) => {
       setLoading(true);
       setAuthError(null);
       console.log("Attempting Google sign in");
+      
+      // Get site URL for the correct redirect
+      const siteUrl = `${window.location.origin}`;
+      console.log("Site URL for Google redirect:", siteUrl);
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}${from}`
+          redirectTo: `${siteUrl}/`
         }
       });
       

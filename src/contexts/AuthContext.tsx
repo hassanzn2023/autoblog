@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -55,7 +56,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setUser(null);
           setProfile(null);
           navigate('/auth', { replace: true });
-        } else {
+        } else if (event === 'USER_UPDATED') {
           setSession(currentSession);
           setUser(currentSession?.user ?? null);
           
@@ -64,8 +65,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setTimeout(() => {
               fetchProfile(currentSession.user.id);
             }, 0);
-          } else {
-            setProfile(null);
           }
         }
       }
@@ -85,7 +84,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Handle auth redirect
     const handleAuthRedirect = async () => {
-      const { data, error } = await supabase.auth.getUser();
+      const params = new URLSearchParams(window.location.search);
+      const error = params.get('error');
+      const errorDescription = params.get('error_description');
+      
+      if (error || errorDescription) {
+        console.error("Auth error:", error, errorDescription);
+        toast({
+          title: "Error",
+          description: errorDescription || "Authentication error",
+          variant: "destructive"
+        });
+      }
+      
+      const { data, error: userError } = await supabase.auth.getUser();
       if (data?.user && window.location.pathname === '/auth') {
         console.log('User detected after auth redirect, navigating to home');
         navigate('/', { replace: true });

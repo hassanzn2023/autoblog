@@ -114,6 +114,13 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         description: "Failed to load workspaces: " + error.message,
         variant: "destructive",
       });
+      
+      // Still try to create a default workspace if there was an error
+      try {
+        await createDefaultWorkspace();
+      } catch (innerError) {
+        console.error("Failed to create default workspace after fetch error");
+      }
     } finally {
       setLoading(false);
     }
@@ -156,6 +163,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const createWorkspace = async (name: string): Promise<Workspace | null> => {
     if (!user) {
       console.log("Cannot create workspace: No authenticated user");
+      toast({
+        title: "Error",
+        description: "You need to be signed in to create a workspace",
+        variant: "destructive",
+      });
       return null;
     }
     
@@ -182,6 +194,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       if (workspaceError) {
         console.error("Error creating workspace:", workspaceError.message);
         throw workspaceError;
+      }
+      
+      if (!workspaceData) {
+        throw new Error("No workspace data returned after creation");
       }
       
       console.log("Workspace created in database:", workspaceData);
