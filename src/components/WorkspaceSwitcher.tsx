@@ -54,7 +54,6 @@ const WorkspaceSwitcher = () => {
       const newWorkspace = await createWorkspace(newWorkspaceName);
       
       if (newWorkspace) {
-        setCurrentWorkspace(newWorkspace);
         setNewWorkspaceDialogOpen(false);
         setNewWorkspaceName('');
         setPopoverOpen(false);
@@ -62,6 +61,7 @@ const WorkspaceSwitcher = () => {
         toast({
           title: "Success",
           description: `Workspace "${newWorkspaceName}" created successfully`,
+          variant: "success",
         });
         console.log("Workspace created:", newWorkspace);
       }
@@ -84,6 +84,14 @@ const WorkspaceSwitcher = () => {
       toast({
         title: "Refreshed",
         description: "Workspace list has been refreshed",
+        variant: "success",
+      });
+    } catch (error) {
+      console.error("Error refreshing workspaces:", error);
+      toast({
+        title: "Refresh Failed",
+        description: "Could not refresh workspaces list",
+        variant: "destructive",
       });
     } finally {
       setIsRefreshing(false);
