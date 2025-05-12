@@ -43,12 +43,12 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       const { data, error } = await supabase
         .from('api_keys')
         .select('*')
-        .eq('user_id', user.id as string)
-        .eq('workspace_id', currentWorkspace.id as string);
+        .eq('user_id', user.id)
+        .eq('workspace_id', currentWorkspace.id);
         
       if (error) throw error;
       
-      setApiKeys(data as APIKey[]);
+      setApiKeys(Array.isArray(data) ? data as APIKey[] : []);
     } catch (error: any) {
       console.error('Error fetching API keys:', error.message);
       toast({
@@ -70,26 +70,30 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       
       if (existingKey) {
         // Update existing key
+        const updateData = {
+          api_key: key,
+          is_active: true,
+        } as Database['public']['Tables']['api_keys']['Update'];
+
         const { error } = await supabase
           .from('api_keys')
-          .update({ 
-            api_key: key,
-            is_active: true,
-          })
+          .update(updateData)
           .eq('id', existingKey.id);
           
         if (error) throw error;
       } else {
         // Create new key
+        const insertData = {
+          user_id: user.id,
+          workspace_id: currentWorkspace.id,
+          api_type: type,
+          api_key: key,
+          is_active: true,
+        } as Database['public']['Tables']['api_keys']['Insert'];
+
         const { error } = await supabase
           .from('api_keys')
-          .insert({
-            user_id: user.id,
-            workspace_id: currentWorkspace.id,
-            api_type: type,
-            api_key: key,
-            is_active: true,
-          } as Database['public']['Tables']['api_keys']['Insert']);
+          .insert(insertData);
           
         if (error) throw error;
       }
@@ -114,12 +118,14 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
     if (!user || !currentWorkspace) return;
     
     try {
+      const updateData = {
+        api_key: key,
+        is_active: active,
+      } as Database['public']['Tables']['api_keys']['Update'];
+
       const { error } = await supabase
         .from('api_keys')
-        .update({ 
-          api_key: key,
-          is_active: active,
-        })
+        .update(updateData)
         .eq('id', id)
         .eq('user_id', user.id);
         
