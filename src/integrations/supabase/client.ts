@@ -10,10 +10,15 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
+    storage: typeof window !== 'undefined' ? localStorage : undefined,
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,  // Enable detecting auth sessions in URL
     flowType: 'pkce',          // Use PKCE flow for better security
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'supabase-js-web/2.49.4'
+    }
   }
 });

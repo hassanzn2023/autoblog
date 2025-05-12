@@ -21,9 +21,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from '@/contexts/AuthContext';
 
 const WorkspaceSwitcher = () => {
   const { currentWorkspace, workspaces, setCurrentWorkspace, createWorkspace, loading, fetchWorkspaces, error } = useWorkspace();
+  const { user } = useAuth();
   const [newWorkspaceDialogOpen, setNewWorkspaceDialogOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -32,11 +34,11 @@ const WorkspaceSwitcher = () => {
 
   // Ensure workspaces are loaded properly
   useEffect(() => {
-    if (workspaces.length === 0 && !loading) {
+    if (user && workspaces.length === 0 && !loading) {
       console.log("No workspaces found, triggering fetch");
       fetchWorkspaces();
     }
-  }, [workspaces, loading, fetchWorkspaces]);
+  }, [workspaces, loading, fetchWorkspaces, user]);
 
   const handleCreateWorkspace = async () => {
     if (!newWorkspaceName.trim()) {
@@ -109,6 +111,9 @@ const WorkspaceSwitcher = () => {
     );
   }
 
+  // Check if we have any real (non-temporary) workspaces
+  const realWorkspacesCount = workspaces.filter(w => !w.id.toString().startsWith('temp-')).length;
+
   return (
     <>
       <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
@@ -129,15 +134,6 @@ const WorkspaceSwitcher = () => {
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-64 p-2" align="start">
-          {error && (
-            <Alert variant="destructive" className="mb-2">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {error}
-              </AlertDescription>
-            </Alert>
-          )}
-          
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm font-medium">Your Workspaces</span>
             <Button 
@@ -151,7 +147,7 @@ const WorkspaceSwitcher = () => {
             </Button>
           </div>
           
-          <div className="space-y-1">
+          <div className="space-y-1 max-h-64 overflow-y-auto">
             {workspaces.map((workspace) => (
               <Button
                 key={workspace.id}
@@ -166,12 +162,21 @@ const WorkspaceSwitcher = () => {
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 bg-[#F76D01] rounded-sm"></div>
                   <span className="truncate">{workspace.name}</span>
+                  {workspace.id.toString().startsWith('temp-') && (
+                    <span className="text-xs text-amber-600 ml-1">(Temporary)</span>
+                  )}
                 </div>
               </Button>
             ))}
+            
+            {workspaces.length === 0 && (
+              <div className="text-sm text-gray-500 p-2 text-center">
+                No workspaces found
+              </div>
+            )}
           </div>
           
-          {workspaces.length < 3 && (
+          {realWorkspacesCount < 3 && (
             <>
               <Separator className="my-2" />
               <Button
@@ -181,11 +186,21 @@ const WorkspaceSwitcher = () => {
                   setNewWorkspaceDialogOpen(true);
                   setPopoverOpen(false);
                 }}
+                disabled={!!error || workspaces.some(w => w.id.toString().startsWith('temp-'))}
               >
                 <Plus className="mr-2" size={16} />
                 Create New Workspace
               </Button>
             </>
+          )}
+          
+          {error && (
+            <Alert variant="destructive" className="mt-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {error}
+              </AlertDescription>
+            </Alert>
           )}
         </PopoverContent>
       </Popover>
@@ -196,7 +211,7 @@ const WorkspaceSwitcher = () => {
             <DialogTitle>Create New Workspace</DialogTitle>
             <DialogDescription>
               Add a new workspace to organize your SEO projects.
-              {workspaces.length >= 2 && (
+              {realWorkspacesCount >= 2 && (
                 <div className="mt-1 text-amber-600">
                   Note: You can create up to 3 workspaces.
                 </div>

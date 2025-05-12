@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { toast } from '@/hooks/use-toast';
@@ -33,14 +33,22 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [fetchAttempts, setFetchAttempts] = useState<number>(0);
+  const [useTemporaryWorkspace, setUseTemporaryWorkspace] = useState<boolean>(false);
   
   // Maximum number of retry attempts
   const MAX_RETRY_ATTEMPTS = 2;
 
+  // Clear error when user changes
+  useEffect(() => {
+    if (user) {
+      setError(null);
+    }
+  }, [user]);
+
+  // Main effect to fetch workspaces when user changes
   useEffect(() => {
     if (user) {
       console.log("User is authenticated, fetching workspaces");
-      setError(null);
       fetchWorkspaces();
     } else {
       console.log("No user is authenticated, clearing workspace data");
@@ -48,10 +56,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       setCurrentWorkspace(null);
       setLoading(false);
       setError(null);
+      setUseTemporaryWorkspace(false);
     }
   }, [user]);
 
-  const fetchWorkspaces = async () => {
+  const fetchWorkspaces = useCallback(async () => {
     if (!user) {
       console.log("Cannot fetch workspaces: No authenticated user");
       return;
@@ -69,6 +78,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         setWorkspaces([defaultWorkspace]);
         setCurrentWorkspace(defaultWorkspace);
         setLoading(false);
+        setUseTemporaryWorkspace(true);
         setError("Unable to connect to the database. Using a temporary workspace.");
         toast({
           title: "Connection Issue",
@@ -81,63 +91,100 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       // Increment fetch attempts
       setFetchAttempts(prev => prev + 1);
       
-      // First fetch all workspace memberships for this user
-      const { data: memberships, error: membershipError } = await supabase
-        .from('workspace_members')
-        .select('workspace_id, role')
-        .eq('user_id', user.id);
-
-      if (membershipError) {
-        console.error("Error fetching workspace memberships:", membershipError.message);
-        throw membershipError;
-      }
+      // Retry direct workspaces fetch first (simpler query)
+      const { data: directWorkspaces, error: directError } = await supabase
+        .from('workspaces')
+        .select('*')
+        .eq('created_by', user.id)
+        .order('created_at', { ascending: true });
       
-      console.log("Memberships found:", memberships?.length || 0);
-      
-      if (memberships && memberships.length > 0) {
-        // Get all workspace IDs from memberships
-        const workspaceIds = memberships.map(membership => membership.workspace_id);
+      if (!directError && directWorkspaces && directWorkspaces.length > 0) {
+        console.log("Direct workspaces fetched:", directWorkspaces.length);
+        setWorkspaces(directWorkspaces);
         
-        // Fetch workspace details
-        const { data: workspacesData, error: workspacesError } = await supabase
-          .from('workspaces')
-          .select('*')
-          .in('id', workspaceIds)
-          .order('created_at', { ascending: true });
-        
-        if (workspacesError) {
-          console.error("Error fetching workspaces:", workspacesError.message);
-          throw workspacesError;
+        // If there's no current workspace selected, select the first one
+        if (!currentWorkspace) {
+          console.log("Setting default workspace:", directWorkspaces[0].name);
+          setCurrentWorkspace(directWorkspaces[0]);
+        } else {
+          // Ensure the current workspace still exists in the fetched workspaces
+          const currentExists = directWorkspaces.some(w => w.id === currentWorkspace.id);
+          if (!currentExists && directWorkspaces.length > 0) {
+            console.log("Current workspace no longer exists, selecting first workspace");
+            setCurrentWorkspace(directWorkspaces[0]);
+          }
         }
         
-        console.log("Workspaces fetched:", workspacesData?.length || 0, workspacesData);
+        // Reset fetch attempts on success
+        setFetchAttempts(0);
+        setUseTemporaryWorkspace(false);
+        setLoading(false);
+        return;
+      }
+      
+      // If direct fetch didn't work, try to fetch through memberships
+      try {
+        // Now try to get all workspace memberships for this user
+        const { data: memberships, error: membershipError } = await supabase
+          .from('workspace_members')
+          .select('workspace_id')
+          .eq('user_id', user.id);
+
+        if (membershipError) {
+          throw membershipError;
+        }
         
-        if (workspacesData && workspacesData.length > 0) {
-          setWorkspaces(workspacesData);
+        console.log("Memberships found:", memberships?.length || 0);
+        
+        if (memberships && memberships.length > 0) {
+          // Get all workspace IDs from memberships
+          const workspaceIds = memberships.map(membership => membership.workspace_id);
           
-          // If there's no current workspace selected, select the first one
-          if (!currentWorkspace) {
-            console.log("Setting default workspace:", workspacesData[0].name);
-            setCurrentWorkspace(workspacesData[0]);
-          } else {
-            // Ensure the current workspace still exists in the fetched workspaces
-            const currentExists = workspacesData.some(w => w.id === currentWorkspace.id);
-            if (!currentExists && workspacesData.length > 0) {
-              console.log("Current workspace no longer exists, selecting first workspace");
-              setCurrentWorkspace(workspacesData[0]);
-            }
+          // Fetch workspace details
+          const { data: workspacesData, error: workspacesError } = await supabase
+            .from('workspaces')
+            .select('*')
+            .in('id', workspaceIds)
+            .order('created_at', { ascending: true });
+          
+          if (workspacesError) {
+            throw workspacesError;
           }
           
-          // Reset fetch attempts on success
-          setFetchAttempts(0);
-        } else {
-          // No workspaces found, create a default one
-          await createDefaultWorkspaceDirect();
+          console.log("Workspaces fetched:", workspacesData?.length || 0);
+          
+          if (workspacesData && workspacesData.length > 0) {
+            setWorkspaces(workspacesData);
+            
+            // If there's no current workspace selected, select the first one
+            if (!currentWorkspace) {
+              console.log("Setting default workspace:", workspacesData[0].name);
+              setCurrentWorkspace(workspacesData[0]);
+            } else {
+              // Ensure the current workspace still exists in the fetched workspaces
+              const currentExists = workspacesData.some(w => w.id === currentWorkspace.id);
+              if (!currentExists && workspacesData.length > 0) {
+                console.log("Current workspace no longer exists, selecting first workspace");
+                setCurrentWorkspace(workspacesData[0]);
+              }
+            }
+            
+            // Reset fetch attempts on success
+            setFetchAttempts(0);
+            setUseTemporaryWorkspace(false);
+            setLoading(false);
+            return;
+          }
         }
-      } else {
-        // No memberships found, create a default workspace
+        
+        // No workspaces or memberships found, create a default one
         await createDefaultWorkspaceDirect();
+        
+      } catch (innerError: any) {
+        console.error("Failed during membership check:", innerError.message);
+        throw innerError;
       }
+      
     } catch (error: any) {
       console.error('Error fetching workspaces:', error.message);
       
@@ -152,6 +199,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         const defaultWorkspace = createLocalDefaultWorkspace();
         setWorkspaces([defaultWorkspace]);
         setCurrentWorkspace(defaultWorkspace);
+        setUseTemporaryWorkspace(true);
         
         toast({
           title: "Connection Error",
@@ -162,13 +210,25 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, currentWorkspace, fetchAttempts, MAX_RETRY_ATTEMPTS]);
   
   const createLocalDefaultWorkspace = (): Workspace => {
     // Create a temporary workspace that exists only in memory
+    let workspaceName = 'Default Workspace';
+    
+    if (profile?.first_name) {
+      workspaceName = `${profile.first_name}'s Workspace`;
+    } else if (user?.email) {
+      // Extract name from email (before @)
+      const username = user.email.split('@')[0];
+      workspaceName = `${username}'s Workspace`;
+    } else if (user?.user_metadata?.first_name) {
+      workspaceName = `${user.user_metadata.first_name}'s Workspace`;
+    }
+    
     const workspace: Workspace = {
       id: 'temp-' + Date.now(),
-      name: profile?.first_name ? `${profile.first_name}'s Workspace` : 'Default Workspace',
+      name: workspaceName,
       created_by: user?.id || 'unknown',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -193,6 +253,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       } else if (user.email) {
         const username = user.email.split('@')[0];
         defaultName = `${username}'s Workspace`;
+      } else if (user.user_metadata?.first_name) {
+        defaultName = `${user.user_metadata.first_name}'s Workspace`;
       }
       
       console.log("Creating default workspace with name:", defaultName);
@@ -233,6 +295,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       setWorkspaces([workspaceData]);
       setCurrentWorkspace(workspaceData);
       setError(null);
+      setUseTemporaryWorkspace(false);
       
       // Reset fetch attempts on success
       setFetchAttempts(0);
@@ -245,6 +308,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       const defaultWorkspace = createLocalDefaultWorkspace();
       setWorkspaces([defaultWorkspace]);
       setCurrentWorkspace(defaultWorkspace);
+      setUseTemporaryWorkspace(true);
       
       toast({
         title: "Error",
@@ -265,11 +329,20 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       return null;
     }
     
+    if (useTemporaryWorkspace) {
+      toast({
+        title: "Database Connection Error",
+        description: "Cannot create a new workspace while offline. Please try again later.",
+        variant: "destructive",
+      });
+      return null;
+    }
+    
     try {
       console.log("Creating new workspace with name:", name);
       
       // First check if user has reached the workspace limit
-      if (workspaces.length >= 3) {
+      if (workspaces.filter(w => !w.id.toString().startsWith('temp-')).length >= 3) {
         toast({
           title: "Limit Reached",
           description: "You can only create up to 3 workspaces",
@@ -339,6 +412,15 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const updateWorkspace = async (id: string, data: Partial<Workspace>) => {
     if (!user) {
       console.log("Cannot update workspace: No authenticated user");
+      return;
+    }
+    
+    if (useTemporaryWorkspace || id.toString().startsWith('temp-')) {
+      toast({
+        title: "Database Connection Error",
+        description: "Cannot update a workspace while offline. Please try again later.",
+        variant: "destructive",
+      });
       return;
     }
     
