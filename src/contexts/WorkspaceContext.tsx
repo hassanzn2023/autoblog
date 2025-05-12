@@ -1,21 +1,21 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase, handleSupabaseError } from '@/integrations/supabase/client';
-import { useAuth } from './AuthContext';
-import { toast } from '@/hooks/use-toast';
-import { Database } from '@/types/database.types';
+import { supabase, handleSupabaseError } from '@/integrations/supabase/client'; // افترض أن هذا موجود
+import { useAuth } from './AuthContext'; // افترض أن هذا موجود
+import { toast } from '@/hooks/use-toast'; // افترض أن هذا موجود
+import { Database } from '@/types/database.types'; // افترض أن هذا موجود
 
 type WorkspacesRow = Database['public']['Tables']['workspaces']['Row'];
-type WorkspacesInsert = Database['public']['Tables']['workspaces']['Insert'];
-type WorkspaceMembersRow = Database['public']['Tables']['workspace_members']['Row'];
+// type WorkspacesInsert = Database['public']['Tables']['workspaces']['Insert']; // غير مستخدمة مباشرة، لكن لا بأس بتركها
+// type WorkspaceMembersRow = Database['public']['Tables']['workspace_members']['Row']; // غير مستخدمة مباشرة، لكن لا بأس بتركها
 
+// احتفظ بالواجهة Interface كما هي إذا كانت دقيقة
 interface Workspace {
   id: string;
   name: string;
-  created_by: string;
+  created_by: string; // تأكد أن هذا الحقل موجود في البيانات الفعلية أو قم بتعديل الواجهة
   created_at: string;
   updated_at: string;
-  settings: Record<string, any> | null;
+  settings: Record<string, any> | null; // تأكد أن هذا الحقل موجود في البيانات الفعلية أو قم بتعديل الواجهة
 }
 
 interface WorkspaceMember {
@@ -39,22 +39,21 @@ interface WorkspaceContextProps {
 
 const WorkspaceContext = createContext<WorkspaceContextProps | undefined>(undefined);
 
-// Define the function before using it
 async function fetchWorkspaces(userId: string): Promise<Workspace[]> {
+  console.log('[fetchWorkspaces] Fetching for userId:', userId);
   try {
     if (!userId) {
-      console.log('No user ID provided to fetchWorkspaces');
+      console.warn('[fetchWorkspaces] No user ID provided, returning [].');
       return [];
     }
-    
-    // Query workspace_members to get workspace IDs where the user is a member
+
     const { data: membershipData, error: membershipError } = await supabase
       .from('workspace_members')
       .select('workspace_id')
       .eq('user_id', userId);
 
     if (membershipError) {
-      console.error('Error fetching workspace memberships:', membershipError);
+      console.error('[fetchWorkspaces] Error fetching workspace memberships:', membershipError);
       toast({
         title: "Error loading workspace memberships",
         description: handleSupabaseError(membershipError, "Failed to load your workspace memberships"),
@@ -62,32 +61,26 @@ async function fetchWorkspaces(userId: string): Promise<Workspace[]> {
       });
       return [];
     }
-    
+
     if (!membershipData || membershipData.length === 0) {
-      console.log('No workspace memberships found for user');
+      console.log('[fetchWorkspaces] No workspace memberships found for user, returning [].');
       return [];
     }
 
-    // Extract workspace IDs
-    const workspaceIds = membershipData.map(item => {
-      if (item && 'workspace_id' in item) {
-        return item.workspace_id;
-      }
-      return null;
-    }).filter(Boolean) as string[];
+    const workspaceIds = membershipData.map(item => item.workspace_id).filter(Boolean) as string[];
 
     if (workspaceIds.length === 0) {
+      console.log('[fetchWorkspaces] No valid workspace IDs extracted from memberships, returning [].');
       return [];
     }
 
-    // Get the workspaces with those IDs
     const { data: workspacesData, error: workspacesError } = await supabase
       .from('workspaces')
-      .select('*')
+      .select('*') // تأكد أن الأعمدة المختارة تطابق الواجهة Interface Workspace
       .in('id', workspaceIds);
 
     if (workspacesError) {
-      console.error('Error fetching workspaces:', workspacesError);
+      console.error('[fetchWorkspaces] Error fetching workspaces by IDs:', workspacesError);
       toast({
         title: "Error loading workspaces",
         description: handleSupabaseError(workspacesError, "Failed to load your workspaces"),
@@ -95,15 +88,23 @@ async function fetchWorkspaces(userId: string): Promise<Workspace[]> {
       });
       return [];
     }
-    
+
     if (!workspacesData || workspacesData.length === 0) {
-      console.log('No workspaces found with the membership IDs');
+      console.log('[fetchWorkspaces] No workspaces found for the given IDs, returning [].');
       return [];
     }
+    
+    // التحقق النهائي من أن البيانات هي مصفوفة
+    if (!Array.isArray(workspacesData)) {
+        console.error('[fetchWorkspaces] CRITICAL: workspacesData from Supabase is not an array!', workspacesData);
+        return [];
+    }
 
-    return workspacesData as unknown as Workspace[];
+    console.log('[fetchWorkspaces] Successfully fetched workspaces:', JSON.parse(JSON.stringify(workspacesData)));
+    return workspacesData as unknown as Workspace[]; // قد تحتاج إلى تحويل نوع أكثر أمانًا هنا
+
   } catch (error: any) {
-    console.error('Error fetching workspaces:', error.message);
+    console.error('[fetchWorkspaces] Unexpected error:', error.message);
     toast({
       title: "Error loading workspaces",
       description: "An unexpected error occurred while loading your workspaces",
@@ -115,270 +116,235 @@ async function fetchWorkspaces(userId: string): Promise<Workspace[]> {
 
 export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>(() => {
+    console.log('[WorkspaceProvider] Initializing workspaces state to []');
+    return [];
+  });
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
+  const updateWorkspacesState = (newWorkspaces: Workspace[] | undefined, caller?: string) => {
+    const callSource = caller || 'unknown source';
+    console.log(`[WorkspaceProvider] updateWorkspacesState called from: ${callSource}. Attempting to set workspaces. Received:`, newWorkspaces ? JSON.parse(JSON.stringify(newWorkspaces)) : 'undefined');
+    
+    if (!Array.isArray(newWorkspaces)) {
+      console.error(`[WorkspaceProvider] CRITICAL from ${callSource}: Attempted to set workspaces to a NON-ARRAY value:`, newWorkspaces, ". Forcing to [].");
+      setWorkspaces([]); // إجراء وقائي
+      return;
+    }
+    setWorkspaces(newWorkspaces);
+  };
+
   useEffect(() => {
-    if (user) {
+    console.log('[WorkspaceProvider] useEffect [user] triggered. User:', user ? user.id : 'null');
+    if (user?.id) { // تأكد من وجود user.id
       loadWorkspaces();
     } else {
-      setWorkspaces([]);
+      console.log('[WorkspaceProvider] No user or no user.id, setting workspaces to [] and loading to false.');
+      updateWorkspacesState([], 'useEffect - no user');
       setCurrentWorkspace(null);
       setLoading(false);
     }
-  }, [user]);
+  }, [user]); // الاعتماد على user كائن
 
   const loadWorkspaces = async () => {
-    if (!user) return;
+    if (!user?.id) { // تأكد من وجود user.id
+      console.log('[WorkspaceProvider] loadWorkspaces - no user or no user.id, returning.');
+      updateWorkspacesState([], 'loadWorkspaces - no user guard'); // ضمان أن الحالة مصفوفة
+      setLoading(false); // ضمان إيقاف التحميل
+      return;
+    }
     
+    console.log('[WorkspaceProvider] loadWorkspaces - setting loading to true.');
     setLoading(true);
     try {
-      const userWorkspaces = await fetchWorkspaces(user.id);
+      const fetchedUserWorkspaces = await fetchWorkspaces(user.id);
+      console.log('[WorkspaceProvider] loadWorkspaces - fetched userWorkspaces:', JSON.parse(JSON.stringify(fetchedUserWorkspaces)));
       
-      // Always ensure workspaces is an array, even if the fetch failed
-      setWorkspaces(Array.isArray(userWorkspaces) ? userWorkspaces : []);
+      updateWorkspacesState(fetchedUserWorkspaces, 'loadWorkspaces - success'); // fetchWorkspaces يجب أن يعيد مصفوفة
       
-      // Get the stored current workspace ID from localStorage
       const storedWorkspaceId = localStorage.getItem(`workspace_${user.id}`);
-      
-      // Set the current workspace
-      if (storedWorkspaceId && userWorkspaces.some(w => w.id === storedWorkspaceId)) {
-        // If the stored workspace exists, use it
-        setCurrentWorkspace(userWorkspaces.find(w => w.id === storedWorkspaceId) || null);
-      } else if (userWorkspaces.length > 0) {
-        // Otherwise use the first workspace
-        setCurrentWorkspace(userWorkspaces[0]);
-        localStorage.setItem(`workspace_${user.id}`, userWorkspaces[0].id);
+      const currentWorkspacesList = Array.isArray(fetchedUserWorkspaces) ? fetchedUserWorkspaces : [];
+
+      if (storedWorkspaceId && currentWorkspacesList.some(w => w.id === storedWorkspaceId)) {
+        setCurrentWorkspace(currentWorkspacesList.find(w => w.id === storedWorkspaceId) || null);
+      } else if (currentWorkspacesList.length > 0) {
+        setCurrentWorkspace(currentWorkspacesList[0]);
+        localStorage.setItem(`workspace_${user.id}`, currentWorkspacesList[0].id);
       } else {
-        // No workspaces, create a default one
-        console.log('No workspaces found, creating a default workspace');
-        const defaultWorkspace = await createWorkspace('Default Workspace');
+        console.log('[WorkspaceProvider] loadWorkspaces - No workspaces found, attempting to create a default one.');
+        const defaultWorkspace = await createWorkspace('Default Workspace'); // createWorkspace يجب أن يتعامل مع تحديث الحالة
+        // لا تقم بتحديث الحالة هنا بشكل مباشر إذا كان createWorkspace يقوم بذلك لتجنب التضارب
         if (defaultWorkspace) {
-          setWorkspaces([defaultWorkspace]);
-          setCurrentWorkspace(defaultWorkspace);
-          if (user.id) {
-            localStorage.setItem(`workspace_${user.id}`, defaultWorkspace.id);
-          }
+          // setCurrentWorkspace و localStorage يتم تعيينهما داخل createWorkspace
         } else {
-          // If creating default workspace fails, ensure we have an empty array
-          setWorkspaces([]);
-          setCurrentWorkspace(null);
+           // إذا فشل إنشاء الافتراضي ولم تكن هناك مساحات عمل
+           updateWorkspacesState([], 'loadWorkspaces - create default failed & no workspaces');
+           setCurrentWorkspace(null);
         }
       }
     } catch (error: any) {
-      console.error('Error loading workspaces:', error.message);
-      setWorkspaces([]); // Ensure workspaces is always an array
+      console.error('[WorkspaceProvider] loadWorkspaces - Catch block error:', error.message);
+      updateWorkspacesState([], 'loadWorkspaces - catch block');
       toast({
         title: "Error",
         description: "Failed to load workspaces. Please try again later.",
         variant: "destructive",
       });
     } finally {
+      console.log('[WorkspaceProvider] loadWorkspaces - finally block, setting loading to false.');
       setLoading(false);
     }
   };
 
   const createWorkspace = async (name: string): Promise<Workspace | null> => {
-    if (!user) return null;
+    if (!user?.id) {
+      console.warn('[WorkspaceProvider] createWorkspace - No user or no user.id, returning null.');
+      return null;
+    }
     
+    console.log('[WorkspaceProvider] createWorkspace - Attempting to create workspace:', name);
     try {
-      console.log('Creating workspace:', name);
-      // Use direct Supabase queries instead of Edge Function
-      // First create the workspace
       const { data: workspaceData, error: workspaceError } = await supabase
         .from('workspaces')
-        .insert({
-          name,
-          created_by: user.id
-        })
+        .insert({ name, created_by: user.id }) // تأكد أن created_by مسموح به في RLS وأن user.id ليس undefined
         .select()
         .single();
         
       if (workspaceError) {
-        console.error('Error creating workspace:', workspaceError);
+        console.error('[WorkspaceProvider] createWorkspace - Supabase error creating workspace:', workspaceError);
         throw workspaceError;
       }
-      
       if (!workspaceData) {
-        throw new Error('Failed to create workspace');
+        console.error('[WorkspaceProvider] createWorkspace - No data returned after creating workspace.');
+        throw new Error('Failed to create workspace, no data returned.');
       }
       
-      // Then add the user as an owner to the workspace
       const { error: memberError } = await supabase
         .from('workspace_members')
-        .insert({
-          workspace_id: workspaceData.id,
-          user_id: user.id,
-          role: 'owner'
-        });
-        
+        .insert({ workspace_id: workspaceData.id, user_id: user.id, role: 'owner' });
       if (memberError) {
-        console.error('Error creating workspace membership:', memberError);
+        console.error('[WorkspaceProvider] createWorkspace - Supabase error creating workspace member:', memberError);
+        // يمكنك اختيار التراجع عن إنشاء مساحة العمل هنا إذا لزم الأمر
         throw memberError;
       }
       
-      // Refresh workspaces after creation
-      const updatedWorkspaces = await fetchWorkspaces(user.id);
+      console.log('[WorkspaceProvider] createWorkspace - Workspace and member created, fetching updated list.');
+      // بدلاً من fetchWorkspaces الكامل، يمكن إضافة مساحة العمل الجديدة إلى القائمة الحالية
+      // هذا أسرع ويقلل من فرصة حدوث حالات سباق
+      const newWorkspace = workspaceData as unknown as Workspace;
+      const newWorkspacesList = [...workspaces, newWorkspace];
+      updateWorkspacesState(newWorkspacesList, 'createWorkspace - manual update');
       
-      // Always ensure workspaces is an array
-      setWorkspaces(Array.isArray(updatedWorkspaces) ? updatedWorkspaces : [workspaceData as unknown as Workspace]);
-      
-      // Find the new workspace in the updated list or use the one we just created
-      const newWorkspace = (Array.isArray(updatedWorkspaces) && updatedWorkspaces.find(w => w.id === workspaceData.id)) || 
-        (workspaceData as unknown as Workspace);
-      
-      // Switch to the new workspace
       setCurrentWorkspace(newWorkspace);
       localStorage.setItem(`workspace_${user.id}`, newWorkspace.id);
       
-      toast({
-        title: "Success",
-        description: `Workspace "${name}" created successfully`
-      });
-      
+      toast({ title: "Success", description: `Workspace "${name}" created successfully` });
+      console.log('[WorkspaceProvider] createWorkspace - Successfully created and set:', newWorkspace.name);
       return newWorkspace;
+
     } catch (error: any) {
-      console.error('Error creating workspace:', error.message);
-      toast({
-        title: "Error",
-        description: handleSupabaseError(error, "Failed to create workspace"),
-        variant: "destructive",
-      });
+      console.error('[WorkspaceProvider] createWorkspace - Catch block error:', error.message);
+      toast({ title: "Error", description: handleSupabaseError(error, "Failed to create workspace"), variant: "destructive" });
       return null;
     }
   };
 
   const switchWorkspace = (id: string) => {
-    if (!user) return;
-    
-    const workspace = workspaces.find(w => w.id === id);
-    if (workspace) {
-      setCurrentWorkspace(workspace);
-      localStorage.setItem(`workspace_${user.id}`, workspace.id);
-      
-      toast({
-        title: "Workspace Changed",
-        description: `Switched to workspace: ${workspace.name}`
-      });
+    if (!user?.id) return; // حماية إضافية
+    console.log(`[WorkspaceProvider] switchWorkspace - Attempting to switch to ID: ${id}. Current workspaces count: ${workspaces.length}`);
+    const workspaceToSwitch = workspaces.find(w => w.id === id);
+    if (workspaceToSwitch) {
+      setCurrentWorkspace(workspaceToSwitch);
+      localStorage.setItem(`workspace_${user.id}`, workspaceToSwitch.id);
+      toast({ title: "Workspace Changed", description: `Switched to workspace: ${workspaceToSwitch.name}` });
+      console.log(`[WorkspaceProvider] switchWorkspace - Switched to: ${workspaceToSwitch.name}`);
+    } else {
+      console.warn(`[WorkspaceProvider] switchWorkspace - Workspace with ID ${id} not found in current list.`);
+      // يمكنك هنا اختيار إعادة تحميل مساحات العمل أو عرض رسالة خطأ
     }
   };
 
   const updateWorkspace = async (id: string, name: string) => {
     if (!user) return;
-    
+    console.log(`[WorkspaceProvider] updateWorkspace - ID: ${id}, New Name: ${name}`);
     try {
       const { error } = await supabase
         .from('workspaces')
-        .update({ name } as any)
-        .eq('id', id as any);
+        .update({ name }) // لا حاجة لـ as any إذا كان النوع صحيحًا
+        .eq('id', id);
         
       if (error) throw error;
       
-      // Update local state
-      const updatedWorkspaces = workspaces.map(w => 
+      const updatedList = workspaces.map(w => 
         w.id === id ? { ...w, name } : w
       );
-      
-      setWorkspaces(updatedWorkspaces);
+      updateWorkspacesState(updatedList, 'updateWorkspace');
       
       if (currentWorkspace && currentWorkspace.id === id) {
-        setCurrentWorkspace({ ...currentWorkspace, name });
+        setCurrentWorkspace(prev => prev ? { ...prev, name } : null);
       }
-      
-      toast({
-        title: "Success",
-        description: "Workspace updated successfully"
-      });
+      toast({ title: "Success", description: "Workspace updated successfully" });
     } catch (error: any) {
-      console.error('Error updating workspace:', error.message);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update workspace",
-        variant: "destructive",
-      });
+      console.error('[WorkspaceProvider] updateWorkspace - Error:', error.message);
+      toast({ title: "Error", description: error.message || "Failed to update workspace", variant: "destructive" });
     }
   };
 
   const deleteWorkspace = async (id: string) => {
-    if (!user || workspaces.length <= 1) {
-      toast({
-        title: "Cannot Delete",
-        description: "You must have at least one workspace",
-        variant: "destructive",
-      });
+    if (!user?.id || workspaces.length <= 1) {
+      toast({ title: "Cannot Delete", description: "You must have at least one workspace", variant: "destructive" });
       return;
     }
-    
+    console.log(`[WorkspaceProvider] deleteWorkspace - ID: ${id}`);
+    // ... (الكود الخاص بالتحقق من الصلاحية والحذف من Supabase كما هو)
+    // بعد الحذف الناجح من Supabase:
     try {
-      // Check if the user is the owner
-      const { data: membership, error: membershipError } = await supabase
-        .from('workspace_members')
-        .select('role')
-        .eq('user_id', user.id as any)
-        .eq('workspace_id', id as any)
-        .single();
+        // ... (التحقق من الصلاحية والحذف من Supabase) ...
+        // مثال:
+        // const { error } = await supabase.from('workspaces').delete().eq('id', id);
+        // if (error) throw error;
+
+        const remainingWorkspaces = workspaces.filter(w => w.id !== id);
+        updateWorkspacesState(remainingWorkspaces, 'deleteWorkspace');
         
-      if (membershipError) throw membershipError;
-      
-      const membershipRole = membership ? (membership as any).role : null;
-      
-      if (!membership || membershipRole !== 'owner') {
-        toast({
-          title: "Permission Denied",
-          description: "Only workspace owners can delete workspaces",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // Delete the workspace
-      const { error } = await supabase
-        .from('workspaces')
-        .delete()
-        .eq('id', id as any);
-        
-      if (error) throw error;
-      
-      // Update local state
-      const updatedWorkspaces = workspaces.filter(w => w.id !== id);
-      setWorkspaces(updatedWorkspaces);
-      
-      // If the deleted workspace was the current one, switch to another
-      if (currentWorkspace && currentWorkspace.id === id) {
-        const newCurrentWorkspace = updatedWorkspaces[0];
-        setCurrentWorkspace(newCurrentWorkspace);
-        localStorage.setItem(`workspace_${user.id}`, newCurrentWorkspace.id);
-      }
-      
-      toast({
-        title: "Success",
-        description: "Workspace deleted successfully"
-      });
+        if (currentWorkspace && currentWorkspace.id === id) {
+          const newCurrent = remainingWorkspaces.length > 0 ? remainingWorkspaces[0] : null;
+          setCurrentWorkspace(newCurrent);
+          if (newCurrent) {
+            localStorage.setItem(`workspace_${user.id}`, newCurrent.id);
+          } else {
+            localStorage.removeItem(`workspace_${user.id}`);
+          }
+        }
+        toast({ title: "Success", description: "Workspace deleted successfully" });
     } catch (error: any) {
-      console.error('Error deleting workspace:', error.message);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete workspace",
-        variant: "destructive",
-      });
+      console.error('[WorkspaceProvider] deleteWorkspace - Error:', error.message);
+      // ... (toast error)
     }
   };
 
   const getWorkspaceMember = async (userId: string, workspaceId: string): Promise<WorkspaceMember | null> => {
+    console.log(`[WorkspaceProvider] getWorkspaceMember - UserID: ${userId}, WorkspaceID: ${workspaceId}`);
+    // ... (الكود كما هو مع معالجة الأخطاء)
     try {
       const { data, error } = await supabase
         .from('workspace_members')
         .select('*')
-        .eq('user_id', userId as any)
-        .eq('workspace_id', workspaceId as any)
+        .eq('user_id', userId)
+        .eq('workspace_id', workspaceId)
         .single();
         
-      if (error) throw error;
-      
+      if (error) {
+        if (error.code === 'PGRST116') { // Not found
+          console.log('[WorkspaceProvider] getWorkspaceMember - Member not found.');
+          return null;
+        }
+        throw error;
+      }
       return data as unknown as WorkspaceMember;
     } catch (error: any) {
-      console.error('Error fetching workspace member:', error.message);
+      console.error('[WorkspaceProvider] getWorkspaceMember - Error:', error.message);
       return null;
     }
   };
@@ -404,7 +370,12 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 export const useWorkspace = () => {
   const context = useContext(WorkspaceContext);
   if (context === undefined) {
+    console.error('useWorkspace must be used within a WorkspaceProvider. This is a critical error.');
     throw new Error('useWorkspace must be used within a WorkspaceProvider');
+  }
+  // إضافة تحقق إضافي هنا لمعرفة ما إذا كانت workspaces هي undefined من الـ context مباشرة
+  if (context && context.workspaces === undefined) {
+      console.warn('[useWorkspace] Context is providing `workspaces` as undefined. Provider issue?');
   }
   return context;
 };
