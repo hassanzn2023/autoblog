@@ -114,6 +114,19 @@ serve(async (req) => {
     const cleanContent = content.replace(/<[^>]*>/g, ' ');
     const textSample = cleanContent.slice(0, 1000); // Limit content length
     
+    // Detect language (Arabic or English)
+    const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+    const hasArabicText = arabicRegex.test(cleanContent) || arabicRegex.test(primaryKeyword);
+    
+    // Prepare system prompt based on language
+    const systemPrompt = hasArabicText 
+      ? 'أنت مساعد مفيد يولد اقتراحات الكلمات الرئيسية الثانوية لتحسين محركات البحث.'
+      : 'You are a helpful assistant that generates secondary keyword suggestions for SEO optimization.';
+    
+    const userPrompt = hasArabicText
+      ? `بناءً على المحتوى التالي والكلمة الرئيسية "${primaryKeyword}"، اقترح ${keywordCount} كلمات رئيسية ثانوية تدعم الكلمة الرئيسية. قم بتنسيق الإخراج كمصفوفة JSON من السلاسل بدون شرح.\n\nالمحتوى: ${textSample}`
+      : `Based on the following content and primary keyword "${primaryKeyword}", suggest ${keywordCount} secondary SEO keywords that support the primary keyword. Format the output as a JSON array of strings without explanation.\n\nContent: ${textSample}`;
+    
     // Call OpenAI API
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -126,11 +139,11 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that generates secondary keyword suggestions for SEO optimization.'
+            content: systemPrompt
           },
           {
             role: 'user',
-            content: `Based on the following content and primary keyword "${primaryKeyword}", suggest ${keywordCount} secondary SEO keywords that support the primary keyword. Format the output as a JSON array of strings without explanation.\n\nContent: ${textSample}`
+            content: userPrompt
           }
         ],
         temperature: 0.7,

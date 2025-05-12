@@ -1,37 +1,140 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { generateKeywordSuggestions, generateSecondaryKeywordSuggestions, KeywordSuggestion } from '@/services/openaiService';
+import { Loader } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface KeywordResearchStepProps {
   primaryKeyword: string;
   secondaryKeywords: string[];
   onUpdate: (field: string, value: any) => void;
+  content: string;
+  contentConfirmed: boolean;
 }
 
 const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
   primaryKeyword,
   secondaryKeywords,
   onUpdate,
+  content,
+  contentConfirmed,
 }) => {
-  const handleAddSecondaryKeyword = () => {
-    // This would add a new secondary keyword in a real implementation
-    onUpdate('secondaryKeywords', [...secondaryKeywords, '']);
+  const { user } = useAuth();
+  const { currentWorkspace } = useWorkspace();
+  
+  const [isGeneratingPrimary, setIsGeneratingPrimary] = useState(false);
+  const [isGeneratingSecondary, setIsGeneratingSecondary] = useState(false);
+  const [regenerationNote, setRegenerationNote] = useState('');
+  const [primaryKeywordSuggestions, setPrimaryKeywordSuggestions] = useState<KeywordSuggestion[]>([]);
+  const [secondaryKeywordSuggestions, setSecondaryKeywordSuggestions] = useState<KeywordSuggestion[]>([]);
+  
+  const handleAddSecondaryKeyword = (keyword: string) => {
+    if (secondaryKeywords.length < 7 && !secondaryKeywords.includes(keyword)) {
+      onUpdate('secondaryKeywords', [...secondaryKeywords, keyword]);
+    } else if (secondaryKeywords.includes(keyword)) {
+      onUpdate('secondaryKeywords', secondaryKeywords.filter((k) => k !== keyword));
+    }
   };
 
-  const handleSuggestPrimary = () => {
-    // This would trigger an AI suggestion in a real implementation
-    console.log('Suggesting primary keywords...');
+  const handleSuggestPrimary = async () => {
+    if (!contentConfirmed || !content) {
+      toast({
+        title: "Content Required",
+        description: "Please confirm your content before generating keywords.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setIsGeneratingPrimary(true);
+      
+      const suggestions = await generateKeywordSuggestions(
+        content, 
+        3, 
+        regenerationNote,
+        user?.id,
+        currentWorkspace?.id
+      );
+      
+      setPrimaryKeywordSuggestions(suggestions);
+      
+      if (suggestions.length > 0 && !primaryKeyword) {
+        onUpdate('primaryKeyword', suggestions[0].text);
+      }
+      
+      toast({
+        title: "Keywords Generated",
+        description: "Primary keyword suggestions have been generated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate keyword suggestions",
+        variant: "destructive"
+      });
+      console.error("Error generating primary keywords:", error);
+    } finally {
+      setIsGeneratingPrimary(false);
+    }
   };
 
-  const handleSuggestSecondary = () => {
-    // This would trigger an AI suggestion in a real implementation
-    console.log('Suggesting secondary keywords...');
+  const handleSuggestSecondary = async () => {
+    if (!contentConfirmed || !content) {
+      toast({
+        title: "Content Required",
+        description: "Please confirm your content first.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!primaryKeyword) {
+      toast({
+        title: "Primary Keyword Required",
+        description: "Please select a primary keyword first.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setIsGeneratingSecondary(true);
+      
+      const suggestions = await generateSecondaryKeywordSuggestions(
+        primaryKeyword,
+        content,
+        5,
+        regenerationNote,
+        user?.id,
+        currentWorkspace?.id
+      );
+      
+      setSecondaryKeywordSuggestions(suggestions);
+      
+      toast({
+        title: "Keywords Generated",
+        description: "Secondary keyword suggestions have been generated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate keyword suggestions",
+        variant: "destructive"
+      });
+      console.error("Error generating secondary keywords:", error);
+    } finally {
+      setIsGeneratingSecondary(false);
+    }
   };
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in" dir={/[\u0600-\u06FF]/.test(content) ? 'rtl' : 'ltr'}>
       <div className="space-y-4">
         <div className="space-y-2">
           <Label className="text-base font-medium">Primary Keyword</Label>
@@ -50,15 +153,46 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
           variant="outline"
           onClick={handleSuggestPrimary}
           className="flex items-center gap-2 mt-1"
+          disabled={isGeneratingPrimary || !contentConfirmed}
         >
-          <span>🔄</span> Suggest Primary Keywords
+          {isGeneratingPrimary ? (
+            <>
+              <Loader size={16} className="animate-spin" />
+              <span>Generating...</span>
+            </>
+          ) : (
+            <>
+              <span>🔄</span> Suggest Primary Keywords
+            </>
+          )}
         </Button>
+        
+        {primaryKeywordSuggestions.length > 0 && (
+          <div className="mt-3">
+            <p className="text-sm text-gray-500 mb-2">Suggestions:</p>
+            <div className="flex flex-wrap gap-2">
+              {primaryKeywordSuggestions.map((keyword) => (
+                <div 
+                  key={keyword.id}
+                  className={`px-3 py-1.5 rounded-full text-sm cursor-pointer ${
+                    primaryKeyword === keyword.text 
+                      ? 'bg-purple-600 text-white' 
+                      : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
+                  onClick={() => onUpdate('primaryKeyword', keyword.text)}
+                >
+                  {keyword.text}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">
         <div className="space-y-2">
           <Label className="text-base font-medium">Secondary Keywords</Label>
-          <p className="text-sm text-gray-500">Manually Add (up to 7):</p>
+          <p className="text-sm text-gray-500">Selected Keywords (up to 7):</p>
           <div className="flex flex-wrap gap-2 mb-2">
             {secondaryKeywords.map((keyword, index) => (
               <div key={index} className="bg-gray-100 px-3 py-1 rounded-full text-sm flex items-center">
@@ -76,14 +210,6 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
             ))}
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="border-dashed border-gray-300 text-purple-600"
-              size="sm"
-              onClick={handleAddSecondaryKeyword}
-            >
-              + Add Keyword
-            </Button>
             <p className="text-xs text-gray-500">
               {secondaryKeywords.length} of 7 added
             </p>
@@ -95,9 +221,68 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
           variant="outline"
           onClick={handleSuggestSecondary}
           className="flex items-center gap-2 mt-1"
+          disabled={isGeneratingSecondary || !primaryKeyword || !contentConfirmed}
         >
-          <span>🔄</span> Suggest Secondary Keywords
+          {isGeneratingSecondary ? (
+            <>
+              <Loader size={16} className="animate-spin" />
+              <span>Generating...</span>
+            </>
+          ) : (
+            <>
+              <span>🔄</span> Suggest Secondary Keywords
+            </>
+          )}
         </Button>
+        
+        {secondaryKeywordSuggestions.length > 0 && (
+          <div className="mt-3">
+            <p className="text-sm text-gray-500 mb-2">Suggestions (click to select):</p>
+            <div className="flex flex-wrap gap-2">
+              {secondaryKeywordSuggestions.map((keyword) => (
+                <div 
+                  key={keyword.id}
+                  className={`px-3 py-1.5 rounded-full text-sm cursor-pointer ${
+                    secondaryKeywords.includes(keyword.text) 
+                      ? 'bg-purple-600 text-white' 
+                      : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
+                  onClick={() => handleAddSecondaryKeyword(keyword.text)}
+                >
+                  {keyword.text}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {(primaryKeywordSuggestions.length > 0 || secondaryKeywordSuggestions.length > 0) && (
+          <div className="mt-4">
+            <Label className="text-sm">Regeneration Note</Label>
+            <div className="flex gap-2">
+              <Input 
+                type="text"
+                placeholder="Add note for regeneration..."
+                value={regenerationNote}
+                onChange={(e) => setRegenerationNote(e.target.value)}
+                className="flex-1"
+              />
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  if (primaryKeywordSuggestions.length > 0) {
+                    handleSuggestPrimary();
+                  } else if (secondaryKeywordSuggestions.length > 0) {
+                    handleSuggestSecondary();
+                  }
+                }}
+              >
+                Regenerate
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

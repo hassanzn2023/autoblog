@@ -30,6 +30,12 @@ export async function extractContentFromUrl(url: string): Promise<ExtractedConte
       return getFallbackContent(url);
     }
     
+    // Check if the content contains Arabic text
+    const hasArabicText = containsArabicText(data.content);
+    if (hasArabicText) {
+      data.rtl = true;
+    }
+    
     return data;
   } catch (error) {
     console.error("Error extracting content:", error);
@@ -47,11 +53,19 @@ export async function extractContentFromUrl(url: string): Promise<ExtractedConte
 }
 
 /**
+ * Check if content contains Arabic text
+ */
+function containsArabicText(text: string): boolean {
+  const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+  return arabicRegex.test(text);
+}
+
+/**
  * Get fallback content when all extraction methods fail
  */
 function getFallbackContent(url: string): ExtractedContent {
   // Arabic content example
-  if (url.includes('almayadeen.net') || /\.ar$/.test(url) || url.includes('arabic')) {
+  if (url.includes('almayadeen.net') || /\.ar$/.test(url) || url.includes('arabic') || containsArabicText(url)) {
     return {
       title: "عمليتين ضد الاحتلال الإسرائيلي",
       content: `
@@ -70,7 +84,8 @@ function getFallbackContent(url: string): ExtractedContent {
       length: 500,
       excerpt: "أعلنت المقاومة الفلسطينية اليوم تنفيذ عمليتين نوعيتين ضد قوات الاحتلال الإسرائيلي.",
       byline: "فريق التحرير",
-      siteName: "الميادين نت"
+      siteName: "الميادين نت",
+      rtl: true
     };
   }
   
