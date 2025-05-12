@@ -1,16 +1,19 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { User, Settings, LogOut, ChevronRight, Palette, Gift, MessageSquare, Key, Users, BarChart3, Lightbulb, Link as LinkIcon } from 'lucide-react';
 import ThemeSelector from './ThemeSelector';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useAuth } from '@/contexts/AuthContext';
 
 type ThemeOption = 'comfort' | 'light' | 'dark';
 
 const ProfileDropdown = () => {
+  const { user, profile, signOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [showThemeSelector, setShowThemeSelector] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   
   // Check for stored theme preference or default to 'light'
   const [theme, setTheme] = useState<ThemeOption>(() => {
@@ -55,6 +58,33 @@ const ProfileDropdown = () => {
     setShowThemeSelector(!showThemeSelector);
   };
 
+  const handleSignOut = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    await signOut();
+    setIsOpen(false);
+    navigate('/auth');
+  };
+
+  // Generate initials from user profile or email
+  const getInitials = () => {
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name.charAt(0)}${profile.last_name.charAt(0)}`.toUpperCase();
+    } else if (user?.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    return 'U';
+  };
+
+  // Get display name
+  const getDisplayName = () => {
+    if (profile?.first_name) {
+      return profile.first_name;
+    } else if (user?.email) {
+      return user.email.split('@')[0];
+    }
+    return 'User';
+  };
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button 
@@ -62,15 +92,18 @@ const ProfileDropdown = () => {
         onClick={() => setIsOpen(!isOpen)}
       >
         <Avatar>
-          <AvatarFallback>MA</AvatarFallback>
+          {profile?.avatar_url ? (
+            <AvatarImage src={profile.avatar_url} alt={getDisplayName()} />
+          ) : null}
+          <AvatarFallback>{getInitials()}</AvatarFallback>
         </Avatar>
       </button>
       
       {isOpen && (
         <div className="absolute right-0 mt-2 w-64 bg-background rounded-lg shadow-lg border border-border z-50">
           <div className="p-4 border-b border-border">
-            <div className="font-medium text-foreground">Malek</div>
-            <div className="text-sm text-muted-foreground">malekalmout2016@gmail.com</div>
+            <div className="font-medium text-foreground">{getDisplayName()}</div>
+            <div className="text-sm text-muted-foreground">{user?.email}</div>
             <div className="flex items-center mt-2">
               <span className="text-xs text-muted-foreground">Free Plan</span>
               <Link to="/billing" className="text-xs text-primary ml-2 font-medium">Upgrade</Link>
@@ -145,10 +178,13 @@ const ProfileDropdown = () => {
               <span>Help Center</span>
             </Link>
             
-            <Link to="/logout" className="flex items-center gap-3 p-2 hover:bg-accent hover:text-accent-foreground rounded-md">
+            <button 
+              className="w-full flex items-center gap-3 p-2 hover:bg-accent hover:text-accent-foreground rounded-md"
+              onClick={handleSignOut}
+            >
               <LogOut size={18} className="text-muted-foreground" />
               <span>Sign Out</span>
-            </Link>
+            </button>
           </div>
         </div>
       )}

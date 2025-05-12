@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import DashboardOverview from '@/components/DashboardOverview';
 
 const Index = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   return (
     <div className="container mx-auto p-6 max-w-6xl">
