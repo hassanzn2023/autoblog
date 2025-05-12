@@ -7,6 +7,8 @@ import { toast } from '@/hooks/use-toast';
 import { Database } from '@/types/database.types';
 
 type ApiKeysRow = Database['public']['Tables']['api_keys']['Row'];
+type ApiKeysInsert = Database['public']['Tables']['api_keys']['Insert'];
+type ApiKeysUpdate = Database['public']['Tables']['api_keys']['Update'];
 
 interface APIKey {
   id: string;
@@ -54,8 +56,8 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       const { data, error } = await supabase
         .from('api_keys')
         .select('*')
-        .eq('user_id', user.id)
-        .eq('workspace_id', currentWorkspace.id);
+        .eq('user_id', user.id as string)
+        .eq('workspace_id', currentWorkspace.id as string);
         
       if (error) throw error;
       
@@ -81,26 +83,31 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       
       if (existingKey) {
         // Update existing key
+        const updateData: ApiKeysUpdate = {
+          api_key: key,
+          is_active: true,
+        };
+        
         const { error } = await supabase
           .from('api_keys')
-          .update({ 
-            api_key: key,
-            is_active: true,
-          })
-          .eq('id', existingKey.id);
+          .update(updateData)
+          .eq('id', existingKey.id)
+          .eq('user_id', user.id);
           
         if (error) throw error;
       } else {
         // Create new key
+        const insertData: ApiKeysInsert = {
+          user_id: user.id,
+          workspace_id: currentWorkspace.id,
+          api_type: type,
+          api_key: key,
+          is_active: true,
+        };
+        
         const { error } = await supabase
           .from('api_keys')
-          .insert({
-            user_id: user.id,
-            workspace_id: currentWorkspace.id,
-            api_type: type,
-            api_key: key,
-            is_active: true,
-          });
+          .insert(insertData);
           
         if (error) throw error;
       }
@@ -125,12 +132,14 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
     if (!user || !currentWorkspace) return;
     
     try {
+      const updateData: ApiKeysUpdate = {
+        api_key: key,
+        is_active: active,
+      };
+      
       const { error } = await supabase
         .from('api_keys')
-        .update({ 
-          api_key: key,
-          is_active: active,
-        })
+        .update(updateData)
         .eq('id', id)
         .eq('user_id', user.id);
         
