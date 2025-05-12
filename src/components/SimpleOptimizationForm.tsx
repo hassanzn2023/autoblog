@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -157,7 +156,21 @@ const SimpleOptimizationForm = () => {
     
     // Auto-generate primary keywords immediately after content is confirmed
     setIsAutoGeneratingKeywords(true);
-    await handleGeneratePrimaryKeywords();
+    try {
+      await handleGeneratePrimaryKeywords();
+      toast({
+        title: "Keywords Generated",
+        description: "Keywords have been automatically generated based on your content",
+      });
+    } catch (error) {
+      console.error("Error auto-generating keywords:", error);
+      toast({
+        title: "Error",
+        description: "Failed to automatically generate keywords. Please try generating them manually.",
+        variant: "destructive"
+      });
+      setIsAutoGeneratingKeywords(false);
+    }
   };
   
   const handleGeneratePrimaryKeywords = async () => {
@@ -166,21 +179,43 @@ const SimpleOptimizationForm = () => {
     try {
       setIsGeneratingPrimary(true);
       
+      if (!user || !currentWorkspace) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to generate keywords with AI",
+          variant: "destructive"
+        });
+        setIsGeneratingPrimary(false);
+        setIsAutoGeneratingKeywords(false);
+        return;
+      }
+      
+      console.log("Generating primary keywords with user:", user.id);
+      console.log("Current workspace:", currentWorkspace.id);
+      
       const suggestions = await generateKeywordSuggestions(
         content,
         3,
         "",
-        user?.id,
-        currentWorkspace?.id
+        user.id,
+        currentWorkspace.id
       );
       
-      setPrimaryKeywordSuggestions(suggestions);
-      
-      if (suggestions.length > 0 && !primaryKeyword) {
-        setPrimaryKeyword(suggestions[0].text);
+      if (suggestions && suggestions.length > 0) {
+        setPrimaryKeywordSuggestions(suggestions);
         
-        // Auto-generate secondary keywords based on the first primary keyword
-        handleGenerateSecondaryKeywords(suggestions[0].text);
+        if (suggestions.length > 0 && !primaryKeyword) {
+          setPrimaryKeyword(suggestions[0].text);
+          
+          // Auto-generate secondary keywords based on the first primary keyword
+          handleGenerateSecondaryKeywords(suggestions[0].text);
+        }
+      } else {
+        toast({
+          title: "No Keywords Generated",
+          description: "No keywords could be generated from your content. Please check your content and try again.",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error("Error generating primary keywords:", error);
@@ -201,16 +236,38 @@ const SimpleOptimizationForm = () => {
     try {
       setIsGeneratingSecondary(true);
       
+      if (!user || !currentWorkspace) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to generate secondary keywords with AI",
+          variant: "destructive"
+        });
+        setIsGeneratingSecondary(false);
+        return;
+      }
+      
+      console.log("Generating secondary keywords with user:", user.id);
+      console.log("Current workspace:", currentWorkspace.id);
+      console.log("Primary keyword:", primaryKey);
+      
       const suggestions = await generateSecondaryKeywordSuggestions(
         primaryKey,
         content,
         5,
         "",
-        user?.id,
-        currentWorkspace?.id
+        user.id,
+        currentWorkspace.id
       );
       
-      setSecondaryKeywordSuggestions(suggestions);
+      if (suggestions && suggestions.length > 0) {
+        setSecondaryKeywordSuggestions(suggestions);
+      } else {
+        toast({
+          title: "No Secondary Keywords Generated",
+          description: "No secondary keywords could be generated. Please check your primary keyword and content.",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error("Error generating secondary keywords:", error);
       toast({

@@ -2,6 +2,7 @@ import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { parseWordDocument } from './documentParserService';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 // Interface for the keyword suggestion
 export interface KeywordSuggestion {
@@ -20,10 +21,12 @@ export const generateKeywordSuggestions = async (
   workspaceId?: string
 ): Promise<KeywordSuggestion[]> => {
   console.log(`Generating ${count} keyword suggestions`);
+  console.log(`User authenticated: ${Boolean(userId && workspaceId)}`);
   
   // Check if user is authenticated
   if (userId && workspaceId) {
     try {
+      console.log("Calling generate-keywords function with authenticated user");
       // Call the Supabase Edge Function
       const { data, error } = await supabase.functions.invoke('generate-keywords', {
         body: { content, count, note, userId, workspaceId }
@@ -31,18 +34,44 @@ export const generateKeywordSuggestions = async (
       
       if (error) {
         console.error("Error calling generate-keywords function:", error);
-        return generateMockKeywords(content, count);
+        toast({
+          title: "Error Generating Keywords",
+          description: error.message || "Failed to generate keywords from OpenAI",
+          variant: "destructive"
+        });
+        return [];
       }
       
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        console.error("No keywords returned from edge function:", data);
+        toast({
+          title: "No Keywords Generated",
+          description: "The AI couldn't generate keywords based on your content",
+          variant: "destructive"
+        });
+        return [];
+      }
+      
+      console.log("Keywords generated successfully:", data);
       return data;
     } catch (error) {
       console.error("Error generating keywords:", error);
-      return generateMockKeywords(content, count);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate keywords",
+        variant: "destructive"
+      });
+      return [];
     }
+  } else {
+    console.log("User not authenticated, cannot generate keywords");
+    toast({
+      title: "Authentication Required",
+      description: "Please log in to generate keywords with AI",
+      variant: "destructive"
+    });
+    return [];
   }
-  
-  // Default to mock data if not authenticated
-  return generateMockKeywords(content, count);
 };
 
 /**
@@ -57,10 +86,12 @@ export const generateSecondaryKeywordSuggestions = async (
   workspaceId?: string
 ): Promise<KeywordSuggestion[]> => {
   console.log(`Generating ${count} secondary keyword suggestions for "${primaryKeyword}"`);
+  console.log(`User authenticated: ${Boolean(userId && workspaceId)}`);
   
   // Check if user is authenticated
   if (userId && workspaceId) {
     try {
+      console.log("Calling generate-secondary-keywords function with authenticated user");
       // Call the Supabase Edge Function
       const { data, error } = await supabase.functions.invoke('generate-secondary-keywords', {
         body: { primaryKeyword, content, count, note, userId, workspaceId }
@@ -68,18 +99,44 @@ export const generateSecondaryKeywordSuggestions = async (
       
       if (error) {
         console.error("Error calling generate-secondary-keywords function:", error);
-        return generateMockSecondaryKeywords(primaryKeyword, content, count);
+        toast({
+          title: "Error Generating Keywords",
+          description: error.message || "Failed to generate secondary keywords from OpenAI",
+          variant: "destructive"
+        });
+        return [];
       }
       
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        console.error("No secondary keywords returned from edge function:", data);
+        toast({
+          title: "No Keywords Generated",
+          description: "The AI couldn't generate secondary keywords based on your content and primary keyword",
+          variant: "destructive"
+        });
+        return [];
+      }
+      
+      console.log("Secondary keywords generated successfully:", data);
       return data;
     } catch (error) {
       console.error("Error generating secondary keywords:", error);
-      return generateMockSecondaryKeywords(primaryKeyword, content, count);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate secondary keywords",
+        variant: "destructive"
+      });
+      return [];
     }
+  } else {
+    console.log("User not authenticated, cannot generate secondary keywords");
+    toast({
+      title: "Authentication Required",
+      description: "Please log in to generate secondary keywords with AI",
+      variant: "destructive"
+    });
+    return [];
   }
-  
-  // Default to mock data if not authenticated
-  return generateMockSecondaryKeywords(primaryKeyword, content, count);
 };
 
 /**
