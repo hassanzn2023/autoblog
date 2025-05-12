@@ -7,7 +7,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export interface DatabaseTypes {
+export interface Database {
   public: {
     Tables: {
       profiles: {
