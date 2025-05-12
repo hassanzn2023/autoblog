@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -38,14 +39,14 @@ interface WorkspaceContextProps {
 
 const WorkspaceContext = createContext<WorkspaceContextProps | undefined>(undefined);
 
-// Function declaration moved before first usage to avoid TS errors
+// Define the function before using it
 async function fetchWorkspaces(userId: string): Promise<Workspace[]> {
   try {
     // Query workspace_members to get workspace IDs where the user is a member
     const { data: membershipData, error: membershipError } = await supabase
       .from('workspace_members')
       .select('workspace_id')
-      .eq('user_id', userId);
+      .eq('user_id', userId as any);
 
     if (membershipError) throw membershipError;
     
@@ -55,7 +56,16 @@ async function fetchWorkspaces(userId: string): Promise<Workspace[]> {
     }
 
     // Extract workspace IDs
-    const workspaceIds = membershipData.map(membership => membership.workspace_id);
+    const workspaceIds = membershipData.map(item => {
+      if ('workspace_id' in item) {
+        return item.workspace_id;
+      }
+      return null;
+    }).filter(Boolean) as string[];
+
+    if (workspaceIds.length === 0) {
+      return [];
+    }
 
     // Get the workspaces with those IDs
     const { data: workspacesData, error: workspacesError } = await supabase
@@ -138,31 +148,40 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (!user) return null;
     
     try {
-      // Use the Edge Function for reliable workspace creation
-      const response = await fetch(`${process.env.SUPABASE_URL || "https://thsjfdmivfxdmymcpnxf.supabase.co"}/functions/v1/handle-workspace-creation`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.auth.session()?.access_token || ""}`
-        },
-        body: JSON.stringify({
+      // Use direct Supabase queries instead of Edge Function
+      // First create the workspace
+      const { data: workspaceData, error: workspaceError } = await supabase
+        .from('workspaces')
+        .insert({
           name,
-          user_id: user.id
-        })
-      });
+          created_by: user.id
+        } as any)
+        .select()
+        .single();
+        
+      if (workspaceError) throw workspaceError;
       
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create workspace');
+      if (!workspaceData) {
+        throw new Error('Failed to create workspace');
       }
+      
+      // Then add the user as an owner to the workspace
+      const { error: memberError } = await supabase
+        .from('workspace_members')
+        .insert({
+          workspace_id: workspaceData.id,
+          user_id: user.id,
+          role: 'owner'
+        } as any);
+        
+      if (memberError) throw memberError;
       
       // Refresh workspaces after creation
       const updatedWorkspaces = await fetchWorkspaces(user.id);
       setWorkspaces(updatedWorkspaces);
       
       // Find the new workspace in the updated list
-      const newWorkspace = updatedWorkspaces.find(w => w.name === name);
+      const newWorkspace = updatedWorkspaces.find(w => w.id === workspaceData.id);
       
       if (newWorkspace) {
         // Switch to the new workspace
@@ -210,8 +229,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     try {
       const { error } = await supabase
         .from('workspaces')
-        .update({ name })
-        .eq('id', id);
+        .update({ name } as any)
+        .eq('id', id as any);
         
       if (error) throw error;
       
@@ -255,8 +274,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       const { data: membership, error: membershipError } = await supabase
         .from('workspace_members')
         .select('role')
-        .eq('user_id', user.id)
-        .eq('workspace_id', id)
+        .eq('user_id', user.id as any)
+        .eq('workspace_id', id as any)
         .single();
         
       if (membershipError) throw membershipError;
@@ -274,7 +293,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       const { error } = await supabase
         .from('workspaces')
         .delete()
-        .eq('id', id);
+        .eq('id', id as any);
         
       if (error) throw error;
       
@@ -308,8 +327,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       const { data, error } = await supabase
         .from('workspace_members')
         .select('*')
-        .eq('user_id', userId)
-        .eq('workspace_id', workspaceId)
+        .eq('user_id', userId as any)
+        .eq('workspace_id', workspaceId as any)
         .single();
         
       if (error) throw error;
