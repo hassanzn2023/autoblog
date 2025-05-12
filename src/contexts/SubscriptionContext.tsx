@@ -79,11 +79,12 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
             plan_type: 'free',
             status: 'active',
             expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+            auto_renewal: false
           };
           
           const { error: createError } = await supabase
             .from('subscriptions')
-            .insert(insertData as any);
+            .insert([insertData] as any);
             
           if (createError) throw createError;
           
@@ -97,12 +98,14 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
           if (fetchError) throw fetchError;
           
           if (newSubscription) {
+            // Use proper type assertion here
             setSubscription(newSubscription as Subscription);
           }
         } else {
           throw error;
         }
       } else if (data) {
+        // Use proper type assertion here
         setSubscription(data as Subscription);
       }
     } catch (error: any) {
@@ -130,7 +133,8 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
         
       if (error) throw error;
       
-      setCredits(data as Credit[] || []);
+      // Use proper type assertion here to avoid type errors
+      setCredits((data || []) as Credit[]);
     } catch (error: any) {
       console.error('Error fetching credits:', error.message);
       toast({
@@ -182,21 +186,21 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       
       const { error: creditError } = await supabase
         .from('credits')
-        .insert(creditInsertData as any);
+        .insert([creditInsertData] as any);
         
       if (creditError) throw creditError;
       
       // Record API usage
       const { error: apiUsageError } = await supabase
         .from('api_usage')
-        .insert({
+        .insert([{
           user_id: user.id,
           workspace_id: workspaceId,
           api_type: apiType,
           usage_amount: 1,
           credits_consumed: amount,
           operation_type: operation,
-        } as any);
+        }] as any);
         
       if (apiUsageError) throw apiUsageError;
       

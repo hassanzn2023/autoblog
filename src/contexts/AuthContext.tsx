@@ -160,8 +160,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       console.log('Profile fetched:', data);
       if (data) {
-        setProfile(data as ProfileType);
-        return data as ProfileType;
+        // Use proper type assertion here
+        const typedData = data as ProfileType;
+        setProfile(typedData);
+        return typedData;
       }
       return null;
     } catch (error: any) {

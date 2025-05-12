@@ -61,7 +61,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
         
       if (error) throw error;
       
-      setApiKeys((data || []) as unknown as APIKey[]);
+      setApiKeys((data || []) as APIKey[]);
     } catch (error: any) {
       console.error('Error fetching API keys:', error.message);
       toast({
@@ -90,9 +90,9 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
         
         const { error } = await supabase
           .from('api_keys')
-          .update(updateData as any)
-          .eq('id', existingKey.id as any)
-          .eq('user_id', user.id as any);
+          .update(updateData)
+          .eq('id', existingKey.id)
+          .eq('user_id', user.id);
           
         if (error) throw error;
       } else {
@@ -107,7 +107,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
         
         const { error } = await supabase
           .from('api_keys')
-          .insert(insertData as any);
+          .insert([insertData]);
           
         if (error) throw error;
       }
@@ -139,9 +139,9 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       
       const { error } = await supabase
         .from('api_keys')
-        .update(updateData as any)
-        .eq('id', id as any)
-        .eq('user_id', user.id as any);
+        .update(updateData)
+        .eq('id', id)
+        .eq('user_id', user.id);
         
       if (error) throw error;
       
@@ -168,8 +168,8 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       const { error } = await supabase
         .from('api_keys')
         .delete()
-        .eq('id', id as any)
-        .eq('user_id', user.id as any);
+        .eq('id', id)
+        .eq('user_id', user.id);
         
       if (error) throw error;
       
