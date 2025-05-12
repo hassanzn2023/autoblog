@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
@@ -7,6 +8,8 @@ import 'react-quill/dist/quill.snow.css';
 import { Search, X, Loader, RefreshCw, Pencil, Link as LinkIcon, ExternalLink, AlertTriangle, Upload, FileText } from 'lucide-react';
 import { generateKeywordSuggestions, generateSecondaryKeywordSuggestions, extractContentFromUrl } from '@/services/openaiService';
 import { parseWordDocument } from '@/services/documentParserService';
+import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 interface Keyword {
   id: string;
@@ -21,6 +24,8 @@ const isRTL = (text: string) => {
 
 const QuickOptimizationForm = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { currentWorkspace } = useWorkspace();
   const [contentMethod, setContentMethod] = useState<'text' | 'link' | 'file'>('text');
   const [content, setContent] = useState('');
   const [url, setUrl] = useState('');
@@ -116,7 +121,8 @@ const QuickOptimizationForm = () => {
       const extractedContent = await extractContentFromUrl(processedUrl);
       
       if (extractedContent) {
-        setContent(extractedContent);
+        // Fix: Extract the content string from the response object
+        setContent(extractedContent.content || '');
         toast({
           title: "Content Extracted",
           description: "Content has been successfully extracted from the URL.",
@@ -202,14 +208,26 @@ const QuickOptimizationForm = () => {
       return;
     }
     
+    if (!user?.id || !currentWorkspace?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to generate keywords.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsGeneratingPrimary(true);
     setShowPrimaryKeywordSuggestions(true);
     
     try {
+      // Fix: Pass all required arguments to generateKeywordSuggestions
       const suggestions = await generateKeywordSuggestions(
         content,
         3,
-        regenerationNote
+        regenerationNote,
+        user.id,
+        currentWorkspace.id
       );
       
       if (suggestions && suggestions.length > 0) {
@@ -248,15 +266,27 @@ const QuickOptimizationForm = () => {
       return;
     }
     
+    if (!user?.id || !currentWorkspace?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to generate keywords.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsGeneratingSecondary(true);
     setShowSecondaryKeywordSuggestions(true);
     
     try {
+      // Fix: Pass all required arguments to generateSecondaryKeywordSuggestions
       const suggestions = await generateSecondaryKeywordSuggestions(
         primaryKeyword,
         content,
         5,
-        regenerationNote
+        regenerationNote,
+        user.id,
+        currentWorkspace.id
       );
       
       if (suggestions && suggestions.length > 0) {
