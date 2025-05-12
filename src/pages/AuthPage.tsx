@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,11 +22,15 @@ const AuthPage: React.FC = () => {
   // Get return URL from location state or default to '/'
   const from = location.state?.from || '/';
 
+  console.log("AuthPage - from path:", from);
+
   // Check if user is already logged in
   useEffect(() => {
     const checkUser = async () => {
       const { data } = await supabase.auth.getSession();
+      console.log("AuthPage - checking current session:", data.session);
       if (data.session) {
+        console.log("AuthPage - user already logged in, redirecting to:", from);
         navigate(from, { replace: true });
       }
     };
@@ -47,21 +52,25 @@ const AuthPage: React.FC = () => {
     
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log("Attempting to sign in with:", email);
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
       if (error) throw error;
       
+      console.log("Sign in successful:", data);
       toast({
         title: "Success",
         description: "Signed in successfully"
       });
       
       // Redirect to the requested page or home
+      console.log("Redirecting after signin to:", from);
       navigate(from, { replace: true });
     } catch (error: any) {
+      console.error("Sign in error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to sign in",
@@ -86,6 +95,7 @@ const AuthPage: React.FC = () => {
     
     try {
       setLoading(true);
+      console.log("Attempting to sign up with:", email);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -98,6 +108,8 @@ const AuthPage: React.FC = () => {
       });
       
       if (error) throw error;
+      
+      console.log("Sign up response:", data);
       
       if (data.user && !data.user.identities?.length) {
         toast({
@@ -114,9 +126,11 @@ const AuthPage: React.FC = () => {
       
       // Auto-redirect if no email confirmation is needed
       if (data.session) {
+        console.log("User session available after signup, redirecting to:", from);
         navigate(from, { replace: true });
       }
     } catch (error: any) {
+      console.error("Sign up error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to create account",
@@ -130,6 +144,7 @@ const AuthPage: React.FC = () => {
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
+      console.log("Attempting Google sign in");
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -139,6 +154,7 @@ const AuthPage: React.FC = () => {
       
       if (error) throw error;
     } catch (error: any) {
+      console.error("Google sign in error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to sign in with Google",
