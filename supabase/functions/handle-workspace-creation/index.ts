@@ -2,8 +2,8 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.32.0';
 
-// This is a Supabase Edge Function that handles workspace creation
-// It ensures reliable workspace creation with proper error handling
+// هذه دالة Edge Function في Supabase للتعامل مع إنشاء مساحة العمل
+// تضمن إنشاء مساحة عمل موثوقة مع معالجة الأخطاء بشكل مناسب
 
 interface RequestPayload {
   name: string;
@@ -12,16 +12,16 @@ interface RequestPayload {
 
 serve(async (req) => {
   try {
-    // Create Supabase client
+    // إنشاء عميل Supabase
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') as string,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string
     );
 
-    // Parse request body
+    // تحليل بيانات الطلب
     const { name, user_id } = await req.json() as RequestPayload;
 
-    // Validate inputs
+    // التحقق من صحة المدخلات
     if (!name || !user_id) {
       return new Response(
         JSON.stringify({ 
@@ -34,7 +34,27 @@ serve(async (req) => {
       );
     }
 
-    // First create the workspace
+    // التحقق من وجود المستخدم قبل إنشاء مساحة العمل
+    const { data: userExists, error: userError } = await supabaseClient
+      .from('profiles')
+      .select('id')
+      .eq('id', user_id)
+      .single();
+      
+    if (userError || !userExists) {
+      console.error("User does not exist:", user_id);
+      return new Response(
+        JSON.stringify({ 
+          error: "User does not exist or you do not have permission to create a workspace" 
+        }),
+        { 
+          status: 403,
+          headers: { "Content-Type": "application/json" }
+        }
+      );
+    }
+
+    // إنشاء مساحة العمل أولاً
     const { data: workspace, error: workspaceError } = await supabaseClient
       .from('workspaces')
       .insert({
@@ -57,7 +77,7 @@ serve(async (req) => {
       );
     }
 
-    // Then add the user as owner to the workspace
+    // ثم إضافة المستخدم كمالك لمساحة العمل
     const { error: membershipError } = await supabaseClient
       .from('workspace_members')
       .insert({
@@ -68,7 +88,7 @@ serve(async (req) => {
 
     if (membershipError) {
       console.error("Error creating workspace membership:", membershipError);
-      // Attempt to clean up the workspace if we couldn't add the member
+      // محاولة تنظيف مساحة العمل إذا لم نتمكن من إضافة العضو
       await supabaseClient
         .from('workspaces')
         .delete()
@@ -85,7 +105,7 @@ serve(async (req) => {
       );
     }
 
-    // Return success response
+    // إرجاع استجابة نجاح
     return new Response(
       JSON.stringify({ 
         success: true, 

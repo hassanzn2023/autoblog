@@ -1,21 +1,19 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase, handleSupabaseError } from '@/integrations/supabase/client'; // افترض أن هذا موجود
-import { useAuth } from './AuthContext'; // افترض أن هذا موجود
-import { toast } from '@/hooks/use-toast'; // افترض أن هذا موجود
-import { Database } from '@/types/database.types'; // افترض أن هذا موجود
+import { supabase, handleSupabaseError } from '@/integrations/supabase/client';
+import { useAuth } from './AuthContext';
+import { toast } from '@/hooks/use-toast';
+import { Database } from '@/types/database.types';
 
 type WorkspacesRow = Database['public']['Tables']['workspaces']['Row'];
-// type WorkspacesInsert = Database['public']['Tables']['workspaces']['Insert']; // غير مستخدمة مباشرة، لكن لا بأس بتركها
-// type WorkspaceMembersRow = Database['public']['Tables']['workspace_members']['Row']; // غير مستخدمة مباشرة، لكن لا بأس بتركها
 
-// احتفظ بالواجهة Interface كما هي إذا كانت دقيقة
 interface Workspace {
   id: string;
   name: string;
-  created_by: string; // تأكد أن هذا الحقل موجود في البيانات الفعلية أو قم بتعديل الواجهة
+  created_by: string;
   created_at: string;
   updated_at: string;
-  settings: Record<string, any> | null; // تأكد أن هذا الحقل موجود في البيانات الفعلية أو قم بتعديل الواجهة
+  settings: Record<string, any> | null;
 }
 
 interface WorkspaceMember {
@@ -67,7 +65,7 @@ async function fetchWorkspaces(userId: string): Promise<Workspace[]> {
       return [];
     }
 
-    const workspaceIds = membershipData.map(item => item.workspace_id).filter(Boolean) as string[];
+    const workspaceIds = membershipData.map(item => item.workspace_id).filter(Boolean);
 
     if (workspaceIds.length === 0) {
       console.log('[fetchWorkspaces] No valid workspace IDs extracted from memberships, returning [].');
@@ -76,8 +74,8 @@ async function fetchWorkspaces(userId: string): Promise<Workspace[]> {
 
     const { data: workspacesData, error: workspacesError } = await supabase
       .from('workspaces')
-      .select('*') // تأكد أن الأعمدة المختارة تطابق الواجهة Interface Workspace
-      .in('id', workspaceIds);
+      .select('*')
+      .in('id', workspaceIds as any);
 
     if (workspacesError) {
       console.error('[fetchWorkspaces] Error fetching workspaces by IDs:', workspacesError);
@@ -101,7 +99,7 @@ async function fetchWorkspaces(userId: string): Promise<Workspace[]> {
     }
 
     console.log('[fetchWorkspaces] Successfully fetched workspaces:', JSON.parse(JSON.stringify(workspacesData)));
-    return workspacesData as unknown as Workspace[]; // قد تحتاج إلى تحويل نوع أكثر أمانًا هنا
+    return workspacesData as unknown as Workspace[]; 
 
   } catch (error: any) {
     console.error('[fetchWorkspaces] Unexpected error:', error.message);
@@ -205,9 +203,14 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     
     console.log('[WorkspaceProvider] createWorkspace - Attempting to create workspace:', name);
     try {
+      const workspaceInsert = {
+        name: name,
+        created_by: user.id
+      } as any;
+      
       const { data: workspaceData, error: workspaceError } = await supabase
         .from('workspaces')
-        .insert({ name, created_by: user.id }) // تأكد أن created_by مسموح به في RLS وأن user.id ليس undefined
+        .insert(workspaceInsert)
         .select()
         .single();
         
@@ -215,14 +218,22 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         console.error('[WorkspaceProvider] createWorkspace - Supabase error creating workspace:', workspaceError);
         throw workspaceError;
       }
+      
       if (!workspaceData) {
         console.error('[WorkspaceProvider] createWorkspace - No data returned after creating workspace.');
         throw new Error('Failed to create workspace, no data returned.');
       }
       
+      const memberInsert = {
+        workspace_id: workspaceData.id,
+        user_id: user.id,
+        role: 'owner'
+      } as any;
+      
       const { error: memberError } = await supabase
         .from('workspace_members')
-        .insert({ workspace_id: workspaceData.id, user_id: user.id, role: 'owner' });
+        .insert(memberInsert);
+        
       if (memberError) {
         console.error('[WorkspaceProvider] createWorkspace - Supabase error creating workspace member:', memberError);
         // يمكنك اختيار التراجع عن إنشاء مساحة العمل هنا إذا لزم الأمر
@@ -269,9 +280,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (!user) return;
     console.log(`[WorkspaceProvider] updateWorkspace - ID: ${id}, New Name: ${name}`);
     try {
+      const updateData = { name: name } as any;
+      
       const { error } = await supabase
         .from('workspaces')
-        .update({ name }) // لا حاجة لـ as any إذا كان النوع صحيحًا
+        .update(updateData)
         .eq('id', id);
         
       if (error) throw error;
@@ -297,13 +310,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       return;
     }
     console.log(`[WorkspaceProvider] deleteWorkspace - ID: ${id}`);
-    // ... (الكود الخاص بالتحقق من الصلاحية والحذف من Supabase كما هو)
-    // بعد الحذف الناجح من Supabase:
     try {
         // ... (التحقق من الصلاحية والحذف من Supabase) ...
         // مثال:
-        // const { error } = await supabase.from('workspaces').delete().eq('id', id);
-        // if (error) throw error;
+        const { error } = await supabase.from('workspaces').delete().eq('id', id as any);
+        if (error) throw error;
 
         const remainingWorkspaces = workspaces.filter(w => w.id !== id);
         updateWorkspacesState(remainingWorkspaces, 'deleteWorkspace');
@@ -320,19 +331,18 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         toast({ title: "Success", description: "Workspace deleted successfully" });
     } catch (error: any) {
       console.error('[WorkspaceProvider] deleteWorkspace - Error:', error.message);
-      // ... (toast error)
+      toast({ title: "Error", description: error.message || "Failed to delete workspace", variant: "destructive" });
     }
   };
 
   const getWorkspaceMember = async (userId: string, workspaceId: string): Promise<WorkspaceMember | null> => {
     console.log(`[WorkspaceProvider] getWorkspaceMember - UserID: ${userId}, WorkspaceID: ${workspaceId}`);
-    // ... (الكود كما هو مع معالجة الأخطاء)
     try {
       const { data, error } = await supabase
         .from('workspace_members')
         .select('*')
         .eq('user_id', userId)
-        .eq('workspace_id', workspaceId)
+        .eq('workspace_id', workspaceId as any)
         .single();
         
       if (error) {

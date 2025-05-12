@@ -29,7 +29,10 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
   const { workspaces, currentWorkspace, loading, switchWorkspace } = useWorkspace();
   const [open, setOpen] = useState(false);
 
-  // Handle click when no workspaces are available
+  // إضافة سجلات التصحيح لتتبع البيانات
+  console.log('[WorkspaceSwitcher] Render with workspaces:', workspaces ? JSON.parse(JSON.stringify(workspaces)) : 'undefined', 'loading:', loading);
+
+  // التعامل مع النقر عندما لا تتوفر مساحات عمل
   const handleEmptyWorkspaceClick = () => {
     toast({
       title: "No workspaces available",
@@ -39,7 +42,7 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
     setOpen(false);
   };
 
-  // Display loading state
+  // عرض حالة التحميل
   if (loading) {
     return (
       <Button variant="ghost" className={cn("w-[200px] justify-between", className)}>
@@ -49,8 +52,11 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
     );
   }
 
-  // Ensure workspaces is always treated as an array
+  // التأكد من أن workspaces دائماً يتم التعامل معها كمصفوفة
   const workspacesList = Array.isArray(workspaces) ? workspaces : [];
+  if (!Array.isArray(workspaces)) {
+    console.warn('[WorkspaceSwitcher] workspaces is not an array!', workspaces);
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -72,26 +78,35 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
           <CommandList>
             <CommandInput placeholder="Search workspace..." />
             <CommandEmpty>No workspace found.</CommandEmpty>
-            {workspacesList.length > 0 ? (
+            {workspacesList && workspacesList.length > 0 ? (
               <CommandGroup heading="Workspaces">
-                {workspacesList.map((workspace) => (
-                  <CommandItem
-                    key={workspace.id}
-                    className="text-sm cursor-pointer"
-                    onSelect={() => {
-                      switchWorkspace(workspace.id);
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        currentWorkspace?.id === workspace.id ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    <span className="truncate">{workspace.name}</span>
-                  </CommandItem>
-                ))}
+                {workspacesList.map((workspace) => {
+                  // تحقق دفاعي للتأكد من صحة بيانات workspace
+                  if (!workspace || !workspace.id || !workspace.name) {
+                    console.warn('[WorkspaceSwitcher] Invalid workspace object:', workspace);
+                    return null;
+                  }
+                  
+                  return (
+                    <CommandItem
+                      key={workspace.id}
+                      className="text-sm cursor-pointer"
+                      onSelect={() => {
+                        console.log('[WorkspaceSwitcher] Switching workspace:', workspace.id);
+                        switchWorkspace(workspace.id);
+                        setOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          currentWorkspace?.id === workspace.id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      <span className="truncate">{workspace.name}</span>
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             ) : (
               <CommandGroup>

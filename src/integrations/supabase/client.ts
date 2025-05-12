@@ -29,23 +29,20 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     params: {
       eventsPerSecond: 10
     }
-  },
-  // Add retries for better resilience
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    flowType: 'pkce',
-  },
-  // Add error handling
-  fetch: (url, options) => {
-    return fetch(url, {
-      ...options,
-      // Add timeout to prevent hanging requests
-      signal: options?.signal || (typeof AbortSignal !== 'undefined' ? AbortSignal.timeout(15000) : undefined)
-    })
   }
 });
+
+// Add custom fetch configuration
+const customFetch = (url: string, options: RequestInit) => {
+  return fetch(url, {
+    ...options,
+    // Add timeout to prevent hanging requests
+    signal: options?.signal || (typeof AbortSignal !== 'undefined' ? AbortSignal.timeout(15000) : undefined)
+  });
+};
+
+// Apply custom fetch to supabase client operations when needed
+// This is a helper function, not applied directly to the client due to TypeScript restrictions
 
 // Helper function to check connection status
 export const checkSupabaseConnection = async (): Promise<boolean> => {
