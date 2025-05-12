@@ -32,6 +32,7 @@ const SimpleOptimizationForm = () => {
   const [isGeneratingSecondary, setIsGeneratingSecondary] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isAutoGeneratingKeywords, setIsAutoGeneratingKeywords] = useState(false);
   
   // Detection for RTL text
   useEffect(() => {
@@ -155,7 +156,8 @@ const SimpleOptimizationForm = () => {
     });
     
     // Auto-generate primary keywords immediately after content is confirmed
-    handleGeneratePrimaryKeywords();
+    setIsAutoGeneratingKeywords(true);
+    await handleGeneratePrimaryKeywords();
   };
   
   const handleGeneratePrimaryKeywords = async () => {
@@ -182,8 +184,14 @@ const SimpleOptimizationForm = () => {
       }
     } catch (error) {
       console.error("Error generating primary keywords:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate keyword suggestions",
+        variant: "destructive"
+      });
     } finally {
       setIsGeneratingPrimary(false);
+      setIsAutoGeneratingKeywords(false);
     }
   };
   
@@ -205,6 +213,11 @@ const SimpleOptimizationForm = () => {
       setSecondaryKeywordSuggestions(suggestions);
     } catch (error) {
       console.error("Error generating secondary keywords:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate secondary keyword suggestions",
+        variant: "destructive"
+      });
     } finally {
       setIsGeneratingSecondary(false);
     }
@@ -426,10 +439,10 @@ const SimpleOptimizationForm = () => {
                   <Button 
                     variant="outline"
                     onClick={() => handleGeneratePrimaryKeywords()}
-                    disabled={isGeneratingPrimary}
+                    disabled={isGeneratingPrimary || isAutoGeneratingKeywords}
                     className="whitespace-nowrap"
                   >
-                    {isGeneratingPrimary ? (
+                    {isGeneratingPrimary || isAutoGeneratingKeywords ? (
                       <Loader size={16} className="animate-spin" />
                     ) : (
                       <>

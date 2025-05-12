@@ -120,8 +120,8 @@ serve(async (req) => {
     
     // Prepare system prompt based on language
     const systemPrompt = hasArabicText 
-      ? 'أنت مساعد مفيد يولد اقتراحات الكلمات الرئيسية لتحسين محركات البحث.'
-      : 'You are a helpful assistant that generates keyword suggestions for SEO optimization.';
+      ? 'أنت مساعد مفيد يولد اقتراحات الكلمات الرئيسية لتحسين محركات البحث. استخرج الكلمات المفتاحية مباشرة من المحتوى المقدم.'
+      : 'You are a helpful assistant that generates keyword suggestions for SEO optimization. Extract keywords directly from the provided content.';
     
     const userPrompt = hasArabicText
       ? `بناءً على المحتوى التالي، اقترح ${keywordCount} كلمات رئيسية لتحسين محركات البحث تمثل أفضل الموضوعات الرئيسية. قم بتنسيق الإخراج كمصفوفة JSON من السلاسل بدون شرح.\n\nالمحتوى: ${textSample}`
