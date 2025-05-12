@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 // Interface for the extracted content
@@ -10,6 +9,7 @@ export interface ExtractedContent {
   excerpt: string;
   byline: string;
   siteName: string;
+  rtl?: boolean;
   error?: string;
 }
 

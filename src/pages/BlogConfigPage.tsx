@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -92,7 +91,11 @@ const BlogConfigPage = () => {
   
   // Review & Save state
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
-
+  
+  // Content state for KeywordResearchStep
+  const [content, setContent] = useState('');
+  const [contentConfirmed, setContentConfirmed] = useState(true);
+  
   // Define handleSave function before using it
   const handleSave = () => {
     // Here would be logic to save the configuration
@@ -137,6 +140,8 @@ const BlogConfigPage = () => {
       case 'targetCountry': setTargetCountry(value); break;
       case 'language': setLanguage(value); break;
       case 'contentDescription': setContentDescription(value); break;
+      case 'content': setContent(value); break;
+      case 'contentConfirmed': setContentConfirmed(value); break;
       
       // Keyword Research
       case 'primaryKeyword': setPrimaryKeyword(value); break;
@@ -247,6 +252,8 @@ const BlogConfigPage = () => {
           primaryKeyword={primaryKeyword}
           secondaryKeywords={secondaryKeywords}
           onUpdate={handleUpdate}
+          content={content || topics}  // Use content if available, otherwise use topics
+          contentConfirmed={contentConfirmed}
         />
       ),
     },
