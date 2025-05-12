@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { parseWordDocument } from './documentParserService';
+import { extractContentFromUrl as extractContent } from './contentExtractorService';
 
 // Simulate the keyword generation with mock data
 export interface KeywordSuggestion {
@@ -181,65 +182,8 @@ export const generateSecondaryKeywordSuggestions = async (
  */
 export const extractContentFromUrl = async (url: string): Promise<string> => {
   try {
-    // Use multiple CORS proxies as fallbacks
-    const corsProxies = [
-      'https://corsproxy.io/?',
-      'https://api.allorigins.win/raw?url=',
-      'https://cors-anywhere.herokuapp.com/'
-    ];
-    
-    // Try each proxy until successful
-    let htmlContent = '';
-    let proxyIndex = 0;
-    let success = false;
-    
-    while (!success && proxyIndex < corsProxies.length) {
-      try {
-        const proxy = corsProxies[proxyIndex];
-        const response = await axios.get(`${proxy}${url}`);
-        htmlContent = response.data;
-        success = true;
-      } catch (error) {
-        console.log(`Proxy ${proxyIndex + 1} failed, trying next...`);
-        proxyIndex++;
-      }
-    }
-    
-    if (!success) {
-      throw new Error('All proxies failed to fetch the URL');
-    }
-    
-    // Extract main content using browser's DOMParser
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlContent, 'text/html');
-    
-    // Try to find the main content (simple heuristics)
-    const mainSelectors = [
-      'main',
-      'article',
-      '.content',
-      '.main-content',
-      '#content',
-      '.post-content'
-    ];
-    
-    let mainContent = '';
-    
-    for (const selector of mainSelectors) {
-      const elements = doc.querySelectorAll(selector);
-      if (elements.length > 0) {
-        const mainElement = elements[0];
-        mainContent = mainElement.innerHTML;
-        break;
-      }
-    }
-    
-    // If no main content found, take the body content
-    if (!mainContent) {
-      mainContent = doc.body.innerHTML;
-    }
-    
-    return mainContent;
+    const extractedContent = await extractContent(url);
+    return extractedContent.content;
   } catch (error) {
     console.error("Error extracting content from URL:", error);
     throw new Error(error instanceof Error ? error.message : 'Failed to extract content from URL');
