@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -51,7 +52,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           settings,
           workspace_members!inner(user_id, role)
         `)
-        .eq('workspace_members.user_id', user.id as string);
+        .eq('workspace_members.user_id', user.id);
       
       if (error) throw error;
 
@@ -144,7 +145,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       const { error } = await supabase
         .from('workspaces')
         .update(data as DatabaseTypes['public']['Tables']['workspaces']['Update'])
-        .eq('id', id as string);
+        .eq('id', id);
         
       if (error) throw error;
       

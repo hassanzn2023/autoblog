@@ -21,7 +21,7 @@ const DashboardOverview = () => {
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-bold mb-1">
-              {profile ? `Welcome back, ${profile.first_name || 'User'}` : 'Welcome to SEO Platform'}
+              {profile && profile.first_name ? `Welcome back, ${profile.first_name}` : 'Welcome to SEO Platform'}
             </h2>
             <p className="text-gray-600">
               Current workspace: {currentWorkspace?.name || 'Default'}

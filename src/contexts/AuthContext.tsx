@@ -1,10 +1,11 @@
+
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { DatabaseTypes } from '@/types/database.types';
 
-interface Profile extends DatabaseTypes['public']['Tables']['profiles']['Row'] {}
+type Profile = DatabaseTypes['public']['Tables']['profiles']['Row'];
 
 interface AuthContextProps {
   session: Session | null;
@@ -13,6 +14,7 @@ interface AuthContextProps {
   loading: boolean;
   signOut: () => Promise<void>;
   updateProfile: (updates: DatabaseTypes['public']['Tables']['profiles']['Update']) => Promise<void>;
+  refreshProfile: () => Promise<void>; // Add this function to refresh profile
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -25,9 +27,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     const setAuth = async () => {
-      const { data: { session: initialSession } } = await supabase.auth.getSession()
+      const { data: { session: initialSession } } = await supabase.auth.getSession();
       setSession(initialSession);
       setUser(initialSession?.user || null);
+      if (initialSession?.user) {
+        await fetchUserProfile(initialSession.user.id);
+      }
       setLoading(false);
     }
     setAuth();
@@ -42,8 +47,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(session?.user || null);
 
     if (session?.user) {
-      const userProfile = await fetchUserProfile(session.user.id);
-      setProfile(userProfile);
+      await fetchUserProfile(session.user.id);
     } else {
       setProfile(null);
     }
@@ -56,7 +60,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId as string)
+        .eq('id', userId)
         .single();
 
       if (error) {
@@ -64,11 +68,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return null;
       }
 
+      setProfile(data as Profile);
       return data as Profile;
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
       return null;
     }
+  };
+
+  const refreshProfile = async () => {
+    if (!user?.id) return;
+    await fetchUserProfile(user.id);
   };
 
   const signOut = async () => {
@@ -100,8 +110,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (error) throw error;
 
-      // Optimistically update the profile in the context
-      setProfile((prevProfile) => ({ ...prevProfile, ...updates } as Profile));
+      // Refresh the profile to get the latest data
+      await refreshProfile();
       
       toast({
         title: "Success",
@@ -126,6 +136,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     loading,
     signOut,
     updateProfile,
+    refreshProfile, // Include the new function in the context value
   };
 
   return (
