@@ -1,11 +1,10 @@
-
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { DatabaseTypes } from '@/types/database.types';
+import { Database } from '@/types/database.types';
 
-type Profile = DatabaseTypes['public']['Tables']['profiles']['Row'];
+type Profile = Database['public']['Tables']['profiles']['Row'];
 
 interface AuthContextProps {
   session: Session | null;
@@ -13,8 +12,8 @@ interface AuthContextProps {
   profile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  updateProfile: (updates: DatabaseTypes['public']['Tables']['profiles']['Update']) => Promise<void>;
-  refreshProfile: () => Promise<void>; // Add this function to refresh profile
+  updateProfile: (updates: Database['public']['Tables']['profiles']['Update']) => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -98,7 +97,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const updateProfile = async (updates: DatabaseTypes['public']['Tables']['profiles']['Update']) => {
+  const updateProfile = async (updates: Database['public']['Tables']['profiles']['Update']) => {
     try {
       setLoading(true);
       if (!user?.id) throw new Error("User ID is missing");
@@ -136,7 +135,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     loading,
     signOut,
     updateProfile,
-    refreshProfile, // Include the new function in the context value
+    refreshProfile,
   };
 
   return (

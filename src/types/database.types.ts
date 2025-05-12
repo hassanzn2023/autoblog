@@ -7,7 +7,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export interface DatabaseTypes {
+export interface Database {
   public: {
     Tables: {
       profiles: {
@@ -220,3 +220,6 @@ export interface DatabaseTypes {
     CompositeTypes: {}
   }
 }
+
+// Export DatabaseTypes for backward compatibility
+export type DatabaseTypes = Database;
