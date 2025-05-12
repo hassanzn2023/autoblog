@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ChevronDown, Plus, Settings } from 'lucide-react';
+import { ChevronDown, Plus } from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import {
   Popover,
@@ -40,6 +40,7 @@ const WorkspaceSwitcher = () => {
     
     try {
       setIsCreating(true);
+      console.log("Creating new workspace with name:", newWorkspaceName);
       const newWorkspace = await createWorkspace(newWorkspaceName);
       
       if (newWorkspace) {
@@ -52,6 +53,7 @@ const WorkspaceSwitcher = () => {
           title: "Success",
           description: `Workspace "${newWorkspaceName}" created successfully`,
         });
+        console.log("Workspace created:", newWorkspace);
       }
     } catch (error: any) {
       console.error("Workspace creation error:", error);
@@ -95,6 +97,7 @@ const WorkspaceSwitcher = () => {
                 onClick={() => {
                   setCurrentWorkspace(workspace);
                   setPopoverOpen(false);
+                  console.log("Switching to workspace:", workspace.name);
                 }}
               >
                 <div className="flex items-center space-x-2">
@@ -130,6 +133,11 @@ const WorkspaceSwitcher = () => {
             <DialogTitle>Create New Workspace</DialogTitle>
             <DialogDescription>
               Add a new workspace to organize your SEO projects.
+              {workspaces.length >= 2 && (
+                <div className="mt-1 text-amber-600">
+                  Note: You can create up to 3 workspaces.
+                </div>
+              )}
             </DialogDescription>
           </DialogHeader>
           
