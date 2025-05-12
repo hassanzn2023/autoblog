@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -149,7 +150,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
+        .eq('id', userId as string)
         .single();
 
       if (error) {
@@ -158,7 +159,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       
       console.log('Profile fetched:', data);
-      setProfile(data as ProfileType);
+      setProfile(data as unknown as ProfileType);
       return data as ProfileType;
     } catch (error: any) {
       console.error('Error fetching profile:', error.message);
