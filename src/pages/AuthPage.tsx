@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const AuthPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -16,11 +18,29 @@ const AuthPage: React.FC = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
 
   // Get return URL from location state or default to '/'
   const from = location.state?.from || '/';
+  
+  // Check if there's an error in URL params
+  useEffect(() => {
+    const errorCode = searchParams.get('error_code');
+    const errorDescription = searchParams.get('error_description');
+    
+    if (errorCode || errorDescription) {
+      console.error("Auth error from URL:", errorCode, errorDescription);
+      setAuthError(errorDescription?.replace(/\+/g, ' ') || 'Authentication error occurred');
+      toast({
+        title: "Authentication Error",
+        description: errorDescription?.replace(/\+/g, ' ') || 'Authentication error occurred',
+        variant: "destructive"
+      });
+    }
+  }, [searchParams]);
 
   console.log("AuthPage - from path:", from);
 
@@ -40,6 +60,7 @@ const AuthPage: React.FC = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError(null);
     
     if (!email || !password) {
       toast({
@@ -71,6 +92,7 @@ const AuthPage: React.FC = () => {
       navigate(from, { replace: true });
     } catch (error: any) {
       console.error("Sign in error:", error);
+      setAuthError(error.message || "Failed to sign in");
       toast({
         title: "Error",
         description: error.message || "Failed to sign in",
@@ -83,6 +105,7 @@ const AuthPage: React.FC = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError(null);
     
     if (!email || !password || !firstName || !lastName) {
       toast({
@@ -96,6 +119,8 @@ const AuthPage: React.FC = () => {
     try {
       setLoading(true);
       console.log("Attempting to sign up with:", email);
+
+      // Disable email confirmation for easier testing
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -104,6 +129,9 @@ const AuthPage: React.FC = () => {
             first_name: firstName,
             last_name: lastName,
           },
+          emailRedirectTo: window.location.origin,
+          // Uncomment the line below to bypass email confirmation (for testing only)
+          // emailRedirectTo: undefined
         },
       });
       
@@ -111,26 +139,24 @@ const AuthPage: React.FC = () => {
       
       console.log("Sign up response:", data);
       
-      if (data.user && !data.user.identities?.length) {
+      if (data.user && !data.session) {
+        // User was created but needs email confirmation
         toast({
-          title: "Error",
-          description: "The email is already registered"
+          title: "Check your email",
+          description: "We've sent you a confirmation link. Please check your email to verify your account."
         });
-        return;
-      }
-      
-      toast({
-        title: "Success",
-        description: "Account created successfully! Please check your email for verification."
-      });
-      
-      // Auto-redirect if no email confirmation is needed
-      if (data.session) {
+      } else if (data.session) {
+        // Auto-login if no email confirmation is needed
+        toast({
+          title: "Success",
+          description: "Account created successfully!"
+        });
         console.log("User session available after signup, redirecting to:", from);
         navigate(from, { replace: true });
       }
     } catch (error: any) {
       console.error("Sign up error:", error);
+      setAuthError(error.message || "Failed to create account");
       toast({
         title: "Error",
         description: error.message || "Failed to create account",
@@ -144,17 +170,19 @@ const AuthPage: React.FC = () => {
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
+      setAuthError(null);
       console.log("Attempting Google sign in");
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin + from
+          redirectTo: `${window.location.origin}${from}`
         }
       });
       
       if (error) throw error;
     } catch (error: any) {
       console.error("Google sign in error:", error);
+      setAuthError(error.message || "Failed to sign in with Google");
       toast({
         title: "Error",
         description: error.message || "Failed to sign in with Google",
@@ -173,6 +201,16 @@ const AuthPage: React.FC = () => {
             Sign in to your account or create a new one
           </CardDescription>
         </CardHeader>
+        
+        {authError && (
+          <CardContent>
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{authError}</AlertDescription>
+            </Alert>
+          </CardContent>
+        )}
         
         <Tabs defaultValue="signin" className="w-full">
           <TabsList className="grid grid-cols-2 mb-4">

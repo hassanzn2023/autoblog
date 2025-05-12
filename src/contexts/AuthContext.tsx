@@ -22,6 +22,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     console.log("AuthProvider initializing...");
@@ -30,16 +31,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
         console.log('Auth state changed:', event, currentSession?.user?.email);
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
         
-        // Only fetch profile after a small delay to avoid recursive issues
-        if (currentSession?.user) {
-          setTimeout(() => {
-            fetchProfile(currentSession.user.id);
-          }, 0);
-        } else {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
+          
+          // Redirect to home page after sign in
+          if (currentSession && window.location.pathname === '/auth') {
+            console.log('Redirecting to home after sign in');
+            navigate('/', { replace: true });
+          }
+          
+          // Fetch profile for signed in user
+          if (currentSession?.user) {
+            setTimeout(() => {
+              fetchProfile(currentSession.user.id);
+            }, 0);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setSession(null);
+          setUser(null);
           setProfile(null);
+          navigate('/auth', { replace: true });
+        } else {
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
+          
+          // Only fetch profile after a small delay to avoid recursive issues
+          if (currentSession?.user) {
+            setTimeout(() => {
+              fetchProfile(currentSession.user.id);
+            }, 0);
+          } else {
+            setProfile(null);
+          }
         }
       }
     );
@@ -56,10 +81,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setLoading(false);
     });
 
+    // Handle auth redirect
+    const handleAuthRedirect = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (data?.user && window.location.pathname === '/auth') {
+        console.log('User detected after auth redirect, navigating to home');
+        navigate('/', { replace: true });
+      }
+    };
+    
+    handleAuthRedirect();
+
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
   const fetchProfile = async (userId: string) => {
     try {

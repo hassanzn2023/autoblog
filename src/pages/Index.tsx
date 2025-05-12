@@ -27,6 +27,10 @@ const Index = () => {
     );
   }
 
+  if (!user) {
+    return null; // AuthRequired will handle redirection
+  }
+
   // User is authenticated, show the dashboard
   console.log("Index Page - User authenticated, showing dashboard");
   return (
