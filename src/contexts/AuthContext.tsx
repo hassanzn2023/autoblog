@@ -40,7 +40,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setUser(currentSession?.user ?? null);
           
           // Redirect to home page after sign in
-          if (currentSession && window.location.pathname === '/auth') {
+          if (currentSession && window.location.pathname.includes('/auth')) {
             console.log('Redirecting to home after sign in');
             navigate('/', { replace: true });
           }
@@ -84,19 +84,52 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Handle auth redirect
     const handleAuthRedirect = async () => {
-      const params = new URLSearchParams(window.location.search);
+      const params = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      const type = params.get('type');
+      
+      // Check if we have tokens in the URL (redirected from email confirmation)
+      if (accessToken && refreshToken && type === 'recovery') {
+        try {
+          console.log('Detected auth tokens in URL, setting session');
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
+          
+          if (error) throw error;
+          
+          if (data.session) {
+            console.log('Session set successfully after email confirmation');
+            setSession(data.session);
+            setUser(data.session.user);
+            navigate('/', { replace: true });
+          }
+        } catch (error: any) {
+          console.error('Error setting session from URL tokens:', error);
+          toast({
+            title: "Authentication Error",
+            description: error.message || "Failed to authenticate",
+            variant: "destructive"
+          });
+        }
+      }
+      
+      // Also handle error parameters
       const error = params.get('error');
       const errorDescription = params.get('error_description');
       
       if (error || errorDescription) {
         console.error("Auth error:", error, errorDescription);
         toast({
-          title: "Error",
+          title: "Authentication Error",
           description: errorDescription || "Authentication error",
           variant: "destructive"
         });
       }
       
+      // Check if user is already signed in
       const { data, error: userError } = await supabase.auth.getUser();
       if (data?.user && window.location.pathname === '/auth') {
         console.log('User detected after auth redirect, navigating to home');

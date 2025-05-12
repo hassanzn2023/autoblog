@@ -21,6 +21,7 @@ interface WorkspaceContextProps {
   updateWorkspace: (id: string, data: Partial<Workspace>) => Promise<void>;
   fetchWorkspaces: () => Promise<void>;
   loading: boolean;
+  error: string | null;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextProps | undefined>(undefined);
@@ -30,16 +31,23 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [fetchAttempts, setFetchAttempts] = useState<number>(0);
+  
+  // Maximum number of retry attempts
+  const MAX_RETRY_ATTEMPTS = 3;
 
   useEffect(() => {
     if (user) {
       console.log("User is authenticated, fetching workspaces");
+      setError(null);
       fetchWorkspaces();
     } else {
       console.log("No user is authenticated, clearing workspace data");
       setWorkspaces([]);
       setCurrentWorkspace(null);
       setLoading(false);
+      setError(null);
     }
   }, [user]);
 
@@ -51,7 +59,27 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     
     try {
       setLoading(true);
+      setError(null);
       console.log("Fetching workspaces for user:", user.id);
+      
+      // Create a mock default workspace if we've already tried multiple times
+      if (fetchAttempts >= MAX_RETRY_ATTEMPTS) {
+        console.log("Maximum fetch attempts reached, using local default workspace");
+        const defaultWorkspace = createLocalDefaultWorkspace();
+        setWorkspaces([defaultWorkspace]);
+        setCurrentWorkspace(defaultWorkspace);
+        setLoading(false);
+        setError("Unable to connect to the database. Using a temporary workspace.");
+        toast({
+          title: "Connection Issue",
+          description: "We're having trouble connecting to the database. You can continue with limited functionality.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Increment fetch attempts
+      setFetchAttempts(prev => prev + 1);
       
       // First fetch all workspace memberships for this user
       const { data: memberships, error: membershipError } = await supabase
@@ -61,6 +89,15 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
       if (membershipError) {
         console.error("Error fetching workspace memberships:", membershipError.message);
+        
+        // If there's a database error, try creating a default workspace directly
+        if (membershipError.message.includes("infinite recursion") || 
+            membershipError.message.includes("policy") || 
+            fetchAttempts >= 1) {
+          await createDefaultWorkspaceDirect();
+          return;
+        }
+        
         throw membershipError;
       }
       
@@ -79,6 +116,15 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         
         if (workspacesError) {
           console.error("Error fetching workspaces:", workspacesError.message);
+          
+          // If there's a database error, try creating a default workspace directly
+          if (workspacesError.message.includes("infinite recursion") || 
+              workspacesError.message.includes("policy") || 
+              fetchAttempts >= 1) {
+            await createDefaultWorkspaceDirect();
+            return;
+          }
+          
           throw workspacesError;
         }
         
@@ -99,16 +145,20 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
               setCurrentWorkspace(workspacesData[0]);
             }
           }
+          
+          // Reset fetch attempts on success
+          setFetchAttempts(0);
         } else {
           // No workspaces found, create a default one
-          await createDefaultWorkspace();
+          await createDefaultWorkspaceDirect();
         }
       } else {
         // No memberships found, create a default workspace
-        await createDefaultWorkspace();
+        await createDefaultWorkspaceDirect();
       }
     } catch (error: any) {
       console.error('Error fetching workspaces:', error.message);
+      setError(error.message);
       toast({
         title: "Error",
         description: "Failed to load workspaces: " + error.message,
@@ -117,21 +167,39 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       
       // Still try to create a default workspace if there was an error
       try {
-        await createDefaultWorkspace();
+        await createDefaultWorkspaceDirect();
       } catch (innerError) {
         console.error("Failed to create default workspace after fetch error");
+        const defaultWorkspace = createLocalDefaultWorkspace();
+        setWorkspaces([defaultWorkspace]);
+        setCurrentWorkspace(defaultWorkspace);
       }
     } finally {
       setLoading(false);
     }
   };
+  
+  const createLocalDefaultWorkspace = (): Workspace => {
+    // Create a temporary workspace that exists only in memory
+    const workspace: Workspace = {
+      id: 'temp-' + Date.now(),
+      name: profile?.first_name ? `${profile.first_name}'s Workspace` : 'Default Workspace',
+      created_by: user?.id || 'unknown',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      settings: {}
+    };
+    
+    console.log("Created local temporary workspace:", workspace);
+    return workspace;
+  };
 
-  const createDefaultWorkspace = async () => {
+  const createDefaultWorkspaceDirect = async () => {
     if (!user) return;
     
     try {
       // Generate appropriate workspace name from profile or user email
-      let defaultName = 'My Workspace';
+      let defaultName = 'Default Workspace';
       
       if (profile?.first_name && profile?.last_name) {
         defaultName = `${profile.first_name} ${profile.last_name}'s Workspace`;
@@ -143,15 +211,77 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       }
       
       console.log("Creating default workspace with name:", defaultName);
-      const newWorkspace = await createWorkspace(defaultName);
       
-      if (newWorkspace) {
-        setWorkspaces([newWorkspace]);
-        setCurrentWorkspace(newWorkspace);
-        console.log("Default workspace created:", newWorkspace);
+      try {
+        // Try to create workspace directly without using the helper method
+        const { data: workspaceData, error: workspaceError } = await supabase
+          .from('workspaces')
+          .insert([{ name: defaultName, created_by: user.id }])
+          .select()
+          .single();
+          
+        if (workspaceError) {
+          console.error("Error creating direct workspace:", workspaceError.message);
+          throw workspaceError;
+        }
+        
+        if (!workspaceData) {
+          throw new Error("No workspace data returned after creation");
+        }
+        
+        console.log("Workspace created directly:", workspaceData);
+        
+        // Insert the creator as the owner of the workspace
+        const { error: memberError } = await supabase
+          .from('workspace_members')
+          .insert([{ 
+            workspace_id: workspaceData.id, 
+            user_id: user.id, 
+            role: 'owner' 
+          }]);
+        
+        if (memberError) {
+          console.error("Error adding user as workspace member:", memberError.message);
+          // Continue anyway as we at least have the workspace
+        } else {
+          console.log("User added as workspace owner");
+        }
+        
+        setWorkspaces([workspaceData]);
+        setCurrentWorkspace(workspaceData);
+        
+        // Reset fetch attempts on success
+        setFetchAttempts(0);
+        
+      } catch (directError: any) {
+        console.error("Direct workspace creation failed:", directError.message);
+        
+        // If direct creation fails, create a local workspace
+        if (fetchAttempts >= MAX_RETRY_ATTEMPTS) {
+          const defaultWorkspace = createLocalDefaultWorkspace();
+          setWorkspaces([defaultWorkspace]);
+          setCurrentWorkspace(defaultWorkspace);
+        } else {
+          // Try the regular method as a fallback
+          const newWorkspace = await createWorkspace(defaultName);
+          
+          if (newWorkspace) {
+            setWorkspaces([newWorkspace]);
+            setCurrentWorkspace(newWorkspace);
+          } else {
+            throw new Error("Failed to create default workspace");
+          }
+        }
       }
     } catch (error: any) {
       console.error("Error creating default workspace:", error.message);
+      setError("Failed to create workspace: " + error.message);
+      
+      // If all else fails, create a local workspace
+      const defaultWorkspace = createLocalDefaultWorkspace();
+      setWorkspaces([defaultWorkspace]);
+      setCurrentWorkspace(defaultWorkspace);
+      
       toast({
         title: "Error",
         description: "Failed to create default workspace: " + error.message,
@@ -213,10 +343,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       
       if (memberError) {
         console.error("Error adding user as workspace member:", memberError.message);
-        throw memberError;
+        // We can continue anyway since we have at least created the workspace
+      } else {
+        console.log("User added as workspace owner");
       }
-      
-      console.log("User added as workspace owner");
       
       // Add the new workspace to the local state
       const updatedWorkspaces = [...workspaces, workspaceData];
@@ -230,6 +360,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       return workspaceData;
     } catch (error: any) {
       console.error('Error creating workspace:', error.message);
+      setError("Failed to create workspace: " + error.message);
       toast({
         title: "Error",
         description: error.message || "Failed to create workspace",
@@ -275,6 +406,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       });
     } catch (error: any) {
       console.error('Error updating workspace:', error.message);
+      setError("Failed to update workspace: " + error.message);
       toast({
         title: "Error",
         description: error.message || "Failed to update workspace",
@@ -292,7 +424,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         createWorkspace, 
         updateWorkspace,
         fetchWorkspaces,
-        loading 
+        loading,
+        error
       }}
     >
       {children}

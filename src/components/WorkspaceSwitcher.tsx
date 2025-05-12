@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Plus, Loader2 } from 'lucide-react';
+import { ChevronDown, Plus, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import {
   Popover,
@@ -20,13 +20,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const WorkspaceSwitcher = () => {
-  const { currentWorkspace, workspaces, setCurrentWorkspace, createWorkspace, loading, fetchWorkspaces } = useWorkspace();
+  const { currentWorkspace, workspaces, setCurrentWorkspace, createWorkspace, loading, fetchWorkspaces, error } = useWorkspace();
   const [newWorkspaceDialogOpen, setNewWorkspaceDialogOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Ensure workspaces are loaded properly
   useEffect(() => {
@@ -62,9 +64,6 @@ const WorkspaceSwitcher = () => {
           description: `Workspace "${newWorkspaceName}" created successfully`,
         });
         console.log("Workspace created:", newWorkspace);
-        
-        // Force refresh workspaces list
-        await fetchWorkspaces();
       }
     } catch (error: any) {
       console.error("Workspace creation error:", error);
@@ -77,10 +76,23 @@ const WorkspaceSwitcher = () => {
       setIsCreating(false);
     }
   };
+  
+  const handleRefreshWorkspaces = async () => {
+    try {
+      setIsRefreshing(true);
+      await fetchWorkspaces();
+      toast({
+        title: "Refreshed",
+        description: "Workspace list has been refreshed",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200">
+      <div className="flex items-center justify-between px-3 py-2 border rounded-md border-gray-200">
         <div className="flex items-center space-x-2">
           <Loader2 size={16} className="animate-spin text-gray-400" />
           <span className="text-sm text-gray-500">Loading workspaces...</span>
@@ -94,14 +106,43 @@ const WorkspaceSwitcher = () => {
       <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
         <PopoverTrigger asChild>
           <button className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium bg-white hover:bg-gray-50 transition-colors rounded-md">
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-[#F76D01] rounded-sm"></div>
-              <span className="truncate">{currentWorkspace?.name || 'Select Workspace'}</span>
-            </div>
+            {error ? (
+              <div className="flex items-center space-x-2 text-red-500">
+                <AlertCircle size={16} />
+                <span className="truncate">Connection Error</span>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-[#F76D01] rounded-sm"></div>
+                <span className="truncate">{currentWorkspace?.name || 'Select Workspace'}</span>
+              </div>
+            )}
             <ChevronDown size={16} />
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-64 p-2" align="start">
+          {error && (
+            <Alert variant="destructive" className="mb-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {error}
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-medium">Your Workspaces</span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 w-8 p-0" 
+              onClick={handleRefreshWorkspaces}
+              disabled={isRefreshing}
+            >
+              <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
+            </Button>
+          </div>
+          
           <div className="space-y-1">
             {workspaces.map((workspace) => (
               <Button
