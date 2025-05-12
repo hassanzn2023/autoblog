@@ -68,7 +68,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       const { data, error } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('user_id', user.id as any)
+        .eq('user_id', user.id)
         .single();
         
       if (error) {
@@ -84,7 +84,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
           
           const { error: createError } = await supabase
             .from('subscriptions')
-            .insert([insertData] as any);
+            .insert([insertData as any]);
             
           if (createError) throw createError;
           
@@ -92,13 +92,13 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
           const { data: newSubscription, error: fetchError } = await supabase
             .from('subscriptions')
             .select('*')
-            .eq('user_id', user.id as any)
+            .eq('user_id', user.id)
             .single();
             
           if (fetchError) throw fetchError;
           
           if (newSubscription) {
-            // Use proper type assertion here
+            // Use proper type assertion with a null check
             setSubscription(newSubscription as Subscription);
           }
         } else {
@@ -129,12 +129,12 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       const { data, error } = await supabase
         .from('credits')
         .select('*')
-        .eq('user_id', user.id as any);
+        .eq('user_id', user.id);
         
       if (error) throw error;
       
       // Use proper type assertion here to avoid type errors
-      setCredits((data || []) as Credit[]);
+      setCredits(Array.isArray(data) ? data as Credit[] : []);
     } catch (error: any) {
       console.error('Error fetching credits:', error.message);
       toast({
@@ -186,7 +186,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       
       const { error: creditError } = await supabase
         .from('credits')
-        .insert([creditInsertData] as any);
+        .insert([creditInsertData as any]);
         
       if (creditError) throw creditError;
       
@@ -200,7 +200,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
           usage_amount: 1,
           credits_consumed: amount,
           operation_type: operation,
-        }] as any);
+        } as any]);
         
       if (apiUsageError) throw apiUsageError;
       

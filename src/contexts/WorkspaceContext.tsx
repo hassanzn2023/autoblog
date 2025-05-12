@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { supabase, checkSupabaseConnection } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -43,6 +42,34 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   // Maximum number of retry attempts
   const MAX_RETRY_ATTEMPTS = 3;
 
+  // Define createLocalDefaultWorkspace function to use before fetchWorkspaces
+  const createLocalDefaultWorkspace = (): Workspace => {
+    // Create a temporary workspace that exists only in memory
+    let workspaceName = 'Default Workspace';
+    
+    if (profile?.first_name) {
+      workspaceName = `${profile.first_name}'s Workspace`;
+    } else if (user?.email) {
+      // Extract name from email (before @)
+      const username = user.email.split('@')[0];
+      workspaceName = `${username}'s Workspace`;
+    } else if (user?.user_metadata?.first_name) {
+      workspaceName = `${user.user_metadata.first_name}'s Workspace`;
+    }
+    
+    const workspace: Workspace = {
+      id: `temp-${Date.now()}`,
+      name: workspaceName,
+      created_by: user?.id || 'unknown',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      settings: {}
+    };
+    
+    console.log("Created local temporary workspace:", workspace);
+    return workspace;
+  };
+
   // Define fetchWorkspaces at the top level before it's used
   const fetchWorkspaces = useCallback(async () => {
     if (!user) {
@@ -86,21 +113,21 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       const { data: directWorkspaces, error: directError } = await supabase
         .from('workspaces')
         .select('*')
-        .eq('created_by', user.id as any)
+        .eq('created_by', user.id)
         .order('created_at', { ascending: true });
       
       if (!directError && directWorkspaces && directWorkspaces.length > 0) {
         console.log("Direct workspaces fetched:", directWorkspaces.length);
         
         // Use proper type assertion here
-        const typedWorkspaces = directWorkspaces as unknown as Workspace[];
+        const typedWorkspaces = Array.isArray(directWorkspaces) ? directWorkspaces as Workspace[] : [];
         setWorkspaces(typedWorkspaces);
         
         // If there's no current workspace selected, select the first one
-        if (!currentWorkspace) {
+        if (!currentWorkspace && typedWorkspaces.length > 0) {
           console.log("Setting default workspace:", typedWorkspaces[0]?.name);
           setCurrentWorkspace(typedWorkspaces[0]);
-        } else {
+        } else if (currentWorkspace) {
           // Ensure the current workspace still exists in the fetched workspaces
           const currentExists = typedWorkspaces.some(w => w.id === currentWorkspace.id);
           if (!currentExists && typedWorkspaces.length > 0) {
@@ -123,7 +150,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         const { data: memberships, error: membershipError } = await supabase
           .from('workspace_members')
           .select('workspace_id')
-          .eq('user_id', user.id as any);
+          .eq('user_id', user.id);
 
         if (membershipError) {
           throw membershipError;
@@ -139,7 +166,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           const { data: workspacesData, error: workspacesError } = await supabase
             .from('workspaces')
             .select('*')
-            .in('id', workspaceIds as any)
+            .in('id', workspaceIds)
             .order('created_at', { ascending: true });
           
           if (workspacesError) {
@@ -150,7 +177,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           
           if (workspacesData && workspacesData.length > 0) {
             // Use proper type assertion here
-            const typedWorkspaces = workspacesData as unknown as Workspace[];
+            const typedWorkspaces = Array.isArray(workspacesData) ? workspacesData as Workspace[] : [];
             setWorkspaces(typedWorkspaces);
             
             // If there's no current workspace selected, select the first one
@@ -289,33 +316,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, [user, fetchWorkspaces]);
 
-  const createLocalDefaultWorkspace = (): Workspace => {
-    // Create a temporary workspace that exists only in memory
-    let workspaceName = 'Default Workspace';
-    
-    if (profile?.first_name) {
-      workspaceName = `${profile.first_name}'s Workspace`;
-    } else if (user?.email) {
-      // Extract name from email (before @)
-      const username = user.email.split('@')[0];
-      workspaceName = `${username}'s Workspace`;
-    } else if (user?.user_metadata?.first_name) {
-      workspaceName = `${user.user_metadata.first_name}'s Workspace`;
-    }
-    
-    const workspace: Workspace = {
-      id: `temp-${Date.now()}`,
-      name: workspaceName,
-      created_by: user?.id || 'unknown',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      settings: {}
-    };
-    
-    console.log("Created local temporary workspace:", workspace);
-    return workspace;
-  };
-
   const createDefaultWorkspace = async () => {
     if (!user) return;
     
@@ -394,7 +394,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       const { data: workspaceData, error: fetchError } = await supabase
         .from('workspaces')
         .select('*')
-        .eq('id', data as any)
+        .eq('id', data)
         .single();
         
       if (fetchError) {
@@ -526,7 +526,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       const { data: workspaceData, error: fetchError } = await supabase
         .from('workspaces')
         .select('*')
-        .eq('id', workspaceId as any)
+        .eq('id', workspaceId)
         .single();
         
       if (fetchError) {
@@ -584,7 +584,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       const { error } = await supabase
         .from('workspaces')
         .update(data as any)
-        .eq('id', id as any);
+        .eq('id', id);
         
       if (error) {
         console.error("Error updating workspace:", error.message);

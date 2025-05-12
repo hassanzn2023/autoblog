@@ -1,100 +1,108 @@
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.33.1';
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.32.0';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// This is a Supabase Edge Function that handles workspace creation
+// It ensures reliable workspace creation with proper error handling
+
+interface RequestPayload {
+  name: string;
+  user_id: string;
+}
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
   try {
-    // Get request data
-    const { name, user_id } = await req.json();
-    
+    // Create Supabase client
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') as string,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string
+    );
+
+    // Parse request body
+    const { name, user_id } = await req.json() as RequestPayload;
+
     // Validate inputs
     if (!name || !user_id) {
       return new Response(
         JSON.stringify({ 
-          error: 'Workspace name and user ID are required' 
+          error: "Missing required fields: workspace name and user ID are required" 
         }),
         { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          status: 400,
+          headers: { "Content-Type": "application/json" }
         }
       );
     }
 
-    // Create Supabase client with SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
-
-    // Use security definer function to create workspace
-    const { data, error } = await supabaseAdmin.rpc('create_workspace_with_owner', {
-      workspace_name: name,
-      user_id: user_id
-    });
-
-    if (error) {
-      console.error('Error creating workspace:', error);
-      return new Response(
-        JSON.stringify({ error: error.message }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    // Fetch the new workspace details
-    const { data: workspace, error: fetchError } = await supabaseAdmin
+    // First create the workspace
+    const { data: workspace, error: workspaceError } = await supabaseClient
       .from('workspaces')
+      .insert({
+        name,
+        created_by: user_id,
+      })
       .select('*')
-      .eq('id', data)
       .single();
 
-    if (fetchError) {
-      console.error('Error fetching created workspace:', fetchError);
+    if (workspaceError) {
+      console.error("Error creating workspace:", workspaceError);
       return new Response(
-        JSON.stringify({ error: fetchError.message }),
+        JSON.stringify({ 
+          error: `Failed to create workspace: ${workspaceError.message}` 
+        }),
         { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          status: 500,
+          headers: { "Content-Type": "application/json" }
         }
       );
     }
 
-    // Return successful response
+    // Then add the user as owner to the workspace
+    const { error: membershipError } = await supabaseClient
+      .from('workspace_members')
+      .insert({
+        workspace_id: workspace.id,
+        user_id: user_id,
+        role: 'owner'
+      });
+
+    if (membershipError) {
+      console.error("Error creating workspace membership:", membershipError);
+      // Attempt to clean up the workspace if we couldn't add the member
+      await supabaseClient
+        .from('workspaces')
+        .delete()
+        .eq('id', workspace.id);
+        
+      return new Response(
+        JSON.stringify({ 
+          error: `Failed to set workspace ownership: ${membershipError.message}` 
+        }),
+        { 
+          status: 500,
+          headers: { "Content-Type": "application/json" }
+        }
+      );
+    }
+
+    // Return success response
     return new Response(
       JSON.stringify({ 
-        message: 'Workspace created successfully', 
+        success: true, 
         workspace: workspace 
       }),
       { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        status: 200,
+        headers: { "Content-Type": "application/json" }
       }
     );
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error("Unexpected error:", error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: `Unexpected error: ${error.message}` }),
       { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        status: 500,
+        headers: { "Content-Type": "application/json" }
       }
     );
   }
