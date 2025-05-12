@@ -44,7 +44,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       const { data, error } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('user_id', user.id as any)
+        .eq('user_id', user.id as string)
         .single();
         
       if (error) {
@@ -57,7 +57,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
               plan_type: 'free',
               status: 'active',
               expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-            } as any);
+            } as DatabaseTypes['public']['Tables']['subscriptions']['Insert']);
             
           if (createError) throw createError;
           
@@ -65,16 +65,16 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
           const { data: newSubscription, error: fetchError } = await supabase
             .from('subscriptions')
             .select('*')
-            .eq('user_id', user.id as any)
+            .eq('user_id', user.id as string)
             .single();
             
           if (fetchError) throw fetchError;
-          setSubscription(newSubscription);
+          setSubscription(newSubscription as Subscription);
         } else {
           throw error;
         }
       } else {
-        setSubscription(data);
+        setSubscription(data as Subscription);
       }
     } catch (error: any) {
       console.error('Error fetching subscription:', error.message);
@@ -97,11 +97,11 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       const { data, error } = await supabase
         .from('credits')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id as string);
         
       if (error) throw error;
       
-      setCredits(data || []);
+      setCredits(data as Credit[] || []);
     } catch (error: any) {
       console.error('Error fetching credits:', error.message);
       toast({
@@ -151,7 +151,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
           workspace_id: workspaceId,
           credit_amount: amount,
           transaction_type: 'used',
-        });
+        } as DatabaseTypes['public']['Tables']['credits']['Insert']);
         
       if (creditError) throw creditError;
       
@@ -165,7 +165,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
           usage_amount: 1,
           credits_consumed: amount,
           operation_type: operation,
-        });
+        } as DatabaseTypes['public']['Tables']['api_usage']['Insert']);
         
       if (apiUsageError) throw apiUsageError;
       
