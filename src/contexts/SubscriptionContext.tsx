@@ -96,11 +96,13 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
             
           if (fetchError) throw fetchError;
           
-          setSubscription(newSubscription as Subscription);
+          if (newSubscription) {
+            setSubscription(newSubscription as Subscription);
+          }
         } else {
           throw error;
         }
-      } else {
+      } else if (data) {
         setSubscription(data as Subscription);
       }
     } catch (error: any) {

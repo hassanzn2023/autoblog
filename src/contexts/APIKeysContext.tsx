@@ -56,12 +56,12 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       const { data, error } = await supabase
         .from('api_keys')
         .select('*')
-        .eq('user_id', user.id as string)
-        .eq('workspace_id', currentWorkspace.id as string);
+        .eq('user_id', user.id)
+        .eq('workspace_id', currentWorkspace.id);
         
       if (error) throw error;
       
-      setApiKeys(data as unknown as APIKey[] || []);
+      setApiKeys(data as APIKey[] || []);
     } catch (error: any) {
       console.error('Error fetching API keys:', error.message);
       toast({
