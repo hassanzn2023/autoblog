@@ -36,6 +36,24 @@ import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import AuthRequired from './components/AuthRequired';
 
 const routes = [
+  // Auth routes outside of main layout
+  {
+    path: '/auth',
+    element: (
+      <AuthProvider>
+        <AuthPage />
+      </AuthProvider>
+    ),
+  },
+  {
+    path: '/signup',
+    element: (
+      <AuthProvider>
+        <AuthPage defaultTab="signup" />
+      </AuthProvider>
+    ),
+  },
+  // Main application routes
   {
     path: '/',
     element: (
@@ -53,10 +71,6 @@ const routes = [
       {
         index: true,
         element: <AuthRequired><Index /></AuthRequired>
-      },
-      {
-        path: 'auth',
-        element: <AuthPage />
       },
       {
         path: 'settings',

@@ -4,14 +4,17 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { Database } from '@/types/database.types';
+
+type ProfileType = Database['public']['Tables']['profiles']['Row'];
 
 interface AuthContextProps {
   session: Session | null;
   user: User | null;
-  profile: any | null;
+  profile: ProfileType | null;
   signOut: () => Promise<void>;
   loading: boolean;
-  getProfile: () => Promise<any>;
+  getProfile: () => Promise<ProfileType | null>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -20,7 +23,7 @@ const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<ProfileType | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const navigate = useNavigate();
 
@@ -103,7 +106,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
+        .eq('id', userId as string)
         .single();
 
       if (error) {
@@ -112,8 +115,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       
       console.log('Profile fetched:', data);
-      setProfile(data);
-      return data;
+      setProfile(data as ProfileType);
+      return data as ProfileType;
     } catch (error: any) {
       console.error('Error fetching profile:', error.message);
       return null;
