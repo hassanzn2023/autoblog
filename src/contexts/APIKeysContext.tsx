@@ -1,15 +1,15 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useWorkspace } from './WorkspaceContext';
 import { toast } from '@/hooks/use-toast';
 import { Database } from '@/types/database.types';
 
 // Define types directly from Database type
-type APIKey = Database['public']['Tables']['api_keys']['Row'];
-type APIKeyInsert = Database['public']['Tables']['api_keys']['Insert'];
-type APIKeyUpdate = Database['public']['Tables']['api_keys']['Update'];
+type APIKey = Tables<'api_keys'>;
+type APIKeyInsert = TablesInsert<'api_keys'>;
+type APIKeyUpdate = TablesUpdate<'api_keys'>;
 
 interface APIKeysContextProps {
   apiKeys: APIKey[];
@@ -43,7 +43,6 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
     try {
       setLoading(true);
       
-      // Use type assertion to help TypeScript understand the expected types
       const { data, error } = await supabase
         .from('api_keys')
         .select('*')
@@ -52,8 +51,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
         
       if (error) throw error;
       
-      // Cast data to match our APIKey type
-      setApiKeys(data as APIKey[] || []);
+      setApiKeys((data || []) as APIKey[]);
     } catch (error: any) {
       console.error('Error fetching API keys:', error.message);
       toast({
@@ -82,8 +80,8 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
 
         const { error } = await supabase
           .from('api_keys')
-          .update(updateData as any)
-          .eq('id', existingKey.id as string);
+          .update(updateData)
+          .eq('id', existingKey.id);
           
         if (error) throw error;
       } else {
@@ -98,7 +96,7 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
 
         const { error } = await supabase
           .from('api_keys')
-          .insert(insertData as any);
+          .insert(insertData);
           
         if (error) throw error;
       }
@@ -130,9 +128,9 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
 
       const { error } = await supabase
         .from('api_keys')
-        .update(updateData as any)
-        .eq('id', id as string)
-        .eq('user_id', user.id as string);
+        .update(updateData)
+        .eq('id', id)
+        .eq('user_id', user.id);
         
       if (error) throw error;
       
@@ -159,8 +157,8 @@ export const APIKeysProvider: React.FC<{ children: ReactNode }> = ({ children })
       const { error } = await supabase
         .from('api_keys')
         .delete()
-        .eq('id', id as string)
-        .eq('user_id', user.id as string);
+        .eq('id', id)
+        .eq('user_id', user.id);
         
       if (error) throw error;
       

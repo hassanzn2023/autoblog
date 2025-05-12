@@ -1,13 +1,13 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, Tables, TablesUpdate } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Database } from '@/types/database.types';
 
 // Define types directly from Database type
-type Profile = Database['public']['Tables']['profiles']['Row'];
-type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
+type Profile = Tables<'profiles'>;
+type ProfileUpdate = TablesUpdate<'profiles'>;
 
 interface AuthContextProps {
   session: Session | null;
@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId as string)
+        .eq('id', userId)
         .single();
 
       if (error) {
@@ -107,8 +107,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const { error } = await supabase
         .from('profiles')
-        .update(updates as any)
-        .eq('id', user.id as string);
+        .update(updates)
+        .eq('id', user.id);
 
       if (error) throw error;
 

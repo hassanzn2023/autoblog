@@ -1,16 +1,16 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, Tables, TablesInsert } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { Database } from '@/types/database.types';
 
 // Define types directly from Database type
-type Subscription = Database['public']['Tables']['subscriptions']['Row'];
-type Credit = Database['public']['Tables']['credits']['Row'];
-type CreditInsert = Database['public']['Tables']['credits']['Insert'];
-type ApiUsageInsert = Database['public']['Tables']['api_usage']['Insert'];
-type SubscriptionInsert = Database['public']['Tables']['subscriptions']['Insert'];
+type Subscription = Tables<'subscriptions'>;
+type Credit = Tables<'credits'>;
+type CreditInsert = TablesInsert<'credits'>;
+type ApiUsageInsert = TablesInsert<'api_usage'>;
+type SubscriptionInsert = TablesInsert<'subscriptions'>;
 
 interface SubscriptionContextProps {
   subscription: Subscription | null;
@@ -49,7 +49,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       const { data, error } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('user_id', user.id as string)
+        .eq('user_id', user.id)
         .single();
         
       if (error) {
@@ -64,7 +64,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
 
           const { error: createError } = await supabase
             .from('subscriptions')
-            .insert(newSubscription as any);
+            .insert(newSubscription);
             
           if (createError) throw createError;
           
@@ -72,7 +72,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
           const { data: newSubData, error: fetchError } = await supabase
             .from('subscriptions')
             .select('*')
-            .eq('user_id', user.id as string)
+            .eq('user_id', user.id)
             .single();
             
           if (fetchError) throw fetchError;
@@ -104,11 +104,11 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       const { data, error } = await supabase
         .from('credits')
         .select('*')
-        .eq('user_id', user.id as string);
+        .eq('user_id', user.id);
         
       if (error) throw error;
       
-      setCredits(data as Credit[] || []);
+      setCredits((data || []) as Credit[]);
     } catch (error: any) {
       console.error('Error fetching credits:', error.message);
       toast({
@@ -160,7 +160,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
 
       const { error: creditError } = await supabase
         .from('credits')
-        .insert(creditUsage as any);
+        .insert(creditUsage);
         
       if (creditError) throw creditError;
       
@@ -176,7 +176,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
 
       const { error: apiUsageError } = await supabase
         .from('api_usage')
-        .insert(apiUsage as any);
+        .insert(apiUsage);
         
       if (apiUsageError) throw apiUsageError;
       
