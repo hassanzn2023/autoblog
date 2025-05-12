@@ -1,4 +1,12 @@
 
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
 export interface DatabaseTypes {
   public: {
     Tables: {
@@ -205,11 +213,10 @@ export interface DatabaseTypes {
           operation_type?: string;
         }
       }
-    }
+    },
+    Views: {},
+    Functions: {},
+    Enums: {},
+    CompositeTypes: {}
   }
 }
-
-// Helper function for Supabase queries
-export const typedSupabaseQuery = (table: string): string => {
-  return table;
-};
