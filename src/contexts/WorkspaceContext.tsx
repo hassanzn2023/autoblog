@@ -101,11 +101,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           }
         } else {
           // No workspaces found, create a default one
-          createDefaultWorkspace();
+          await createDefaultWorkspace();
         }
       } else {
         // No memberships found, create a default workspace
-        createDefaultWorkspace();
+        await createDefaultWorkspace();
       }
     } catch (error: any) {
       console.error('Error fetching workspaces:', error.message);
@@ -125,7 +125,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     try {
       // Generate appropriate workspace name from profile or user email
       let defaultName = 'My Workspace';
-      if (profile?.first_name) {
+      
+      if (profile?.first_name && profile?.last_name) {
+        defaultName = `${profile.first_name} ${profile.last_name}'s Workspace`;
+      } else if (profile?.first_name) {
         defaultName = `${profile.first_name}'s Workspace`;
       } else if (user.email) {
         const username = user.email.split('@')[0];

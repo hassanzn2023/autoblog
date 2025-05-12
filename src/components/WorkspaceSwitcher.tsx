@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ChevronDown, Plus } from 'lucide-react';
+import { ChevronDown, Plus, Loader2 } from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import {
   Popover,
@@ -70,7 +70,10 @@ const WorkspaceSwitcher = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200">
-        <div className="w-full h-8 bg-gray-200 animate-pulse rounded"></div>
+        <div className="flex items-center space-x-2">
+          <Loader2 size={16} className="animate-spin text-gray-400" />
+          <span className="text-sm text-gray-500">Loading workspaces...</span>
+        </div>
       </div>
     );
   }
@@ -149,6 +152,12 @@ const WorkspaceSwitcher = () => {
                 placeholder="Enter workspace name"
                 value={newWorkspaceName}
                 onChange={(e) => setNewWorkspaceName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newWorkspaceName.trim() && !isCreating) {
+                    e.preventDefault();
+                    handleCreateWorkspace();
+                  }
+                }}
               />
             </div>
           </div>
@@ -157,8 +166,19 @@ const WorkspaceSwitcher = () => {
             <Button variant="outline" onClick={() => setNewWorkspaceDialogOpen(false)} disabled={isCreating}>
               Cancel
             </Button>
-            <Button onClick={handleCreateWorkspace} disabled={isCreating || !newWorkspaceName.trim()}>
-              {isCreating ? 'Creating...' : 'Create Workspace'}
+            <Button 
+              onClick={handleCreateWorkspace} 
+              disabled={isCreating || !newWorkspaceName.trim()}
+              className="bg-[#F76D01] hover:bg-[#E65D00]"
+            >
+              {isCreating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Create Workspace'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
