@@ -64,7 +64,7 @@ serve(async (req) => {
         
       if (apiKeyError) {
         console.error("Error fetching API key:", apiKeyError);
-        console.log("Will use system API key");
+        console.error("Will attempt to use system API key instead");
       } else {
         console.log("User API key found");
       }
@@ -77,13 +77,9 @@ serve(async (req) => {
       
       if (creditsError) {
         console.error("Error checking credits:", creditsError);
-        return new Response(
-          JSON.stringify({ error: 'Error checking user credits' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
       }
       
-      if (hasEnoughCredits === false) {
+      if (!hasEnoughCredits && !creditsError) {
         console.error("User doesn't have enough credits");
         return new Response(
           JSON.stringify({ error: 'Insufficient credits' }),
@@ -91,7 +87,7 @@ serve(async (req) => {
         );
       }
       
-      // Record API usage 
+      // Record API usage even with system API key
       try {
         const { error: creditUsageError } = await supabase
           .from('credits')
@@ -129,10 +125,6 @@ serve(async (req) => {
       }
     } else {
       console.log("User not authenticated or no workspace ID provided");
-      return new Response(
-        JSON.stringify({ error: 'User not authenticated or workspace not selected' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
     
     // Generate keyword suggestions using OpenAI
@@ -140,7 +132,7 @@ serve(async (req) => {
     
     // Clean content (remove HTML tags if present)
     const cleanContent = content.replace(/<[^>]*>/g, ' ');
-    const textSample = cleanContent.slice(0, 1500); // Increase content length
+    const textSample = cleanContent.slice(0, 1000); // Limit content length
     
     // Detect language (Arabic or English)
     const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
@@ -150,12 +142,12 @@ serve(async (req) => {
     
     // Prepare system prompt based on language
     const systemPrompt = hasArabicText 
-      ? 'أنت محلل SEO خبير متخصص في تحليل المحتوى واستخراج الكلمات المفتاحية ذات الصلة والأهمية. قم بتحليل النص وإيجاد الكلمات المفتاحية المناسبة التي ستزيد من ظهور المحتوى في نتائج البحث.'
-      : 'You are an expert SEO analyst specialized in content analysis and extracting relevant and important keywords. Analyze the text and find suitable keywords that will increase the content\'s visibility in search results.';
+      ? 'أنت مساعد متخصص في تحليل المحتوى واستخراج الكلمات المفتاحية المهمة. قم باستخراج الكلمات المفتاحية الأكثر صلة وأهمية من المحتوى المقدم.'
+      : 'You are a specialized assistant in content analysis and extracting important keywords. Extract the most relevant and important keywords from the provided content.';
     
     const userPrompt = hasArabicText
-      ? `قم بتحليل هذا المحتوى واستخرج منه ${keywordCount} كلمات مفتاحية أساسية مهمة. أعد النتائج فقط بتنسيق JSON كمصفوفة بإسم "keywords" بدون أي تعليقات أو شروحات إضافية:\n\n${textSample}`
-      : `Analyze this content and extract ${keywordCount} important primary keywords. Return the results only as a JSON array named "keywords" without any additional comments or explanations:\n\n${textSample}`;
+      ? `استخرج ${keywordCount} كلمات مفتاحية مهمة من هذا المحتوى واعرضها فقط كمصفوفة JSON تحت اسم "keywords" دون أي تعليقات أو توضيحات إضافية:\n\n${textSample}`
+      : `Extract ${keywordCount} important keywords from this content and return them only as a JSON array named "keywords" without any additional comments or explanations:\n\n${textSample}`;
     
     console.log("Calling OpenAI API...");
     
