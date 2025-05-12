@@ -37,6 +37,13 @@ export interface ChatMessage {
   id?: string;
 }
 
+// Added KeywordSuggestion interface that was missing
+export interface KeywordSuggestion {
+  id: string;
+  text: string;
+  score?: number;
+}
+
 const defaultModel = 'gpt-3.5-turbo';
 const defaultCreditsPerRequest = 1;
 
@@ -342,5 +349,168 @@ export const chatWithAI = async (
     });
     
     return { role: 'assistant', content: `Error: ${errorMessage}` };
+  }
+};
+
+// Added new function to match the imports in other files
+export const generateKeywordSuggestions = async (
+  content: string,
+  count: number = 3,
+  notes: string = '',
+  userId: string,
+  workspaceId: string
+): Promise<KeywordSuggestion[]> => {
+  try {
+    // Check if user has enough credits
+    const hasCredits = await hasEnoughCredits(userId);
+    if (!hasCredits) {
+      toast({
+        title: "Insufficient Credits",
+        description: "You don't have enough credits to perform this operation.",
+        variant: "destructive",
+      });
+      return [];
+    }
+
+    // Get API key
+    const apiKey = await getApiKey(userId, workspaceId);
+    if (!apiKey) {
+      toast({
+        title: "API Key Required",
+        description: "Please set your OpenAI API key in the settings.",
+        variant: "destructive",
+      });
+      return [];
+    }
+
+    // Call OpenAI through our edge function
+    const { data, error } = await supabase.functions.invoke('generate-keywords', {
+      body: { 
+        content, 
+        apiKey, 
+        count,
+        notes
+      },
+    });
+
+    if (error) {
+      console.error('Error generating primary keywords:', error);
+      throw new Error(error.message);
+    }
+
+    // Record credit usage
+    await recordCreditUsage(userId, workspaceId, 1, 'keyword_suggestion');
+
+    // Convert to KeywordSuggestion format
+    return (data?.keywords || []).map((keyword: string, index: number) => ({
+      id: `kw-${Date.now()}-${index}`,
+      text: keyword,
+    }));
+  } catch (error: any) {
+    console.error('Error generating keyword suggestions:', error);
+    
+    toast({
+      title: "Error",
+      description: error.message || "Failed to generate keyword suggestions",
+      variant: "destructive",
+    });
+    
+    return [];
+  }
+};
+
+// Added new function to match the imports in other files
+export const generateSecondaryKeywordSuggestions = async (
+  primaryKeyword: string,
+  content: string,
+  count: number = 5,
+  notes: string = '',
+  userId: string,
+  workspaceId: string
+): Promise<KeywordSuggestion[]> => {
+  try {
+    // Check if user has enough credits
+    const hasCredits = await hasEnoughCredits(userId);
+    if (!hasCredits) {
+      toast({
+        title: "Insufficient Credits",
+        description: "You don't have enough credits to perform this operation.",
+        variant: "destructive",
+      });
+      return [];
+    }
+
+    // Get API key
+    const apiKey = await getApiKey(userId, workspaceId);
+    if (!apiKey) {
+      toast({
+        title: "API Key Required",
+        description: "Please set your OpenAI API key in the settings.",
+        variant: "destructive",
+      });
+      return [];
+    }
+
+    // Call OpenAI through our edge function
+    const { data, error } = await supabase.functions.invoke('generate-secondary-keywords', {
+      body: { 
+        primaryKeyword,
+        content, 
+        apiKey, 
+        count,
+        notes
+      },
+    });
+
+    if (error) {
+      console.error('Error generating secondary keywords:', error);
+      throw new Error(error.message);
+    }
+
+    // Record credit usage
+    await recordCreditUsage(userId, workspaceId, 1, 'secondary_keyword_suggestion');
+
+    // Convert to KeywordSuggestion format
+    return (data?.keywords || []).map((keyword: string, index: number) => ({
+      id: `skw-${Date.now()}-${index}`,
+      text: keyword,
+    }));
+  } catch (error: any) {
+    console.error('Error generating secondary keyword suggestions:', error);
+    
+    toast({
+      title: "Error",
+      description: error.message || "Failed to generate secondary keyword suggestions",
+      variant: "destructive",
+    });
+    
+    return [];
+  }
+};
+
+// Added new function to match the imports in other files
+export const extractContentFromUrl = async (
+  url: string
+): Promise<{ content: string; title?: string; error?: string }> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('extract-url-content', {
+      body: { url },
+    });
+
+    if (error) {
+      console.error('Error extracting content from URL:', error);
+      throw new Error(error.message);
+    }
+
+    return { 
+      content: data?.content || '', 
+      title: data?.title || ''
+    };
+  } catch (error: any) {
+    console.error('Error extracting URL content:', error);
+    return { 
+      content: '', 
+      error: error.message || "Failed to extract content from URL" 
+    };
   }
 };
