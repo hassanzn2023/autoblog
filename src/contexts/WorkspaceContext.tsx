@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, handleSupabaseError } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { Database } from '@/types/database.types';
@@ -42,22 +42,35 @@ const WorkspaceContext = createContext<WorkspaceContextProps | undefined>(undefi
 // Define the function before using it
 async function fetchWorkspaces(userId: string): Promise<Workspace[]> {
   try {
+    if (!userId) {
+      console.log('No user ID provided to fetchWorkspaces');
+      return [];
+    }
+    
     // Query workspace_members to get workspace IDs where the user is a member
     const { data: membershipData, error: membershipError } = await supabase
       .from('workspace_members')
       .select('workspace_id')
-      .eq('user_id', userId as any);
+      .eq('user_id', userId);
 
-    if (membershipError) throw membershipError;
+    if (membershipError) {
+      console.error('Error fetching workspace memberships:', membershipError);
+      toast({
+        title: "Error loading workspace memberships",
+        description: handleSupabaseError(membershipError, "Failed to load your workspace memberships"),
+        variant: "destructive",
+      });
+      return [];
+    }
     
-    if (!membershipData || !membershipData.length) {
+    if (!membershipData || membershipData.length === 0) {
       console.log('No workspace memberships found for user');
       return [];
     }
 
     // Extract workspace IDs
     const workspaceIds = membershipData.map(item => {
-      if ('workspace_id' in item) {
+      if (item && 'workspace_id' in item) {
         return item.workspace_id;
       }
       return null;
@@ -71,11 +84,19 @@ async function fetchWorkspaces(userId: string): Promise<Workspace[]> {
     const { data: workspacesData, error: workspacesError } = await supabase
       .from('workspaces')
       .select('*')
-      .in('id', workspaceIds as any);
+      .in('id', workspaceIds);
 
-    if (workspacesError) throw workspacesError;
+    if (workspacesError) {
+      console.error('Error fetching workspaces:', workspacesError);
+      toast({
+        title: "Error loading workspaces",
+        description: handleSupabaseError(workspacesError, "Failed to load your workspaces"),
+        variant: "destructive",
+      });
+      return [];
+    }
     
-    if (!workspacesData) {
+    if (!workspacesData || workspacesData.length === 0) {
       console.log('No workspaces found with the membership IDs');
       return [];
     }
@@ -83,6 +104,11 @@ async function fetchWorkspaces(userId: string): Promise<Workspace[]> {
     return workspacesData as unknown as Workspace[];
   } catch (error: any) {
     console.error('Error fetching workspaces:', error.message);
+    toast({
+      title: "Error loading workspaces",
+      description: "An unexpected error occurred while loading your workspaces",
+      variant: "destructive",
+    });
     return [];
   }
 }
@@ -109,7 +135,9 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     setLoading(true);
     try {
       const userWorkspaces = await fetchWorkspaces(user.id);
-      setWorkspaces(userWorkspaces);
+      
+      // Always ensure workspaces is an array, even if the fetch failed
+      setWorkspaces(Array.isArray(userWorkspaces) ? userWorkspaces : []);
       
       // Get the stored current workspace ID from localStorage
       const storedWorkspaceId = localStorage.getItem(`workspace_${user.id}`);
@@ -132,13 +160,18 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           if (user.id) {
             localStorage.setItem(`workspace_${user.id}`, defaultWorkspace.id);
           }
+        } else {
+          // If creating default workspace fails, ensure we have an empty array
+          setWorkspaces([]);
+          setCurrentWorkspace(null);
         }
       }
     } catch (error: any) {
       console.error('Error loading workspaces:', error.message);
+      setWorkspaces([]); // Ensure workspaces is always an array
       toast({
         title: "Error",
-        description: "Failed to load workspaces",
+        description: "Failed to load workspaces. Please try again later.",
         variant: "destructive",
       });
     } finally {
@@ -150,6 +183,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (!user) return null;
     
     try {
+      console.log('Creating workspace:', name);
       // Use direct Supabase queries instead of Edge Function
       // First create the workspace
       const { data: workspaceData, error: workspaceError } = await supabase
@@ -157,11 +191,14 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         .insert({
           name,
           created_by: user.id
-        } as any)
+        })
         .select()
         .single();
         
-      if (workspaceError) throw workspaceError;
+      if (workspaceError) {
+        console.error('Error creating workspace:', workspaceError);
+        throw workspaceError;
+      }
       
       if (!workspaceData) {
         throw new Error('Failed to create workspace');
@@ -174,36 +211,38 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           workspace_id: workspaceData.id,
           user_id: user.id,
           role: 'owner'
-        } as any);
+        });
         
-      if (memberError) throw memberError;
+      if (memberError) {
+        console.error('Error creating workspace membership:', memberError);
+        throw memberError;
+      }
       
       // Refresh workspaces after creation
       const updatedWorkspaces = await fetchWorkspaces(user.id);
-      setWorkspaces(updatedWorkspaces);
       
-      // Find the new workspace in the updated list
-      const newWorkspace = updatedWorkspaces.find(w => w.id === workspaceData.id) as Workspace;
+      // Always ensure workspaces is an array
+      setWorkspaces(Array.isArray(updatedWorkspaces) ? updatedWorkspaces : [workspaceData as unknown as Workspace]);
       
-      if (newWorkspace) {
-        // Switch to the new workspace
-        setCurrentWorkspace(newWorkspace);
-        localStorage.setItem(`workspace_${user.id}`, newWorkspace.id);
-        
-        toast({
-          title: "Success",
-          description: `Workspace "${name}" created successfully`
-        });
-        
-        return newWorkspace;
-      }
+      // Find the new workspace in the updated list or use the one we just created
+      const newWorkspace = (Array.isArray(updatedWorkspaces) && updatedWorkspaces.find(w => w.id === workspaceData.id)) || 
+        (workspaceData as unknown as Workspace);
       
-      return null;
+      // Switch to the new workspace
+      setCurrentWorkspace(newWorkspace);
+      localStorage.setItem(`workspace_${user.id}`, newWorkspace.id);
+      
+      toast({
+        title: "Success",
+        description: `Workspace "${name}" created successfully`
+      });
+      
+      return newWorkspace;
     } catch (error: any) {
       console.error('Error creating workspace:', error.message);
       toast({
         title: "Error",
-        description: error.message || "Failed to create workspace",
+        description: handleSupabaseError(error, "Failed to create workspace"),
         variant: "destructive",
       });
       return null;

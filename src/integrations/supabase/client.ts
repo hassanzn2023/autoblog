@@ -29,6 +29,21 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     params: {
       eventsPerSecond: 10
     }
+  },
+  // Add retries for better resilience
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce',
+  },
+  // Add error handling
+  fetch: (url, options) => {
+    return fetch(url, {
+      ...options,
+      // Add timeout to prevent hanging requests
+      signal: options?.signal || (typeof AbortSignal !== 'undefined' ? AbortSignal.timeout(15000) : undefined)
+    })
   }
 });
 
@@ -36,7 +51,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 export const checkSupabaseConnection = async (): Promise<boolean> => {
   try {
     // Try a simple query that should always work if the connection is active
-    const { data, error } = await supabase.from('workspaces').select('id').limit(1);
+    const { data, error } = await supabase.from('workspaces').select('count').limit(1);
     return !error;
   } catch (e) {
     console.error("Connection check failed:", e);
@@ -58,7 +73,11 @@ export const handleSupabaseError = (error: any, defaultMessage: string = "An err
     }
     
     if (error.message.includes("infinite recursion")) {
-      return "Database policy error. The team has been notified.";
+      return "There's an issue with database permissions. Please try again in a moment or contact support if this persists.";
+    }
+    
+    if (error.message.includes("not iterable")) {
+      return "There was a problem retrieving your data. Please refresh and try again.";
     }
     
     return error.message;

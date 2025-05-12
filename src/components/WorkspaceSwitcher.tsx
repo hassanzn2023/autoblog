@@ -39,6 +39,7 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
     setOpen(false);
   };
 
+  // Display loading state
   if (loading) {
     return (
       <Button variant="ghost" className={cn("w-[200px] justify-between", className)}>
@@ -47,6 +48,9 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
       </Button>
     );
   }
+
+  // Ensure workspaces is always treated as an array
+  const workspacesList = Array.isArray(workspaces) ? workspaces : [];
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -68,9 +72,9 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
           <CommandList>
             <CommandInput placeholder="Search workspace..." />
             <CommandEmpty>No workspace found.</CommandEmpty>
-            {workspaces && Array.isArray(workspaces) && workspaces.length > 0 ? (
+            {workspacesList.length > 0 ? (
               <CommandGroup heading="Workspaces">
-                {workspaces.map((workspace) => (
+                {workspacesList.map((workspace) => (
                   <CommandItem
                     key={workspace.id}
                     className="text-sm cursor-pointer"

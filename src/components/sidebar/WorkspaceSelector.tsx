@@ -54,6 +54,9 @@ const WorkspaceSelector = () => {
     setOpen(false);
   };
 
+  // Ensure workspaces is always treated as an array
+  const workspacesList = Array.isArray(workspaces) ? workspaces : [];
+
   return (
     <div className="px-4 py-2 border-b border-gray-200">
       <Popover open={open} onOpenChange={setOpen}>
@@ -75,9 +78,9 @@ const WorkspaceSelector = () => {
           <Command>
             <CommandInput placeholder="Search workspace..." />
             <CommandEmpty>No workspace found.</CommandEmpty>
-            {workspaces && Array.isArray(workspaces) && workspaces.length > 0 ? (
+            {workspacesList.length > 0 ? (
               <CommandGroup>
-                {workspaces.map((workspace) => (
+                {workspacesList.map((workspace) => (
                   <CommandItem
                     key={workspace.id}
                     onSelect={() => {
