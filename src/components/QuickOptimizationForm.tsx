@@ -176,10 +176,10 @@ const QuickOptimizationForm = () => {
       description: "Your content has been added successfully.",
     });
 
-    // Auto-generate keywords after content confirmation
-    if (user?.id && currentWorkspace?.id) {
-      handleGeneratePrimaryKeywords();
-    }
+    // Removed the auto-generation call here:
+    // if (user?.id && currentWorkspace?.id) {
+    //   handleGeneratePrimaryKeywords();
+    // }
   };
 
   const handlePrimaryKeywordSelect = (keyword: string) => {
@@ -207,7 +207,7 @@ const QuickOptimizationForm = () => {
   };
 
 
-  // Fix primary keyword generation
+  // Primary keyword generation (triggered by button)
   const handleGeneratePrimaryKeywords = async () => {
     if (!content) {
       toast({
@@ -246,8 +246,9 @@ const QuickOptimizationForm = () => {
         setPrimaryKeywordSuggestions(suggestions);
 
         // Auto-select the first keyword if none is selected
+        // You might want to remove this auto-select too if you want manual selection only
         if (!primaryKeyword) {
-          setPrimaryKeyword(suggestions[0].text);
+           setPrimaryKeyword(suggestions[0].text);
         }
 
         setRegenerationNote('');
@@ -274,7 +275,7 @@ const QuickOptimizationForm = () => {
     }
   };
 
-  // Fix secondary keyword generation
+  // Secondary keyword generation (triggered by button)
   const handleGenerateSecondaryKeywords = async () => {
     if (!primaryKeyword || !content) {
       toast({
@@ -772,10 +773,14 @@ const QuickOptimizationForm = () => {
                 />
                 <button
                   className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md flex items-center gap-1 transition-colors"
-                  onClick={() => setShowPrimaryKeywordSuggestions(!showPrimaryKeywordSuggestions)}
+                  onClick={handleGeneratePrimaryKeywords} // Trigger generation on button click
                   disabled={!contentConfirmed || isGeneratingPrimary}
                 >
-                  <Search size={16} className="text-gray-600" />
+                  {isGeneratingPrimary ? (
+                    <Loader size={16} className="mr-2 animate-spin text-gray-600" />
+                  ) : (
+                    <Search size={16} className="mr-2 text-gray-600" />
+                  )}
                   Suggest
                 </button>
               </div>
@@ -808,7 +813,7 @@ const QuickOptimizationForm = () => {
                   </div>
 
                   <div className="mt-4 flex justify-between items-center">
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-gray-500 flex-1 mr-2"> {/* Added flex-1 and mr-2 */}
                       <input
                         type="text"
                         className="w-full p-2 border border-gray-300 rounded-md"
@@ -861,10 +866,14 @@ const QuickOptimizationForm = () => {
                 </div>
                 <button
                   className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md h-fit flex items-center gap-1 transition-colors"
-                  onClick={() => setShowSecondaryKeywordSuggestions(!showSecondaryKeywordSuggestions)}
+                  onClick={handleGenerateSecondaryKeywords} // Trigger generation on button click
                   disabled={!primaryKeyword || isGeneratingSecondary}
                 >
-                  <Search size={16} className="text-gray-600" />
+                   {isGeneratingSecondary ? (
+                    <Loader size={16} className="mr-2 animate-spin text-gray-600" />
+                  ) : (
+                    <Search size={16} className="mr-2 text-gray-600" />
+                  )}
                   Suggest
                 </button>
               </div>
