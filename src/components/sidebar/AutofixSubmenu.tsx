@@ -14,6 +14,11 @@ const AutofixSubmenu = () => {
         active={location.pathname === '/seo-checker'}
       />
       <SubmenuItem 
+        text="Quick SEO" 
+        to="/quick-seo" 
+        active={location.pathname === '/quick-seo'}
+      />
+      <SubmenuItem 
         text="Autofix Modes" 
         to="/autofix/modes" 
         active={location.pathname === '/autofix/modes'}

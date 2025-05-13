@@ -1,199 +1,154 @@
 
-import React from 'react';
+import { createBrowserRouter } from 'react-router-dom';
 import Layout from './components/Layout';
 import Index from './pages/Index';
-import HistoryPage from './pages/HistoryPage';
-import AutoblogPage from './pages/AutoblogPage';
-import BlogProjectsPage from './pages/BlogProjectsPage';
-import ModeSelectionPage from './pages/ModeSelectionPage';
-import NormalModePage from './pages/NormalModePage';
-import ProModePage from './pages/ProModePage';
-import SEOCheckerPage from './pages/SEOCheckerPage';
-import WritingStylePage from './pages/WritingStylePage';
-import NotFound from './pages/NotFound';
-import AutoblogConfigPage from './pages/AutoblogConfigPage';
-import BlogConfigPage from './pages/BlogConfigPage';
-import PreferencesPage from './pages/PreferencesPage';
-import ProfilePage from './pages/ProfilePage';
 import UsagePage from './pages/UsagePage';
-import BillingPage from './pages/BillingPage';
-import TeamsPage from './pages/TeamsPage';
-import IntegrationsPage from './pages/IntegrationsPage';
-import AutoblogCreatePage from './pages/AutoblogCreatePage';
-import AutoblogListPage from './pages/AutoblogListPage';
-import AutoblogTemplatePage from './pages/AutoblogTemplatePage';
-import HelpCenterPage from './pages/HelpCenterPage';
-import BenefitsPage from './pages/BenefitsPage';
+import SettingsPage from './pages/SettingsPage';
+import PreferencesPage from './pages/PreferencesPage';
 import RequestFeaturePage from './pages/RequestFeaturePage';
 import ApiDashboardPage from './pages/ApiDashboardPage';
-import GetStartedPage from './pages/GetStartedPage';
+import WritingStylePage from './pages/WritingStylePage';
+import NotFound from './pages/NotFound';
 import AuthPage from './pages/AuthPage';
-import SettingsPage from './pages/SettingsPage';
-import { AuthProvider } from './contexts/AuthContext';
-import { WorkspaceProvider } from './contexts/WorkspaceContext';
-import { APIKeysProvider } from './contexts/APIKeysContext';
-import { SubscriptionProvider } from './contexts/SubscriptionContext';
-import AuthRequired from './components/AuthRequired';
+import ProfilePage from './pages/ProfilePage';
+import TeamPage from './pages/TeamsPage';
+import BillingPage from './pages/BillingPage';
+import BenefitsPage from './pages/BenefitsPage';
+import HistoryPage from './pages/HistoryPage';
+import IntegrationsPage from './pages/IntegrationsPage';
+import GetStartedPage from './pages/GetStartedPage';
+import AutoblogPage from './pages/AutoblogPage';
+import AutoblogTemplatePage from './pages/AutoblogTemplatePage';
+import AutoblogListPage from './pages/AutoblogListPage';
+import AutoblogCreatePage from './pages/AutoblogCreatePage';
+import AutoblogConfigPage from './pages/AutoblogConfigPage';
+import BlogProjectsPage from './pages/BlogProjectsPage';
+import BlogConfigPage from './pages/BlogConfigPage';
+import HelpCenterPage from './pages/HelpCenterPage';
+import ModeSelectionPage from './pages/ModeSelectionPage';
+import ProModePage from './pages/ProModePage';
+import NormalModePage from './pages/NormalModePage';
+import SEOCheckerPage from './pages/SEOCheckerPage';
+import QuickSEOPage from './pages/QuickSEOPage';
 
-const routes = [
-  // Auth routes outside of main layout
-  {
-    path: '/auth',
-    element: (
-      <AuthProvider>
-        <AuthPage />
-      </AuthProvider>
-    ),
-  },
-  {
-    path: '/signup',
-    element: (
-      <AuthProvider>
-        <AuthPage defaultTab="signup" />
-      </AuthProvider>
-    ),
-  },
-  // Main application routes
+export const router = createBrowserRouter([
   {
     path: '/',
-    element: (
-      <AuthProvider>
-        <WorkspaceProvider>
-          <APIKeysProvider>
-            <SubscriptionProvider>
-              <Layout />
-            </SubscriptionProvider>
-          </APIKeysProvider>
-        </WorkspaceProvider>
-      </AuthProvider>
-    ),
+    element: <Layout />,
+    errorElement: <NotFound />,
     children: [
       {
-        index: true,
-        element: <AuthRequired><Index /></AuthRequired>
+        path: '/',
+        element: <Index />
       },
       {
-        path: 'settings',
-        element: <AuthRequired><SettingsPage /></AuthRequired>
+        path: '/usage',
+        element: <UsagePage />
       },
       {
-        path: 'get-started',
-        element: <AuthRequired><GetStartedPage /></AuthRequired>
+        path: '/api-dashboard',
+        element: <ApiDashboardPage />
       },
       {
-        path: 'history',
-        element: <AuthRequired><HistoryPage /></AuthRequired>
+        path: '/settings',
+        element: <SettingsPage />
       },
       {
-        path: 'content-settings',
-        element: <AuthRequired><AutoblogTemplatePage /></AuthRequired>
+        path: '/preferences',
+        element: <PreferencesPage />
       },
       {
-        path: 'autoblog',
-        element: <AuthRequired><AutoblogPage /></AuthRequired>
+        path: '/writing-style',
+        element: <WritingStylePage />
       },
       {
-        path: 'autoblog/create',
-        element: <AuthRequired><AutoblogCreatePage /></AuthRequired>
+        path: '/request-feature',
+        element: <RequestFeaturePage />
       },
       {
-        path: 'autoblog/list',
-        element: <AuthRequired><AutoblogListPage /></AuthRequired>
+        path: '/profile',
+        element: <ProfilePage />
       },
       {
-        path: 'autoblog/config',
-        element: <AuthRequired><AutoblogConfigPage /></AuthRequired>
+        path: '/teams',
+        element: <TeamPage />
       },
       {
-        path: 'autoblog/config/:id',
-        element: <AuthRequired><AutoblogConfigPage /></AuthRequired>
+        path: '/billing',
+        element: <BillingPage />
       },
       {
-        path: 'blog',
-        element: <AuthRequired><BlogProjectsPage /></AuthRequired>
+        path: '/benefits',
+        element: <BenefitsPage />
       },
       {
-        path: 'blog/create',
-        element: <AuthRequired><BlogProjectsPage /></AuthRequired>
+        path: '/history',
+        element: <HistoryPage />
       },
       {
-        path: 'blog/articles',
-        element: <AuthRequired><BlogProjectsPage /></AuthRequired>
+        path: '/integrations',
+        element: <IntegrationsPage />
       },
       {
-        path: 'blog/config',
-        element: <AuthRequired><BlogConfigPage /></AuthRequired>
+        path: '/get-started',
+        element: <GetStartedPage />
       },
       {
-        path: 'blog/config/:id',
-        element: <AuthRequired><BlogConfigPage /></AuthRequired>
+        path: '/autoblog',
+        element: <AutoblogPage />
       },
       {
-        path: 'autofix/modes',
-        element: <AuthRequired><ModeSelectionPage /></AuthRequired>
+        path: '/autoblog/templates',
+        element: <AutoblogTemplatePage />
       },
       {
-        path: 'autofix/normal',
-        element: <AuthRequired><NormalModePage /></AuthRequired>
+        path: '/autoblog/list',
+        element: <AutoblogListPage />
       },
       {
-        path: 'autofix/pro',
-        element: <AuthRequired><ProModePage /></AuthRequired>
+        path: '/autoblog/create',
+        element: <AutoblogCreatePage />
       },
       {
-        path: 'seo-checker',
-        element: <AuthRequired><SEOCheckerPage /></AuthRequired>
+        path: '/autoblog/config',
+        element: <AutoblogConfigPage />
       },
       {
-        path: 'writing-style',
-        element: <AuthRequired><WritingStylePage /></AuthRequired>
+        path: '/blog-projects',
+        element: <BlogProjectsPage />
       },
       {
-        path: 'preferences',
-        element: <AuthRequired><PreferencesPage /></AuthRequired>
+        path: '/blog/config',
+        element: <BlogConfigPage />
       },
       {
-        path: 'profile',
-        element: <AuthRequired><ProfilePage /></AuthRequired>
+        path: '/help-center',
+        element: <HelpCenterPage />
       },
       {
-        path: 'usage',
-        element: <AuthRequired><UsagePage /></AuthRequired>
+        path: '/mode',
+        element: <ModeSelectionPage />
       },
       {
-        path: 'billing',
-        element: <AuthRequired><BillingPage /></AuthRequired>
+        path: '/pro-mode',
+        element: <ProModePage />
       },
       {
-        path: 'teams',
-        element: <AuthRequired><TeamsPage /></AuthRequired>
+        path: '/normal-mode',
+        element: <NormalModePage />
       },
       {
-        path: 'integrations',
-        element: <AuthRequired><IntegrationsPage /></AuthRequired>
+        path: '/seo-checker',
+        element: <SEOCheckerPage />
       },
       {
-        path: 'benefits',
-        element: <AuthRequired><BenefitsPage /></AuthRequired>
-      },
-      {
-        path: 'request-feature',
-        element: <AuthRequired><RequestFeaturePage /></AuthRequired>
-      },
-      {
-        path: 'api-dashboard',
-        element: <AuthRequired><ApiDashboardPage /></AuthRequired>
-      },
-      {
-        path: 'help',
-        element: <AuthRequired><HelpCenterPage /></AuthRequired>
-      },
-      {
-        path: '*',
-        element: <NotFound />
+        path: '/quick-seo',
+        element: <QuickSEOPage />
       }
     ]
+  },
+  {
+    path: '/auth',
+    element: <AuthPage />
   }
-];
-
-export default routes;
+]);
