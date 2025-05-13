@@ -213,11 +213,33 @@ serve(async (req) => {
 function fallbackExtractContent(doc) {
   // Try to find main content container using extended selectors
   const contentSelectors = [
-    'main', 'article', '[role="main"]',
-    '.content', '.article', '.post', '.entry-content', '.story', '.blog-post',
-    '#content', '#main-content', '#article-content', '#story-content', '#post-content',
-    'article', '.article-body', '.story-body', '.content-area', '.post-body',
-    '.main-content', '.page-content', '.entry', '.single-content', '.wordpress-content'
+    'main',
+    'article',
+    '[role="main"]',
+    '.content',
+    '.article',
+    '.post',
+    '.entry-content',
+    '.story',
+    '.blog-post',
+    '#content',
+    '#main-content',
+    '#article-content',
+    '#story-content',
+    '#post-content',
+    '.article-body',
+    '.story-body',
+    '.content-area',
+    '.post-body',
+    '.main-content',
+    '.page-content',
+    '.entry',
+    '.single-content',
+    '.wordpress-content',
+    // Add new selectors based on your analysis:
+    '.post-details-content', // Found in the image
+    '.prose',                // Found in the image
+    // You can also add combinations or other specific selectors if needed
   ];
   
   let contentElement = null;
