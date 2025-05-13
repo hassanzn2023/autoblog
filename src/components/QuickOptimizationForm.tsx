@@ -599,13 +599,6 @@ const QuickOptimizationForm = () => {
                     </Button>
                   </div>
                 )}
-                 {/* Show confirmed state only in text/file method if content is available */}
-                 {contentConfirmed && contentMethod !== 'link' && (
-                   <div className="flex items-center text-green-600 mt-4">
-                     <CheckIcon className="mr-2" />
-                     <span>Content added/confirmed.</span>
-                   </div>
-                 )}
               </>
             )}
 
@@ -696,13 +689,6 @@ const QuickOptimizationForm = () => {
                     </div>
                   </div>
                 )}
-                 {/* Show confirmed state only in link method */}
-                 {contentConfirmed && contentMethod === 'link' && (
-                   <div className="flex items-center text-green-600 mt-4">
-                     <CheckIcon className="mr-2" />
-                     <span>Content added/confirmed.</span>
-                   </div>
-                 )}
               </div>
             )}
 
@@ -805,23 +791,16 @@ const QuickOptimizationForm = () => {
                      </div>
                    </div>
                  )}
-                 {/* Show confirmed state only in file method if content is available */}
-                 {contentConfirmed && contentMethod === 'file' && (
-                   <div className="flex items-center text-green-600 mt-4">
-                     <CheckIcon className="mr-2" />
-                     <span>Content added/confirmed.</span>
-                   </div>
-                 )}
               </div>
             )}
 
-             {/* Moved confirmed state display to be inside each method's block */}
-            {/* {contentConfirmed && (
+             {/* THIS IS THE CORRECTED LOCATION FOR THE CONFIRMED MESSAGE */}
+            {contentConfirmed && (
               <div className="flex items-center text-green-600 mt-4">
                 <CheckIcon className="mr-2" />
                 <span>Content added/confirmed.</span>
               </div>
-            )} */}
+            )}
           </div>
         </div>
 
