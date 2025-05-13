@@ -7,6 +7,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Define a minimum length for Readability extracted text to be considered valid
+const MIN_ARTICLE_LENGTH = 500; // You can adjust this value based on testing
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -17,6 +20,7 @@ serve(async (req) => {
     const { url } = await req.json();
 
     if (!url) {
+      console.log("Error: URL is required"); // Added log for missing URL
       return new Response(
         JSON.stringify({ error: 'URL is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -27,7 +31,10 @@ serve(async (req) => {
 
     // Fetch the content from the URL with improved headers and timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
+    const timeoutId = setTimeout(() => {
+        console.log(`Fetch timed out after 20 seconds for URL: ${url}`); // Log fetch timeout
+        controller.abort();
+    }, 20000); // 20 second timeout
 
     const response = await fetch(url, {
       headers: {
@@ -39,6 +46,7 @@ serve(async (req) => {
     }).finally(() => clearTimeout(timeoutId));
 
     if (!response.ok) {
+      console.error(`Fetch failed with status: ${response.status} ${response.statusText}`); // Log fetch failure
       throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
     }
 
@@ -50,7 +58,8 @@ serve(async (req) => {
     const doc = parser.parseFromString(html, "text/html");
 
     if (!doc) {
-      throw new Error("Failed to parse HTML content");
+       console.error("Failed to parse HTML content"); // Log parse failure
+       throw new Error("Failed to parse HTML content");
     }
 
     // Extract title
@@ -69,7 +78,11 @@ serve(async (req) => {
 
     if (dirAttr === "rtl" || langAttr?.startsWith("ar") || langAttr?.startsWith("he")) {
       isRTL = true;
+      console.log("Content detected as RTL"); // Log RTL detection
+    } else {
+       console.log("Content detected as LTR"); // Log LTR detection
     }
+
 
     // Extract main content using Readability
     let mainContent = "";
@@ -84,16 +97,17 @@ serve(async (req) => {
       const reader = new Readability(doc);
       const article = reader.parse();
 
-      // --- Added Console Log 1: Readability Result ---
+      // --- Console Log 1: Readability Result ---
       console.log(`Readability parse result: ${article ? 'Success' : 'Failed'}`);
       if (article) {
           console.log(`Readability article title: ${article.title}`);
-          console.log(`Readability article text length: ${article.textContent?.length}`);
+          console.log(`Readability article text length: ${article.textContent?.length || 0}`); // Handle null/undefined textContent
       }
       // ---------------------------------------------
 
-      if (article) {
-        console.log(`Using Readability result`);
+      // Check if Readability succeeded AND the extracted text is long enough
+      if (article && article.textContent && article.textContent.length >= MIN_ARTICLE_LENGTH) {
+        console.log(`Using Readability result (text length ${article.textContent.length} >= ${MIN_ARTICLE_LENGTH})`);
         mainContent = article.content || "";
         textContent = article.textContent || "";
         excerpt = article.excerpt || "";
@@ -101,11 +115,20 @@ serve(async (req) => {
         siteName = article.siteName || "";
 
       } else {
-        console.log("Readability could not extract article, falling back to manual extraction");
-        // Fall back to manual extraction logic if Readability fails
+        // --- Log for Falling Back Due to Short/Failed Readability Result ---
+        if (article && article.textContent && article.textContent.length < MIN_ARTICLE_LENGTH) {
+            console.log(`Readability result too short (${article.textContent.length} chars), falling back to manual extraction`);
+        } else if (article && !article.textContent) {
+            console.log("Readability extracted article but textContent is empty, falling back to manual extraction");
+        } else {
+            console.log("Readability could not extract article, falling back to manual extraction");
+        }
+        // --------------------------------------------------------------
+
+        // Fall back to manual extraction logic
+        // Note: fallbackExtractContent returns HTML, textContent fallback uses doc.body.textContent
         mainContent = fallbackExtractContent(doc);
-        textContent = doc.body?.textContent || ""; // Fallback for text content too
-        // Note: fallbackExtractContent returns HTML, textContent uses doc.body.textContent
+        textContent = doc.body?.textContent || ""; // Fallback for plain text content from body
       }
     } catch (readabilityError) {
       console.error("Error using Readability:", readabilityError);
@@ -115,27 +138,21 @@ serve(async (req) => {
       textContent = doc.body?.textContent || ""; // Fallback for text content too
     }
 
-    // --- Added Console Log 2: Final Extracted Content Details ---
-    console.log(`Final mainContent length: ${mainContent.length} characters`);
-    console.log(`Final textContent length: ${textContent.length} characters`);
-    // Clean text content BEFORE generating final excerpt if excerpt was not set by Readability
-    const cleanedTextContent = textContent.replace(/\s+/g, ' ').trim();
-    console.log(`Cleaned textContent length: ${cleanedTextContent.length} characters`);
-    // ----------------------------------------------------------
-
-
     // Clean text content (using the variable that will be returned)
+    // Apply cleaning AFTER potential fallback textContent assignment
     textContent = textContent.replace(/\s+/g, ' ').trim();
 
-    // Extract excerpt if not already set by Readability
-    if (!excerpt) {
-      excerpt = textContent.length > 150
-        ? textContent.substring(0, 150) + "..."
-        : textContent;
+    // Extract excerpt if not already set by Readability or if fallback produced empty excerpt
+    if (!excerpt || excerpt.trim() === "") { // Also check if excerpt is just whitespace
+         // Use the cleaned textContent for excerpt calculation
+         excerpt = textContent.length > 150
+            ? textContent.substring(0, 150).trim() + "..." // Trim substring too
+            : textContent.trim(); // Trim the whole text if short
     }
 
-    // Extract author/byline with expanded selectors if not already set by Readability
-    if (!byline) {
+
+    // Extract author/byline with expanded selectors if not already set by Readability or if fallback produced empty byline
+    if (!byline || byline.trim() === "") {
       const authorSelectors = [
         'meta[name="author"]',
         'meta[property="article:author"]',
@@ -147,14 +164,21 @@ serve(async (req) => {
       for (const selector of authorSelectors) {
         const authorElement = doc.querySelector(selector);
         if (authorElement) {
-          byline = authorElement.getAttribute("content") || authorElement.textContent || "";
-          if (byline) break;
+          byline = (authorElement.getAttribute("content") || authorElement.textContent || "").trim();
+          if (byline) {
+              console.log(`Extracted byline using selector: ${selector}`); // Log which selector found byline
+              break;
+          }
         }
       }
+       if (!byline) {
+           console.log("Could not find byline using selectors."); // Log if byline extraction failed
+       }
     }
 
-    // Extract site name if not already set by Readability
-    if (!siteName) {
+
+    // Extract site name if not already set by Readability or if fallback produced empty siteName
+    if (!siteName || siteName.trim() === "") {
       const siteNameSelectors = [
         'meta[property="og:site_name"]',
         '.site-name', '.site-title', '#site-title',
@@ -164,8 +188,11 @@ serve(async (req) => {
       for (const selector of siteNameSelectors) {
         const siteNameElement = doc.querySelector(selector);
         if (siteNameElement) {
-          siteName = siteNameElement.getAttribute("content") || siteNameElement.textContent || "";
-          if (siteName) break;
+          siteName = (siteNameElement.getAttribute("content") || siteNameElement.textContent || "").trim();
+          if (siteName) {
+              console.log(`Extracted siteName using selector: ${selector}`); // Log which selector found siteName
+              break;
+          }
         }
       }
 
@@ -173,21 +200,33 @@ serve(async (req) => {
         try {
           const hostname = new URL(url).hostname;
           siteName = hostname.replace(/^www\./, '').split('.')[0];
+          console.log(`Generated siteName from hostname: ${siteName}`); // Log generating siteName
         } catch {
           siteName = "";
+          console.log("Could not extract or generate siteName."); // Log if siteName extraction/generation failed
         }
       }
     }
 
     // Check content again for RTL characters if not already determined
-    if (!isRTL) {
+    // Use the cleaned textContent for this check
+    if (!isRTL && textContent.length > 0) { // Only check if not already RTL and textContent is not empty
       const rtlChars = /[\u0591-\u07FF\u200F\u202B\u202E\uFB1D-\uFDFD\uFE70-\uFEFC]/;
       isRTL = rtlChars.test(textContent);
+       if (isRTL) {
+           console.log("RTL detected based on text content"); // Log RTL detection from text
+       }
     }
 
-    // --- Added Console Log 3: Final Excerpt ---
-     console.log(`Final excerpt: ${excerpt}`);
-    // -----------------------------------------
+
+    // --- Console Log 2: Final Extracted Content Details ---
+    console.log(`Final mainContent length: ${mainContent.length} characters`);
+    console.log(`Final textContent length: ${textContent.length} characters`);
+    console.log(`Final excerpt: ${excerpt}`);
+    console.log(`Final byline: ${byline}`);
+    console.log(`Final siteName: ${siteName}`);
+    console.log(`Final RTL status: ${isRTL}`);
+    // ----------------------------------------------------------
 
 
     // Return the extracted content
@@ -202,26 +241,33 @@ serve(async (req) => {
       rtl: isRTL
     };
 
-    console.log(`Content extraction completed.`); // Final log before returning
+    console.log(`Content extraction completed successfully.`); // Final log before returning success
 
     return new Response(
       JSON.stringify(result),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+
   } catch (error) {
-    console.error("Error extracting content from URL:", error.message);
-    return new Response(
-      JSON.stringify({
+    console.error("Error extracting content from URL:", error.message); // Log the error message
+
+    // Prepare error response details
+    const errorDetails = {
         error: "Failed to extract content from URL",
         details: error.message,
         title: "Error extracting content",
         content: `<p>Could not extract content from the provided URL. Please try again or paste the content manually.</p>`,
-        textContent: "Could not extract content from the provided URL.",
+        textContent: `Could not extract content from the provided URL. Details: ${error.message}`, // Include error details in textContent for debugging
         length: 0,
-        excerpt: "",
+        excerpt: "Extraction failed.",
         byline: "",
         siteName: ""
-      }),
+    };
+
+    console.log(`Returning error response: ${JSON.stringify(errorDetails)}`); // Log the error response being sent
+
+    return new Response(
+      JSON.stringify(errorDetails),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -229,6 +275,8 @@ serve(async (req) => {
 
 /**
  * Fallback content extraction method
+ * @param {Document} doc - The parsed DOM Document object.
+ * @returns {string} - The extracted HTML content or an empty string.
  */
 function fallbackExtractContent(doc) {
   // Try to find main content container using extended selectors
@@ -256,22 +304,27 @@ const contentSelectors = [
     '.entry',
     '.single-content',
     '.wordpress-content',
-    // Add the new selectors based on your analysis:
-    '.post-details-content', // من الكود الذي قدمته
-    '.prose',                // من الكود الذي قدمته
-    // You could also add more specific selectors if needed, e.g., '.post-details-content .prose'
+    // Add selectors based on your analysis of problematic sites:
+    '.post-details-content', // Found in your example HTML
+    '.prose',                // Found in your example HTML
+    // Add more specific selectors if you encounter other patterns
   ];
 
   let contentElement = null;
   for (const selector of contentSelectors) {
-    contentElement = doc.querySelector(selector);
-    if (contentElement) {
-      console.log(`Fallback: Found content using selector: ${selector}`); // Log which selector was used
-      break; // Stop searching once the first matching selector is found
+    try { // Added try-catch for querySelector in case a selector is invalid
+        contentElement = doc.querySelector(selector);
+        if (contentElement) {
+          console.log(`Fallback: Found content using selector: ${selector}`); // Log which selector was used
+          break; // Stop searching once the first matching selector is found
+        }
+    } catch (e) {
+         console.error(`Fallback: Error using content selector "${selector}": ${e}`);
+         // Continue to the next selector
     }
   }
 
-  // If no main content found, use the body
+  // If no specific content container was found, use the body as a last resort
   if (!contentElement) {
     console.log("Fallback: No specific content container found, using body"); // Log fallback to body
     contentElement = doc.body;
@@ -293,38 +346,51 @@ const contentSelectors = [
         '.breadcrumb',
         '.related',
         '.share',
-        '[id*="comment"]',
-        '[class*="comment"]',
-        '[id*="widget"]',
-        '[class*="widget"]',
-        '[id*="sidebar"]',
-        '[class*="sidebar"]',
-        '[id*="banner"]',
-        '[class*="banner"]',
-        '[id*="footer"]',
-        '[class*="footer"]'
+        '[id*="comment"]',      // Remove elements with IDs containing "comment"
+        '[class*="comment"]',   // Remove elements with classes containing "comment"
+        '[id*="widget"]',       // Remove elements with IDs containing "widget"
+        '[class*="widget"]',    // Remove elements with classes containing "widget"
+        '[id*="sidebar"]',      // Remove elements with IDs containing "sidebar"
+        '[class*="sidebar"]',   // Remove elements with classes containing "sidebar"
+        '[id*="banner"]',       // Remove elements with IDs containing "banner"
+        '[class*="banner"]',    // Remove elements with classes containing "banner"
+        '[id*="footer"]',       // Remove elements with IDs containing "footer"
+        '[class*="footer"]',    // Remove elements with classes containing "footer"
         // Add more unwanted selectors if you identify them, e.g., specific license blocks
+        '.license-info', // Example: if the license text had this class
+        '.article-license' // Another example
+        // Add any specific classes/IDs you find for the unwanted license text in al-akhbar site
       ];
 
     // Create a copy of the content to avoid modifying during iteration
+    // Adding a check here in case contentElement is null for some reason (though unlikely with doc.body fallback)
     const contentClone = contentElement.cloneNode(true);
 
-    for (const selector of unwantedSelectors) {
-      try {
-            // Check if the selector exists before querying to avoid errors on null/undefined
-            if (contentClone.querySelector(selector)) {
-                 const elements = contentClone.querySelectorAll(selector);
-                 elements.forEach(el => el.remove());
+    if (contentClone) { // Ensure clone was successful
+        for (const selector of unwantedSelectors) {
+          try {
+                // Check if the selector exists within the cloned content before querying
+                if (contentClone.querySelector(selector)) {
+                     const elements = contentClone.querySelectorAll(selector);
+                     elements.forEach(el => {
+                         // Optional: Log which element is being removed for debugging
+                         // console.log(`Fallback: Removing unwanted element with selector: ${selector}`, el);
+                         el.remove();
+                     });
+                }
+            } catch (e) {
+                console.error(`Fallback: Error removing selector ${selector}: ${e}`);
             }
-        } catch (e) {
-            console.error(`Fallback: Error removing selector ${selector}: ${e}`);
         }
-    }
 
-    console.log(`Fallback: Returning innerHTML after removing unwanted elements.`); // Log before returning fallback result
-    return contentClone.innerHTML || "";
+        console.log(`Fallback: Returning innerHTML after removing unwanted elements.`); // Log before returning fallback result
+        return contentClone.innerHTML || "";
+    } else {
+        console.error("Fallback: Failed to clone content element.");
+        return ""; // Return empty if cloning failed
+    }
   }
 
-  console.log("Fallback: Content element is null, returning empty string."); // Should not happen if doc.body is fallback
+  console.log("Fallback: Content element is null, returning empty string."); // Should ideally not happen if doc.body is the fallback
   return "";
 }
