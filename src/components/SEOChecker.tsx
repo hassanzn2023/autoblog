@@ -12,6 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { supabase } from '@/integrations/supabase/client';
 
 // Define props interface for SEOChecker
 interface SEOCheckerProps {
@@ -98,27 +101,50 @@ const ContentStatBox = ({
   </div>
 );
 
-// Recommendation Component
+// Recommendation Component with severity levels
 interface RecommendationProps {
-  status: 'success' | 'warning' | 'error';
+  severity: 'critical' | 'important' | 'suggestion'; // Renamed from status for clarity
   text: string;
+  solution?: string;
   action?: string;
 }
 
-const Recommendation = ({ status, text, action }: RecommendationProps) => {
-  const statusIcons = {
-    success: <Check size={18} className="text-green-500" />,
-    warning: <AlertTriangle size={18} className="text-yellow-500" />,
-    error: <AlertTriangle size={18} className="text-red-500" />
+const Recommendation = ({ severity, text, solution, action }: RecommendationProps) => {
+  const [showSolution, setShowSolution] = useState(false);
+  
+  const severityIcons = {
+    critical: <AlertTriangle size={18} className="text-red-500" />,
+    important: <AlertTriangle size={18} className="text-yellow-500" />,
+    suggestion: <Check size={18} className="text-green-500" />
+  };
+  
+  const severityColors = {
+    critical: "border-l-4 border-red-500",
+    important: "border-l-4 border-yellow-500",
+    suggestion: "border-l-4 border-green-500"
   };
   
   return (
-    <div className="flex items-start gap-3 py-2 border-b border-gray-200 last:border-b-0">
+    <div className={`flex items-start gap-3 py-3 px-2 ${severityColors[severity]} mb-2 bg-white rounded-r-md transition-all hover:shadow-sm`}>
       <div className="mt-0.5">
-        {statusIcons[status]}
+        {severityIcons[severity]}
       </div>
       <div className="flex-1">
-        {text}
+        <div className="font-medium">{text}</div>
+        {solution && (
+          <div className="mt-1">
+            {showSolution ? (
+              <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded mt-1">{solution}</div>
+            ) : (
+              <button 
+                onClick={() => setShowSolution(true)} 
+                className="text-xs text-blue-500 hover:underline"
+              >
+                View solution
+              </button>
+            )}
+          </div>
+        )}
       </div>
       {action && (
         <Button variant="outline" size="sm">
@@ -129,7 +155,7 @@ const Recommendation = ({ status, text, action }: RecommendationProps) => {
   );
 };
 
-// Calculate content stats
+// Improved content stats calculation with better HTML parsing
 const calculateContentStats = (content: string) => {
   if (!content) return { words: 0, headings: 0, paragraphs: 0, images: 0 };
   
@@ -137,12 +163,12 @@ const calculateContentStats = (content: string) => {
   const textContent = content.replace(/<[^>]+>/g, ' ');
   const words = textContent.split(/\s+/).filter(word => word.length > 0).length;
   
-  // Count headings (look for h1-h6 tags)
-  const headingRegex = /<h[1-6][^>]*>.*?<\/h[1-6]>|<strong>.*?<\/strong>/gi;
+  // Count headings (look for h1-h6 tags only, not strong tags)
+  const headingRegex = /<h[1-6][^>]*>.*?<\/h[1-6]>/gi;
   const headings = (content.match(headingRegex) || []).length;
   
   // Count paragraphs (look for p tags)
-  const paragraphRegex = /<p>.*?<\/p>/gs;
+  const paragraphRegex = /<p[^>]*>.*?<\/p>/gs;
   const paragraphs = (content.match(paragraphRegex) || []).length || 1;
   
   // Count image references
@@ -152,89 +178,34 @@ const calculateContentStats = (content: string) => {
   return { words, headings, paragraphs, images };
 };
 
-// Generate SEO recommendations based on content
-const generateRecommendations = (content: string, primaryKeyword: string) => {
-  const stats = calculateContentStats(content);
-  const recommendations: RecommendationProps[] = [];
-  
-  // Add successful keyword integration recommendation
-  recommendations.push({
-    status: 'success',
-    text: `Basic optimization for "${primaryKeyword}" complete.`
-  });
-  
-  // Add warning for Pro mode
-  recommendations.push({
-    status: 'warning',
-    text: "For full control, try Pro Mode."
-  });
-  
-  // Add content length recommendation if needed
-  if (stats.words < 300) {
-    recommendations.push({
-      status: 'error',
-      text: "Add more supporting content to improve ranking.",
-      action: "Fix"
-    });
-  }
-  
-  // Add image recommendation if needed
-  if (stats.images < 1) {
-    recommendations.push({
-      status: 'error',
-      text: "Add at least one image to improve engagement.",
-      action: "See"
-    });
-  }
-  
-  // Add header structure recommendation if needed
-  if (stats.headings < 2 && stats.words > 300) {
-    recommendations.push({
-      status: 'error',
-      text: "Add more headings to structure your content.",
-      action: "Fix"
-    });
-  }
-  
-  return recommendations;
-};
+// Interface for SEO Analysis Result from Edge Function
+interface SEOCategory {
+  name: string;
+  score: number;
+  issues: Array<{
+    severity: 'critical' | 'important' | 'suggestion';
+    issue: string;
+    solution: string;
+  }>;
+}
 
-// Calculate SEO score based on content metrics
-const calculateSEOScore = (content: string, primaryKeyword: string) => {
-  const stats = calculateContentStats(content);
-  let score = 50; // Start with a base score
-  
-  // Add points for longer content
-  if (stats.words > 300) score += 10;
-  if (stats.words > 600) score += 5;
-  if (stats.words > 1000) score += 5;
-  
-  // Add points for good structure
-  if (stats.headings >= 1) score += 5;
-  if (stats.headings >= 3) score += 5;
-  if (stats.paragraphs >= 4) score += 5;
-  
-  // Add points for images
-  if (stats.images >= 1) score += 5;
-  if (stats.images >= 2) score += 5;
-  
-  // Check keyword presence and density
-  const keywordRegex = new RegExp(primaryKeyword, 'gi');
-  const keywordOccurrences = (content.match(keywordRegex) || []).length;
-  const keywordDensity = keywordOccurrences / stats.words;
-  
-  if (keywordOccurrences >= 1) score += 5;
-  if (keywordDensity >= 0.01 && keywordDensity <= 0.03) score += 10; // Optimal density
-  else if (keywordDensity > 0.03) score -= 5; // Keyword stuffing penalty
-  
-  return Math.min(100, Math.max(0, Math.round(score))); // Ensure score is between 0-100
-};
+interface SEOAnalysisResult {
+  overallScore: number;
+  categories: SEOCategory[];
+  summary: string;
+  rawResponse?: boolean;
+}
 
 // SEO Checker Result Component
 const SEOCheckerResult = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { currentWorkspace } = useWorkspace();
+  
   const [analyzing, setAnalyzing] = useState(true);
+  const [analysisFailed, setAnalysisFailed] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
   
   const { 
     content = "", 
@@ -244,7 +215,9 @@ const SEOCheckerResult = () => {
   
   const [contentStats, setContentStats] = useState({ words: 0, headings: 0, paragraphs: 0, images: 0 });
   const [seoScore, setSeoScore] = useState(0);
+  const [seoAnalysis, setSeoAnalysis] = useState<SEOAnalysisResult | null>(null);
   const [recommendations, setRecommendations] = useState<RecommendationProps[]>([]);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   
   // Check if the content is RTL or LTR
   const isRtlContent = isRTL(content);
@@ -258,21 +231,219 @@ const SEOCheckerResult = () => {
       return;
     }
     
-    // Calculate content stats and SEO score
+    // Calculate content stats
     const stats = calculateContentStats(content);
-    const score = calculateSEOScore(content, primaryKeyword);
-    const recs = generateRecommendations(content, primaryKeyword);
+    setContentStats(stats);
     
-    // Simulate analysis delay for UX
-    const timer = setTimeout(() => {
-      setContentStats(stats);
-      setSeoScore(score);
-      setRecommendations(recs);
-      setAnalyzing(false);
-    }, 1000);
+    // Start animation for analysis progress
+    const progressInterval = setInterval(() => {
+      setAnalysisProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + Math.random() * 5;
+      });
+    }, 300);
     
-    return () => clearTimeout(timer);
+    // Perform SEO analysis with GPT
+    performSEOAnalysis();
+    
+    return () => {
+      clearInterval(progressInterval);
+    };
   }, [content, primaryKeyword, navigate]);
+  
+  // Function to perform SEO analysis using the Edge Function
+  const performSEOAnalysis = async () => {
+    try {
+      if (!user || !currentWorkspace) {
+        // Fall back to basic analysis if user not authenticated
+        const score = calculateBasicSEOScore(content, primaryKeyword);
+        const basicRecs = generateBasicRecommendations(content, primaryKeyword);
+        
+        setSeoScore(score);
+        setRecommendations(basicRecs);
+        setAnalyzing(false);
+        setAnalysisProgress(100);
+        return;
+      }
+      
+      // Call the Edge Function for advanced SEO analysis
+      const { data, error } = await supabase.functions.invoke('analyze-seo-content', {
+        body: {
+          content,
+          primaryKeyword,
+          secondaryKeywords,
+          userId: user.id,
+          workspaceId: currentWorkspace.id
+        }
+      });
+      
+      if (error) {
+        console.error('Error calling analyze-seo-content function:', error);
+        throw error;
+      }
+      
+      if (!data) {
+        throw new Error('No data returned from SEO analysis');
+      }
+      
+      // Update state with analysis results
+      setSeoAnalysis(data);
+      setSeoScore(data.overallScore);
+      
+      // Convert analysis results to recommendations format
+      const analysisRecommendations: RecommendationProps[] = [];
+      
+      // Set active category to the first one
+      if (data.categories && data.categories.length > 0) {
+        setActiveCategory(data.categories[0].name);
+        
+        // Extract all issues from all categories
+        data.categories.forEach(category => {
+          category.issues.forEach(issue => {
+            analysisRecommendations.push({
+              severity: issue.severity as 'critical' | 'important' | 'suggestion',
+              text: issue.issue,
+              solution: issue.solution
+            });
+          });
+        });
+      }
+      
+      setRecommendations(analysisRecommendations);
+    } catch (error) {
+      console.error('SEO analysis failed:', error);
+      setAnalysisFailed(true);
+      
+      // Fall back to basic analysis
+      const score = calculateBasicSEOScore(content, primaryKeyword);
+      const basicRecs = generateBasicRecommendations(content, primaryKeyword);
+      
+      setSeoScore(score);
+      setRecommendations(basicRecs);
+      
+      toast({
+        title: 'SEO Analysis Warning',
+        description: 'Advanced analysis failed. Showing basic recommendations instead.',
+        variant: 'destructive'
+      });
+    } finally {
+      setAnalyzing(false);
+      setAnalysisProgress(100);
+    }
+  };
+  
+  // Basic SEO score calculation as fallback
+  const calculateBasicSEOScore = (content: string, primaryKeyword: string) => {
+    const stats = calculateContentStats(content);
+    let score = 50; // Start with a base score
+    
+    // Add points for longer content
+    if (stats.words > 300) score += 10;
+    if (stats.words > 600) score += 5;
+    if (stats.words > 1000) score += 5;
+    
+    // Add points for good structure
+    if (stats.headings >= 1) score += 5;
+    if (stats.headings >= 3) score += 5;
+    if (stats.paragraphs >= 4) score += 5;
+    
+    // Add points for images
+    if (stats.images >= 1) score += 5;
+    if (stats.images >= 2) score += 5;
+    
+    // Check keyword presence and density
+    const keywordRegex = new RegExp(primaryKeyword, 'gi');
+    const keywordOccurrences = (content.match(keywordRegex) || []).length;
+    const keywordDensity = keywordOccurrences / stats.words;
+    
+    if (keywordOccurrences >= 1) score += 5;
+    if (keywordDensity >= 0.01 && keywordDensity <= 0.03) score += 10; // Optimal density
+    else if (keywordDensity > 0.03) score -= 5; // Keyword stuffing penalty
+    
+    return Math.min(100, Math.max(0, Math.round(score))); // Ensure score is between 0-100
+  };
+  
+  // Generate basic recommendations as fallback
+  const generateBasicRecommendations = (content: string, primaryKeyword: string): RecommendationProps[] => {
+    const stats = calculateContentStats(content);
+    const recommendations: RecommendationProps[] = [];
+    
+    // Content length recommendations
+    if (stats.words < 300) {
+      recommendations.push({
+        severity: 'critical',
+        text: 'Content is too short',
+        solution: 'Add more supporting content to improve ranking. Aim for at least 300 words.',
+        action: "Fix"
+      });
+    } else if (stats.words < 600) {
+      recommendations.push({
+        severity: 'important',
+        text: 'Content could be more comprehensive',
+        solution: 'Consider expanding your content to around 600-1000 words for better ranking potential.',
+        action: "Fix"
+      });
+    } else {
+      recommendations.push({
+        severity: 'suggestion',
+        text: 'Content length is good',
+        solution: 'Your content has a good length. Continue to focus on quality and relevance.'
+      });
+    }
+    
+    // Image recommendations
+    if (stats.images < 1) {
+      recommendations.push({
+        severity: 'important',
+        text: 'No images detected',
+        solution: 'Add at least one image to improve engagement and visual appeal.',
+        action: "See"
+      });
+    }
+    
+    // Header structure recommendations
+    if (stats.headings < 2 && stats.words > 300) {
+      recommendations.push({
+        severity: 'important',
+        text: 'Insufficient heading structure',
+        solution: 'Add more headings to structure your content better. Break up long sections with H2 and H3 headings.',
+        action: "Fix"
+      });
+    }
+    
+    // Keyword recommendations
+    const keywordRegex = new RegExp(primaryKeyword, 'gi');
+    const keywordOccurrences = (content.match(keywordRegex) || []).length;
+    const keywordDensity = keywordOccurrences / stats.words;
+    
+    if (keywordOccurrences === 0) {
+      recommendations.push({
+        severity: 'critical',
+        text: 'Primary keyword not found',
+        solution: `Add your primary keyword "${primaryKeyword}" to the content, especially in the first paragraph and headings.`,
+        action: "Fix"
+      });
+    } else if (keywordDensity > 0.03) {
+      recommendations.push({
+        severity: 'important',
+        text: 'Keyword stuffing detected',
+        solution: 'Reduce the number of times you use the primary keyword to avoid keyword stuffing penalties.',
+        action: "Fix"
+      });
+    } else if (keywordDensity < 0.01) {
+      recommendations.push({
+        severity: 'important',
+        text: 'Low keyword density',
+        solution: 'Consider using your primary keyword a few more times, but keep it natural.',
+        action: "Fix"
+      });
+    }
+    
+    return recommendations;
+  };
   
   // Generate word count range guidance
   const getWordCountRange = () => {
@@ -302,6 +473,20 @@ const SEOCheckerResult = () => {
     return `${min} - ${max}`;
   };
 
+  // Filter recommendations based on active category
+  const getFilteredRecommendations = () => {
+    if (!seoAnalysis || !activeCategory) return recommendations;
+    
+    const categoryData = seoAnalysis.categories.find(cat => cat.name === activeCategory);
+    if (!categoryData) return recommendations;
+    
+    return categoryData.issues.map(issue => ({
+      severity: issue.severity as 'critical' | 'important' | 'suggestion',
+      text: issue.issue,
+      solution: issue.solution
+    }));
+  };
+
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
@@ -323,7 +508,7 @@ const SEOCheckerResult = () => {
           <p className="text-gray-500 mt-2">This will take just a moment</p>
           
           <div className="w-64 mt-8">
-            <Progress value={Math.random() * 100} className="h-2" />
+            <Progress value={analysisProgress} className="h-2" />
           </div>
         </div>
       ) : (
@@ -365,18 +550,51 @@ const SEOCheckerResult = () => {
               </div>
             </div>
             
-            {/* Recommendations */}
+            {/* Categories and Recommendations */}
             <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-              <h2 className="text-lg font-medium mb-4">Recommendations</h2>
+              {seoAnalysis && seoAnalysis.categories && seoAnalysis.categories.length > 0 && (
+                <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                  {seoAnalysis.categories.map((category) => (
+                    <button 
+                      key={category.name}
+                      onClick={() => setActiveCategory(category.name)}
+                      className={`px-3 py-1 text-sm rounded-full whitespace-nowrap ${
+                        activeCategory === category.name 
+                          ? 'bg-purple-600 text-white' 
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
+                      }`}
+                    >
+                      {category.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+              
+              <h2 className="text-lg font-medium mb-4">
+                {activeCategory || "Recommendations"}
+              </h2>
+              
               <div className="space-y-1">
-                {recommendations.map((rec, index) => (
-                  <Recommendation 
-                    key={index}
-                    status={rec.status}
-                    text={rec.text}
-                    action={rec.action}
-                  />
-                ))}
+                {!analysisFailed && activeCategory && seoAnalysis 
+                  ? getFilteredRecommendations().map((rec, index) => (
+                    <Recommendation 
+                      key={index}
+                      severity={rec.severity}
+                      text={rec.text}
+                      solution={rec.solution}
+                      action={rec.action}
+                    />
+                  ))
+                  : recommendations.map((rec, index) => (
+                    <Recommendation 
+                      key={index}
+                      severity={rec.severity}
+                      text={rec.text}
+                      solution={rec.solution}
+                      action={rec.action}
+                    />
+                  ))
+                }
               </div>
               
               <Button variant="seoButton" className="w-full mt-6">

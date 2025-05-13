@@ -155,12 +155,11 @@ const QuickOptimizationForm = () => {
 
 
   const handleContentConfirm = async () => {
-    // If URL method is selected, extract content first
-    if (contentMethod === 'link' && !content) {
+    if (contentMethod === 'link' && !content && url) {
       const success = await handleUrlExtraction();
       if (!success) return;
     }
-
+    
     if (!content.trim()) {
       toast({
         title: "Content Required",
@@ -169,16 +168,34 @@ const QuickOptimizationForm = () => {
       });
       return;
     }
-
+    
     setContentConfirmed(true);
     toast({
       title: "Content Confirmed",
       description: "Your content has been added successfully.",
     });
-
-    // Removed the auto-generation call here:
-    // if (user?.id && currentWorkspace?.id) {
-    //   handleGeneratePrimaryKeywords();
+    
+    // REMOVE OR COMMENT OUT THIS CODE BLOCK TO PREVENT AUTO-GENERATION
+    // if (user && currentWorkspace) {
+    //   try {
+    //     setIsLoadingKeywords(true);
+    //     const keywords = await generateKeywordSuggestions(
+    //       content, 
+    //       3, 
+    //       '', 
+    //       user.id, 
+    //       currentWorkspace.id
+    //     );
+    //     
+    //     if (keywords.length > 0) {
+    //       setPrimaryKeyword(keywords[0].text);
+    //       setSuggestedKeywords(keywords);
+    //     }
+    //   } catch (error) {
+    //     console.error("Error generating keywords:", error);
+    //   } finally {
+    //     setIsLoadingKeywords(false);
+    //   }
     // }
   };
 

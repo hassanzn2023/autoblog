@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAPIKeys } from '@/contexts/APIKeysContext';
-import { generateKeywordSuggestions } from '@/services/openaiService';
+import { generateKeywordSuggestions, generateSecondaryKeywordSuggestions } from '@/services/openaiService';
 import { extractContentFromUrl } from '@/services/contentExtractorService';
 import CreditStatus from './CreditStatus';
 import ReactQuill from 'react-quill';
@@ -209,6 +209,75 @@ const ProModeForm = () => {
   
   const handleSelectKeyword = (keyword: string) => {
     setPrimaryKeyword(keyword);
+  };
+  
+  const handleSuggestSecondaryKeywords = async () => {
+    if (!user || !currentWorkspace) {
+      toast({
+        title: "Authentication Required",
+        description: "Please login to use this feature",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const openAIKey = getAPIKey('openai');
+    if (!openAIKey) {
+      toast({
+        title: "API Key Required",
+        description: "OpenAI API key is required for this feature. Please add it in Settings.",
+        variant: "destructive"
+      });
+      navigate('/settings');
+      return;
+    }
+    
+    if (remainingCredits < 5) {
+      toast({
+        title: "Insufficient Credits",
+        description: "You need at least 5 credits to use this feature",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setIsLoadingKeywords(true);
+      
+      // Request to use 5 credits for this operation
+      const creditsApproved = await useCredits(5, currentWorkspace.id, 'keyword_suggestion', 'openai');
+      if (!creditsApproved) {
+        throw new Error("Failed to allocate credits for this operation");
+      }
+      
+      // Generate secondary keywords
+      const keywords = await generateSecondaryKeywordSuggestions(
+        primaryKeyword,
+        content, 
+        5, 
+        '', 
+        user.id, 
+        currentWorkspace.id
+      );
+      
+      if (keywords.length > 0) {
+        // Set the secondary keywords as a comma-separated string
+        setSecondaryKeywords(keywords.map(k => k.text).join(', '));
+        
+        toast({
+          title: "Secondary Keywords Generated",
+          description: "Secondary keyword suggestions have been generated successfully.",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate secondary keyword suggestions",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingKeywords(false);
+    }
   };
   
   const handleStartOptimization = () => {
@@ -596,6 +665,7 @@ const ProModeForm = () => {
                       />
                       <button 
                         className="seo-button seo-button-secondary h-fit"
+                        onClick={handleSuggestSecondaryKeywords} // Add this onClick handler
                         disabled={!primaryKeyword || !hasRequiredApiKey}
                       >
                         Suggest
