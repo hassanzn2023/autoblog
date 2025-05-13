@@ -281,20 +281,9 @@ serve(async (req) => {
 function fallbackExtractContent(doc) {
   // Try to find main content container using extended selectors
 const contentSelectors = [
-    'main',
-    'article',
-    '[role="main"]',
-    '.content',
-    '.article',
-    '.post',
-    '.entry-content',
-    '.story',
-    '.blog-post',
-    '#content',
-    '#main-content',
-    '#article-content',
-    '#story-content',
-    '#post-content',
+    // Prioritize more specific selectors first
+    '.post-details-content', // Found in your example HTML for Al-Akhbar
+    '.prose',                // Found in your example HTML for Al-Akhbar
     '.article-body',
     '.story-body',
     '.content-area',
@@ -304,9 +293,21 @@ const contentSelectors = [
     '.entry',
     '.single-content',
     '.wordpress-content',
-    // Add selectors based on your analysis of problematic sites:
-    '.post-details-content', // Found in your example HTML
-    '.prose',                // Found in your example HTML
+    // Then broader, common tags/roles - MOVED DOWN
+    'article',
+    'main',
+    '[role="main"]',
+    '.content', // Generic, keep relatively high
+    '.article', // Generic, keep relatively high
+    '.post',    // Generic, keep relatively high
+    '.entry-content', // Generic, keep relatively high
+    '.story',
+    '.blog-post',
+    '#content',
+    '#main-content',
+    '#article-content',
+    '#story-content',
+    '#post-content',
     // Add more specific selectors if you encounter other patterns
   ];
 
@@ -324,7 +325,7 @@ const contentSelectors = [
     }
   }
 
-  // If no specific content container was found, use the body as a last resort
+  // If no main content found, use the body
   if (!contentElement) {
     console.log("Fallback: No specific content container found, using body"); // Log fallback to body
     contentElement = doc.body;
@@ -357,9 +358,15 @@ const contentSelectors = [
         '[id*="footer"]',       // Remove elements with IDs containing "footer"
         '[class*="footer"]',    // Remove elements with classes containing "footer"
         // Add more unwanted selectors if you identify them, e.g., specific license blocks
-        '.license-info', // Example: if the license text had this class
-        '.article-license' // Another example
-        // Add any specific classes/IDs you find for the unwanted license text in al-akhbar site
+        // --- ADD SPECIFIC SELECTOR FOR THE LICENSE TEXT HERE ---
+        // You need to inspect the HTML of the al-akhbar page to find a selector
+        // that uniquely identifies the license paragraph/div.
+        // Examples (replace with actual selector):
+        // '.article-license-info',
+        // '.license-text',
+        // 'p:contains("رخصة المشاع الإبداعي")', // (Caution: :contains is not standard CSS, might need find logic)
+        // '[class*="license"]', // Generic based on class name
+        // '[id*="license"]' // Generic based on ID name
       ];
 
     // Create a copy of the content to avoid modifying during iteration
@@ -370,16 +377,17 @@ const contentSelectors = [
         for (const selector of unwantedSelectors) {
           try {
                 // Check if the selector exists within the cloned content before querying
-                if (contentClone.querySelector(selector)) {
-                     const elements = contentClone.querySelectorAll(selector);
-                     elements.forEach(el => {
-                         // Optional: Log which element is being removed for debugging
-                         // console.log(`Fallback: Removing unwanted element with selector: ${selector}`, el);
-                         el.remove();
-                     });
-                }
+                // This check is slightly redundant if querySelectorAll is used, but harmless.
+                // querySelectorAll itself won't throw for non-existent selectors.
+                const elements = contentClone.querySelectorAll(selector);
+                elements.forEach(el => {
+                    // Optional: Log which element is being removed for debugging
+                    // console.log(`Fallback: Removing unwanted element with selector: ${selector}`, el);
+                    el.remove();
+                });
             } catch (e) {
                 console.error(`Fallback: Error removing selector ${selector}: ${e}`);
+                // Continue with other selectors even if one removal fails
             }
         }
 
