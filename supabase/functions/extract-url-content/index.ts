@@ -358,15 +358,19 @@ const contentSelectors = [
         '[id*="footer"]',       // Remove elements with IDs containing "footer"
         '[class*="footer"]',    // Remove elements with classes containing "footer"
         // Add more unwanted selectors if you identify them, e.g., specific license blocks
-        // --- ADD SPECIFIC SELECTOR FOR THE LICENSE TEXT HERE ---
-        // You need to inspect the HTML of the al-akhbar page to find a selector
-        // that uniquely identifies the license paragraph/div.
-        // Examples (replace with actual selector):
-        // '.article-license-info',
-        // '.license-text',
-        // 'p:contains("رخصة المشاع الإبداعي")', // (Caution: :contains is not standard CSS, might need find logic)
-        // '[class*="license"]', // Generic based on class name
-        // '[id*="license"]' // Generic based on ID name
+        // --- ADD SPECIFIC SELECTOR(S) FOR THE LICENSE TEXT HERE ---
+        // Based on your provided HTML snippet for the footer:
+        // The license text is in <p> tags with class "text-masterYellow" inside a specific div.
+        // We can target the parent div or the paragraphs themselves. Targeting the paragraphs
+        // might be safer if the parent div contains other desired content.
+        'p.text-masterYellow', // Target p tags with this specific class
+        // You might need to add other selectors if there are other p tags with this class
+        // or if the license text appears in a different structure on other pages/sections.
+        // Example targeting the parent div if it's outside the main content area:
+        // '.container.mx-auto.flex.h-fit.items-center.justify-center.bg-black' // This selector is too broad and includes SVG logo and social media links.
+        // A more precise parent based on your snippet structure, but still needs careful testing:
+        // '.mx-auto.block.py-2.text-center.rtl\:md\:mr-0.ltr\:ml-0.lg\:!flex.lg\:w-\\[80\\].rtl\:lg\:items-start.ltr\:lg\:items-end' // This selector is very long and fragile due to utility classes.
+        // Let's stick to targeting the specific paragraphs for now as it seems simpler and more direct.
       ];
 
     // Create a copy of the content to avoid modifying during iteration
@@ -377,14 +381,16 @@ const contentSelectors = [
         for (const selector of unwantedSelectors) {
           try {
                 // Check if the selector exists within the cloned content before querying
-                // This check is slightly redundant if querySelectorAll is used, but harmless.
-                // querySelectorAll itself won't throw for non-existent selectors.
                 const elements = contentClone.querySelectorAll(selector);
                 elements.forEach(el => {
                     // Optional: Log which element is being removed for debugging
                     // console.log(`Fallback: Removing unwanted element with selector: ${selector}`, el);
                     el.remove();
                 });
+                // Log if elements were found and removed for this selector
+                if (elements.length > 0) {
+                    console.log(`Fallback: Removed ${elements.length} elements with selector: ${selector}`);
+                }
             } catch (e) {
                 console.error(`Fallback: Error removing selector ${selector}: ${e}`);
                 // Continue with other selectors even if one removal fails
