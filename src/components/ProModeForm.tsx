@@ -6,7 +6,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Check, ChevronDown, X, AlertTriangle } from 'lucide-react';
+import { Check, ChevronDown, X, AlertTriangle, Loader, FileText } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -15,6 +15,8 @@ import { useAPIKeys } from '@/contexts/APIKeysContext';
 import { generateKeywordSuggestions } from '@/services/openaiService';
 import { extractContentFromUrl } from '@/services/contentExtractorService';
 import CreditStatus from './CreditStatus';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 const ProModeForm = () => {
   const navigate = useNavigate();
@@ -35,6 +37,7 @@ const ProModeForm = () => {
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [extractionError, setExtractionError] = useState(null);
   const [extractionAttempts, setExtractionAttempts] = useState(0);
+  const [isRtlContent, setIsRtlContent] = useState(false);
   
   // Track completion status of each step
   const [completedSteps, setCompletedSteps] = useState<Record<string, boolean>>({
@@ -46,6 +49,30 @@ const ProModeForm = () => {
     "keywords": false,
     "links": false
   });
+  
+  // Detection for RTL text
+  useEffect(() => {
+    const rtlRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+    setIsRtlContent(rtlRegex.test(content));
+  }, [content]);
+  
+  // ReactQuill modules configuration
+  const modules = {
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline'],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+      ['link'],
+      ['clean']
+    ],
+  };
+  
+  const formats = [
+    'header',
+    'bold', 'italic', 'underline',
+    'list', 'bullet',
+    'link'
+  ];
   
   const handleStepComplete = (stepId: string) => {
     setCompletedSteps({
@@ -63,7 +90,12 @@ const ProModeForm = () => {
     }
   };
   
-  const handleContentConfirm = () => {
+  const handleContentConfirm = async () => {
+    if (contentMethod === 'link' && !content && url) {
+      const success = await handleUrlExtraction();
+      if (!success) return;
+    }
+    
     if (!content.trim()) {
       toast({
         title: "Content Required",
@@ -80,6 +112,30 @@ const ProModeForm = () => {
       title: "Content Confirmed",
       description: "Your content has been added successfully.",
     });
+    
+    // Auto-generate primary keywords after content is confirmed
+    if (user && currentWorkspace && getAPIKey('openai')) {
+      try {
+        setIsLoadingKeywords(true);
+        const keywords = await generateKeywordSuggestions(
+          content, 
+          3, 
+          '', 
+          user.id, 
+          currentWorkspace.id
+        );
+        
+        setSuggestedKeywords(keywords);
+        
+        if (keywords.length > 0 && !primaryKeyword) {
+          setPrimaryKeyword(keywords[0].text);
+        }
+      } catch (error) {
+        console.error("Error auto-generating keywords:", error);
+      } finally {
+        setIsLoadingKeywords(false);
+      }
+    }
   };
   
   const handleSuggestKeywords = async () => {
@@ -200,12 +256,20 @@ const ProModeForm = () => {
       setExtractionError(null);
       setExtractionAttempts(prev => prev + 1);
       
-      // Call the content extractor service
+      // Call the content extractor service with Readability.js implementation
+      console.log(`Extracting content from URL: ${processedUrl}`);
       const extractedContent = await extractContentFromUrl(processedUrl);
+      console.log("Extraction result:", extractedContent);
       
-      if (extractedContent && !extractedContent.error) {
+      if (extractedContent && extractedContent.content && !extractedContent.error) {
         // Set the extracted content
-        setContent(extractedContent.content || '');
+        setContent(extractedContent.content);
+        
+        // Check for RTL content
+        if (extractedContent.rtl) {
+          setIsRtlContent(true);
+        }
+        
         toast({
           title: "Content Extracted",
           description: `Successfully extracted from "${extractedContent.title || 'URL'}"`,
@@ -363,24 +427,57 @@ const ProModeForm = () => {
                   </div>
                   
                   {contentMethod === 'text' && (
-                    <textarea 
-                      className="w-full h-32 p-3 border border-gray-300 rounded-md"
-                      placeholder="Paste your article content here..."
-                      value={content}
-                      onChange={(e) => setContent(e.target.value)}
-                      disabled={contentConfirmed}
-                    />
+                    <div className={isRtlContent ? 'rtl' : 'ltr'}>
+                      <ReactQuill
+                        theme="snow"
+                        value={content}
+                        onChange={setContent}
+                        modules={modules}
+                        formats={formats}
+                        readOnly={contentConfirmed}
+                        placeholder="Paste your article content here..."
+                      />
+                    </div>
                   )}
                   
                   {contentMethod === 'link' && (
-                    <input 
-                      type="url" 
-                      className="w-full p-3 border border-gray-300 rounded-md"
-                      placeholder="Enter URL to your content..."
-                      value={content}
-                      onChange={(e) => setContent(e.target.value)}
-                      disabled={contentConfirmed}
-                    />
+                    <div className="space-y-4">
+                      <div className="flex gap-2">
+                        <input 
+                          type="url" 
+                          className="flex-1 p-3 border border-gray-300 rounded-md"
+                          placeholder="Enter URL to your content..."
+                          value={url}
+                          onChange={(e) => setUrl(e.target.value)}
+                          disabled={contentConfirmed || isLoadingUrl}
+                        />
+                        <button
+                          className="px-4 py-2 bg-blue-500 text-white rounded-md disabled:opacity-50"
+                          onClick={handleUrlExtraction}
+                          disabled={!url.trim() || contentConfirmed || isLoadingUrl}
+                        >
+                          {isLoadingUrl ? (
+                            <Loader className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <FileText className="w-5 h-5" />
+                          )}
+                        </button>
+                      </div>
+                      
+                      {content && !contentConfirmed && (
+                        <div className={isRtlContent ? 'rtl' : 'ltr'}>
+                          <ReactQuill
+                            theme="snow"
+                            value={content}
+                            onChange={setContent}
+                            modules={modules}
+                            formats={formats}
+                            readOnly={contentConfirmed}
+                            placeholder="Extracted content will appear here..."
+                          />
+                        </div>
+                      )}
+                    </div>
                   )}
                   
                   {contentMethod === 'file' && (
@@ -398,7 +495,7 @@ const ProModeForm = () => {
                       />
                       <label 
                         htmlFor="file-upload"
-                        className="cursor-pointer text-seo-purple hover:text-seo-purple/80"
+                        className="cursor-pointer text-purple-600 hover:text-purple-800"
                       >
                         Click to upload or drag and drop
                       </label>
@@ -573,7 +670,7 @@ const ProModeForm = () => {
             {contentConfirmed ? (
               <div className="w-full">
                 <h3 className="text-lg font-medium mb-4">Content Preview</h3>
-                <div className="border border-gray-200 rounded p-4 max-h-96 overflow-auto">
+                <div className={`border border-gray-200 rounded p-4 max-h-96 overflow-auto ${isRtlContent ? 'rtl' : 'ltr'}`}>
                   <div dangerouslySetInnerHTML={{ __html: content }} />
                 </div>
                 <div className="mt-4">

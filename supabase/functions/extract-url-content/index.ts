@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.36-alpha/deno-dom-wasm.ts";
+import { Readability } from "https://esm.sh/@mozilla/readability@0.4.4";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,71 +72,95 @@ serve(async (req) => {
       isRTL = true;
     }
     
-    // Extract main content (improved approach)
+    // Extract main content using Readability
     let mainContent = "";
     let textContent = "";
+    let excerpt = "";
+    let byline = "";
+    let siteName = "";
     
-    // Try to find main content container using extended selectors
-    const contentSelectors = [
-      'main', 'article', '[role="main"]',
-      '.content', '.article', '.post', '.entry-content', '.story', '.blog-post',
-      '#content', '#main-content', '#article-content', '#story-content', '#post-content',
-      'article', '.article-body', '.story-body', '.content-area', '.post-body',
-      '.main-content', '.page-content', '.entry', '.single-content', '.wordpress-content'
-    ];
-    
-    let contentElement = null;
-    for (const selector of contentSelectors) {
-      contentElement = doc.querySelector(selector);
-      if (contentElement) {
-        console.log(`Found content using selector: ${selector}`);
-        break;
+    try {
+      // Apply Readability to extract the main content
+      console.log("Applying Readability to extract content");
+      const reader = new Readability(doc);
+      const article = reader.parse();
+      
+      if (article) {
+        console.log(`Readability successfully extracted article: ${article.title}`);
+        mainContent = article.content || "";
+        textContent = article.textContent || "";
+        excerpt = article.excerpt || "";
+        byline = article.byline || "";
+        siteName = article.siteName || "";
+        
+        console.log(`Extracted content length: ${mainContent.length} characters`);
+        console.log(`Extracted text length: ${textContent.length} characters`);
+      } else {
+        console.log("Readability could not extract article, falling back to manual extraction");
+        // Fall back to manual extraction logic if Readability fails
+        mainContent = fallbackExtractContent(doc);
+        textContent = doc.body?.textContent || "";
       }
+    } catch (readabilityError) {
+      console.error("Error using Readability:", readabilityError);
+      
+      // Fall back to the original extraction method
+      mainContent = fallbackExtractContent(doc);
+      textContent = doc.body?.textContent || "";
     }
     
-    // If no main content found, use the body
-    if (!contentElement) {
-      console.log("No specific content container found, using body");
-      contentElement = doc.body;
+    // Clean text content
+    textContent = textContent.replace(/\s+/g, ' ').trim();
+    
+    // Extract excerpt if not already set by Readability
+    if (!excerpt) {
+      excerpt = textContent.length > 150
+        ? textContent.substring(0, 150) + "..."
+        : textContent;
     }
     
-    if (contentElement) {
-      // Remove unwanted elements before extraction
-      const unwantedSelectors = [
-        'script', 'style', 'footer', 'header', 'nav', 
-        '.ads', '.comments', '.sidebar', '.widget', '.menu',
-        '.navigation', '.breadcrumb', '.related', '.share',
-        '[id*="comment"]', '[class*="comment"]', 
-        '[id*="widget"]', '[class*="widget"]',
-        '[id*="sidebar"]', '[class*="sidebar"]',
-        '[id*="banner"]', '[class*="banner"]',
-        '[id*="footer"]', '[class*="footer"]'
+    // Extract author/byline with expanded selectors if not already set by Readability
+    if (!byline) {
+      const authorSelectors = [
+        'meta[name="author"]', 
+        'meta[property="article:author"]',
+        '.author', '.byline', '.entry-author', 
+        '[rel="author"]', '.post-author',
+        '[itemprop="author"]', '.author-name'
       ];
       
-      // Create a copy of the content to avoid modifying during iteration
-      const contentClone = contentElement.cloneNode(true);
+      for (const selector of authorSelectors) {
+        const authorElement = doc.querySelector(selector);
+        if (authorElement) {
+          byline = authorElement.getAttribute("content") || authorElement.textContent || "";
+          if (byline) break;
+        }
+      }
+    }
+    
+    // Extract site name if not already set by Readability
+    if (!siteName) {
+      const siteNameSelectors = [
+        'meta[property="og:site_name"]',
+        '.site-name', '.site-title', '#site-title',
+        '[itemprop="publisher"]', '.publisher'
+      ];
       
-      for (const selector of unwantedSelectors) {
-        const elements = contentClone.querySelectorAll(selector);
-        elements.forEach(el => el.remove());
+      for (const selector of siteNameSelectors) {
+        const siteNameElement = doc.querySelector(selector);
+        if (siteNameElement) {
+          siteName = siteNameElement.getAttribute("content") || siteNameElement.textContent || "";
+          if (siteName) break;
+        }
       }
       
-      mainContent = contentClone.innerHTML || "";
-      textContent = contentClone.textContent || "";
-      
-      // Check if extracted content is too short, might indicate extraction failure
-      if (textContent.length < 100 && contentElement !== doc.body) {
-        console.log("Extracted content too short, falling back to body");
-        contentElement = doc.body;
-        const bodyClone = contentElement.cloneNode(true);
-        
-        for (const selector of unwantedSelectors) {
-          const elements = bodyClone.querySelectorAll(selector);
-          elements.forEach(el => el.remove());
+      if (!siteName) {
+        try {
+          const hostname = new URL(url).hostname;
+          siteName = hostname.replace(/^www\./, '').split('.')[0];
+        } catch {
+          siteName = "";
         }
-        
-        mainContent = bodyClone.innerHTML || "";
-        textContent = bodyClone.textContent || "";
       }
     }
     
@@ -143,57 +168,6 @@ serve(async (req) => {
     if (!isRTL) {
       const rtlChars = /[\u0591-\u07FF\u200F\u202B\u202E\uFB1D-\uFDFD\uFE70-\uFEFC]/;
       isRTL = rtlChars.test(textContent);
-    }
-    
-    // Clean text content
-    textContent = textContent.replace(/\s+/g, ' ').trim();
-    
-    // Extract excerpt (first 150 characters)
-    const excerpt = textContent.length > 150
-      ? textContent.substring(0, 150) + "..."
-      : textContent;
-    
-    // Extract author/byline with expanded selectors
-    let byline = "";
-    const authorSelectors = [
-      'meta[name="author"]', 
-      'meta[property="article:author"]',
-      '.author', '.byline', '.entry-author', 
-      '[rel="author"]', '.post-author',
-      '[itemprop="author"]', '.author-name'
-    ];
-    
-    for (const selector of authorSelectors) {
-      const authorElement = doc.querySelector(selector);
-      if (authorElement) {
-        byline = authorElement.getAttribute("content") || authorElement.textContent || "";
-        if (byline) break;
-      }
-    }
-    
-    // Extract site name with expanded selectors
-    let siteName = "";
-    const siteNameSelectors = [
-      'meta[property="og:site_name"]',
-      '.site-name', '.site-title', '#site-title',
-      '[itemprop="publisher"]', '.publisher'
-    ];
-    
-    for (const selector of siteNameSelectors) {
-      const siteNameElement = doc.querySelector(selector);
-      if (siteNameElement) {
-        siteName = siteNameElement.getAttribute("content") || siteNameElement.textContent || "";
-        if (siteName) break;
-      }
-    }
-    
-    if (!siteName) {
-      try {
-        const hostname = new URL(url).hostname;
-        siteName = hostname.replace(/^www\./, '').split('.')[0];
-      } catch {
-        siteName = "";
-      }
     }
     
     console.log(`Completed extraction. Content length: ${mainContent.length} characters`);
@@ -232,3 +206,58 @@ serve(async (req) => {
     );
   }
 });
+
+/**
+ * Fallback content extraction method
+ */
+function fallbackExtractContent(doc) {
+  // Try to find main content container using extended selectors
+  const contentSelectors = [
+    'main', 'article', '[role="main"]',
+    '.content', '.article', '.post', '.entry-content', '.story', '.blog-post',
+    '#content', '#main-content', '#article-content', '#story-content', '#post-content',
+    'article', '.article-body', '.story-body', '.content-area', '.post-body',
+    '.main-content', '.page-content', '.entry', '.single-content', '.wordpress-content'
+  ];
+  
+  let contentElement = null;
+  for (const selector of contentSelectors) {
+    contentElement = doc.querySelector(selector);
+    if (contentElement) {
+      console.log(`Found content using selector: ${selector}`);
+      break;
+    }
+  }
+  
+  // If no main content found, use the body
+  if (!contentElement) {
+    console.log("No specific content container found, using body");
+    contentElement = doc.body;
+  }
+  
+  if (contentElement) {
+    // Remove unwanted elements before extraction
+    const unwantedSelectors = [
+      'script', 'style', 'footer', 'header', 'nav', 
+      '.ads', '.comments', '.sidebar', '.widget', '.menu',
+      '.navigation', '.breadcrumb', '.related', '.share',
+      '[id*="comment"]', '[class*="comment"]', 
+      '[id*="widget"]', '[class*="widget"]',
+      '[id*="sidebar"]', '[class*="sidebar"]',
+      '[id*="banner"]', '[class*="banner"]',
+      '[id*="footer"]', '[class*="footer"]'
+    ];
+    
+    // Create a copy of the content to avoid modifying during iteration
+    const contentClone = contentElement.cloneNode(true);
+    
+    for (const selector of unwantedSelectors) {
+      const elements = contentClone.querySelectorAll(selector);
+      elements.forEach(el => el.remove());
+    }
+    
+    return contentClone.innerHTML || "";
+  }
+  
+  return "";
+}

@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 // Interface for the extracted content
@@ -14,7 +15,7 @@ export interface ExtractedContent {
 }
 
 /**
- * Extract content from a URL using Supabase edge function
+ * Extract content from a URL using Supabase edge function with Readability.js
  */
 export async function extractContentFromUrl(url: string): Promise<ExtractedContent> {
   try {
@@ -30,11 +31,13 @@ export async function extractContentFromUrl(url: string): Promise<ExtractedConte
       return getFallbackContent(url);
     }
     
-    // Check if the content contains Arabic text
-    const hasArabicText = containsArabicText(data.content);
-    if (hasArabicText) {
-      data.rtl = true;
+    if (!data || !data.content) {
+      console.error("No content returned from extract-url-content function");
+      return getFallbackContent(url);
     }
+    
+    console.log(`Content extracted successfully. Length: ${data.content.length} characters`);
+    console.log(`Content excerpt: ${data.excerpt}`);
     
     return data;
   } catch (error) {
