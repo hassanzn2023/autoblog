@@ -212,7 +212,7 @@ serve(async (req) => {
  */
 function fallbackExtractContent(doc) {
   // Try to find main content container using extended selectors
-  const contentSelectors = [
+const contentSelectors = [
     'main',
     'article',
     '[role="main"]',
@@ -236,10 +236,10 @@ function fallbackExtractContent(doc) {
     '.entry',
     '.single-content',
     '.wordpress-content',
-    // Add new selectors based on your analysis:
-    '.post-details-content', // Found in the image
-    '.prose',                // Found in the image
-    // You can also add combinations or other specific selectors if needed
+    // Add the new selectors based on your analysis:
+    '.post-details-content', // من الكود الذي قدمته
+    '.prose',                // من الكود الذي قدمته
+    // You could also add more specific selectors if needed, e.g., '.post-details-content .prose'
   ];
   
   let contentElement = null;
@@ -258,17 +258,32 @@ function fallbackExtractContent(doc) {
   }
   
   if (contentElement) {
-    // Remove unwanted elements before extraction
-    const unwantedSelectors = [
-      'script', 'style', 'footer', 'header', 'nav', 
-      '.ads', '.comments', '.sidebar', '.widget', '.menu',
-      '.navigation', '.breadcrumb', '.related', '.share',
-      '[id*="comment"]', '[class*="comment"]', 
-      '[id*="widget"]', '[class*="widget"]',
-      '[id*="sidebar"]', '[class*="sidebar"]',
-      '[id*="banner"]', '[class*="banner"]',
-      '[id*="footer"]', '[class*="footer"]'
-    ];
+      const unwantedSelectors = [
+        'script',
+        'style',
+        'footer',
+        'header',
+        'nav',
+        '.ads',
+        '.comments',
+        '.sidebar',
+        '.widget',
+        '.menu',
+        '.navigation',
+        '.breadcrumb',
+        '.related',
+        '.share',
+        '[id*="comment"]',
+        '[class*="comment"]',
+        '[id*="widget"]',
+        '[class*="widget"]',
+        '[id*="sidebar"]',
+        '[class*="sidebar"]',
+        '[id*="banner"]',
+        '[class*="banner"]',
+        '[id*="footer"]',
+        '[class*="footer"]'
+      ];
     
     // Create a copy of the content to avoid modifying during iteration
     const contentClone = contentElement.cloneNode(true);
