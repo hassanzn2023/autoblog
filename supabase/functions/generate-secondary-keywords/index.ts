@@ -24,10 +24,9 @@ serve(async (req) => {
   }
 
   try {
-    // جعل primaryKeyword اختيارية في الاستقبال، content لا تزال مطلوبة
     const { primaryKeyword, content, count, note, userId, workspaceId } = await req.json();
 
-    if (!content) { //  <--- تعديل: التحقق من content فقط
+    if (!content) {
       console.error("Content is required but was not provided");
       return new Response(
         JSON.stringify({ error: 'Content is required' }),
@@ -35,10 +34,8 @@ serve(async (req) => {
       );
     }
 
-    // معالجة primaryKeyword لتكون null إذا كانت فارغة أو غير موجودة
     const effectivePrimaryKeyword = (typeof primaryKeyword === 'string' && primaryKeyword.trim() !== '') ? primaryKeyword.trim() : null;
     const regenerationNote = (typeof note === 'string' && note.trim() !== '') ? note.trim() : null;
-
 
     console.log(`Generating ${count || 5} secondary keyword suggestions.`);
     if (effectivePrimaryKeyword) {
@@ -62,27 +59,27 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     if (userId && workspaceId) {
-      // ... (كود التحقق من الاعتمادات وتسجيل الاستخدام يبقى كما هو)
-      // يمكن تعديل عدد الاعتمادات هنا إذا كان اقتراح الكلمات الثانوية بدون أساسية يستهلك عددًا مختلفًا
-      const required_credits = 3; //  أو أي قيمة تراها مناسبة
+      const required_credits = 3; // Adjust credit cost as needed
+
       const { data: hasEnoughCredits, error: creditsError } = await supabase.rpc(
         'check_user_has_credits',
         { user_id_param: userId, required_credits: required_credits }
       );
-      // ... (بقية كود الاعتمادات)
+
       if (creditsError || !hasEnoughCredits) {
-        // ... (معالجة خطأ الاعتمادات)
+         console.warn("Credit check failed or insufficient credits:", creditsError?.message || 'Insufficient credits');
+         // Depending on your app logic, you might want a different status code like 403 Forbidden
          return new Response(
           JSON.stringify({ error: creditsError?.message || 'Insufficient credits' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-       // Record API usage
+
        try {
         await supabase.from('credits').insert({
             user_id: userId,
             workspace_id: workspaceId,
-            credit_amount: required_credits, // استخدم نفس القيمة
+            credit_amount: required_credits,
             transaction_type: 'used'
         });
         await supabase.from('api_usage').insert({
@@ -90,53 +87,81 @@ serve(async (req) => {
             workspace_id: workspaceId,
             api_type: 'openai',
             usage_amount: 1,
-            credits_consumed: required_credits, // استخدم نفس القيمة
-            operation_type: 'generate_secondary_keywords'
+            credits_consumed: required_credits,
+            operation_type: effectivePrimaryKeyword ? 'generate_secondary_keywords_with_primary' : 'generate_secondary_keywords_without_primary',
+            details: {
+               system_prompt_sample: 'See fixed English prompt below', // Indicate fixed prompt
+               user_prompt_sample: '', // Will fill this after building userPrompt
+               keyword_count_requested: count || 5,
+               primary_keyword_provided: !!effectivePrimaryKeyword,
+               regeneration_note_provided: !!regenerationNote
+            }
         });
+        // Note: The `user_prompt_sample` in api_usage needs to be updated AFTER userPrompt is built
+        // For simplicity in this example, we'll update it slightly differently or note it.
+        // A better approach might involve building the prompt BEFORE the Supabase call.
       } catch (usageError) {
         console.error("Error recording usage:", usageError);
       }
     } else {
       console.log("User not authenticated or no workspace ID provided, proceeding without credit check/recording.");
+      // Decide if you want to block if auth/workspace is missing
     }
 
     const keywordCount = count || 5;
+    // Remove HTML tags and trim whitespace from content
     const cleanContent = content.replace(/<[^>]*>/g, ' ').trim();
-    const textSample = cleanContent.slice(0, 2000); //  زيادة طفيفة لطول العينة
+    const textSample = cleanContent.slice(0, 2000); // Take a sample of the cleaned content
 
+    // Still detect language for logging/debugging purposes
     const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
-    const hasArabicText = arabicRegex.test(cleanContent) || (effectivePrimaryKeyword && arabicRegex.test(effectivePrimaryKeyword)) || (regenerationNote && arabicRegex.test(regenerationNote));
+    const hasArabicText = arabicRegex.test(cleanContent)
+      || (effectivePrimaryKeyword && arabicRegex.test(effectivePrimaryKeyword))
+      || (regenerationNote && arabicRegex.test(regenerationNote));
 
-    console.log(`Content language determined as: ${hasArabicText ? 'Arabic' : 'English'}`);
+    console.log(`Content language detected as: ${hasArabicText ? 'Arabic' : 'English'}`);
 
-    let systemPrompt = '';
-    let userPromptSegment = '';
+
+    // --- Fixed System Prompt (Always English) ---
+    const systemPrompt = 'You are an SEO expert and a specialized assistant in content analysis for extracting highly relevant secondary keywords (long-tail keywords or LSI keywords) for an article. The suggested keywords should be useful for improving search engine rankings and accurately reflect the topics covered in the article.';
+    // ------------------------------------------
+
+    // --- Construct the final User Prompt (Always English structure) ---
+    let userPromptCoreInstruction = effectivePrimaryKeyword
+        ? `Based on the following content and primary keyword "${effectivePrimaryKeyword}", extract ${keywordCount} secondary keywords.`
+        : `Based on the following content, extract ${keywordCount} secondary keywords.`;
+
     const noteInstruction = regenerationNote
-        ? (hasArabicText ? ` مع الأخذ في الاعتبار الملاحظة التالية: "${regenerationNote}".` : ` Considering the following note: "${regenerationNote}".`)
+        ? ` Considering the following note: "${regenerationNote}".` // Note included directly in prompt structure
         : '';
 
-    if (effectivePrimaryKeyword) {
-      systemPrompt = hasArabicText
-        ? 'أنت خبير SEO ومساعد متخصص في تحليل المحتوى لاستخراج كلمات مفتاحية ثانوية (long-tail keywords أو LSI keywords) تكون وثيقة الصلة بكلمة مفتاحية رئيسية ومحتوى المقال. يجب أن تكون الكلمات المقترحة مفيدة لتحسين ترتيب المقال في محركات البحث.'
-        : 'You are an SEO expert and a specialized assistant in content analysis for extracting secondary keywords (long-tail keywords or LSI keywords) that are highly relevant to a primary keyword and the article content. The suggested keywords should be useful for improving search engine rankings.';
-      userPromptSegment = hasArabicText
-        ? `بناءً على المحتوى التالي والكلمة المفتاحية الرئيسية "${effectivePrimaryKeyword}"،`
-        : `Based on the following content and primary keyword "${effectivePrimaryKeyword}",`;
-    } else {
-      systemPrompt = hasArabicText
-        ? 'أنت خبير SEO ومساعد متخصص في تحليل المحتوى لاستخراج كلمات مفتاحية ثانوية (long-tail keywords أو LSI keywords) مناسبة لمقال. يجب أن تكون الكلمات المقترحة ذات صلة بالموضوع العام للمقال وتساعد في تغطية جوانب متعددة منه.'
-        : 'You are an SEO expert and a specialized assistant in content analysis for extracting suitable secondary keywords (long-tail keywords or LSI keywords) for an article. The suggested keywords should be relevant to the general topic of the article and help cover multiple aspects of it.';
-      userPromptSegment = hasArabicText
-        ? `بناءً على المحتوى التالي،`
-        : `Based on the following content,`;
-    }
+    // This is the key instruction to return keywords in the source content's language
+    const languageInstruction = ` **Provide the keywords strictly in the language of the provided content.**`;
 
-    const userPrompt = `${userPromptSegment} استخرج ${keywordCount} كلمات مفتاحية ثانوية.${noteInstruction} يجب أن تكون الكلمات مختلفة عن الكلمة المفتاحية الرئيسية (إذا تم توفيرها). اعرضها فقط كمصفوفة JSON داخل كائن JSON، حيث يكون المفتاح هو "keywords" والقيمة هي مصفوفة السلاسل النصية للكلمات المفتاحية، بدون أي تعليقات أو توضيحات إضافية. مثال: {"keywords": ["كلمة1", "كلمة2"]}\n\nالمحتوى:\n${textSample}`;
+    const formatInstruction = ` Output only as a JSON object with a single key "keywords" containing an array of strings, with no additional comments or explanations. Example: {"keywords": ["keyword1", "keyword2"]}`;
+
+    const userPrompt = `${userPromptCoreInstruction}${noteInstruction} The keywords must be different from the primary keyword (if provided).${languageInstruction}${formatInstruction}\n\nContent:\n${textSample}`;
+    // ----------------------------------------------------------------
+
 
     console.log("Calling OpenAI API with System Prompt:", systemPrompt);
-    console.log("Calling OpenAI API with User Prompt:", userPrompt);
+    console.log("Calling OpenAI API with User Prompt:", userPrompt.substring(0, 500) + (userPrompt.length > 500 ? '...' : '')); // Log sample of user prompt
+
 
     try {
+        // If you need to log the full user prompt (be cautious with size/PII), update api_usage here
+        // const { data: usageData, error: usageErrorUpdate } = await supabase.from('api_usage')
+        //     .update({ user_prompt_sample: userPrompt.substring(0, 500) }) // Or full userPrompt if safe/needed
+        //     .eq('user_id', userId) // Assuming userId and workspaceId uniquely identify the latest entry
+        //     .eq('workspace_id', workspaceId)
+        //     .order('created_at', { ascending: false })
+        //     .limit(1);
+
+        // if (usageErrorUpdate) {
+        //     console.error("Error updating api_usage with full prompt:", usageErrorUpdate);
+        // }
+
+
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -144,60 +169,95 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini', //  أو 'gpt-4' إذا كنت تفضل
+          model: 'gpt-4o-mini', // Or 'gpt-4' etc. - Ensure model supports JSON mode
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          temperature: 0.6, //  تعديل درجة الحرارة للحصول على نتائج أكثر تركيزًا
-          max_tokens: 200 * keywordCount, //  زيادة طفيفة لضمان مساحة كافية للكلمات
-          response_format: { "type": "json_object" }
+          temperature: 0.6,
+          max_tokens: 50 * keywordCount, // Reasonable max tokens for a list of keywords
+          response_format: { "type": "json_object" } // Strongly request JSON output
         }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error("OpenAI API response not OK:", response.status, errorText);
+         const requestDetails = {
+             system_prompt_sample: systemPrompt.substring(0, 500),
+             user_prompt_sample: userPrompt.substring(0, 500),
+             status: response.status,
+             error_text_sample: errorText.substring(0, 200)
+         };
+         console.error("Request details:", requestDetails);
         throw new Error(`OpenAI API error (${response.status}): ${errorText.substring(0, 200)}`);
       }
 
       const openaiResponse = await response.json();
       if (!openaiResponse.choices || !openaiResponse.choices[0]?.message?.content) {
         console.error("Unexpected OpenAI API response format:", openaiResponse);
+         const requestDetails = {
+             system_prompt_sample: systemPrompt.substring(0, 500),
+             user_prompt_sample: userPrompt.substring(0, 500),
+             raw_openai_response: JSON.stringify(openaiResponse).substring(0, 500)
+         };
+         console.error("Request details:", requestDetails);
         throw new Error("Unexpected OpenAI API response format: No content in choices.");
       }
 
       let parsedContent;
+      const rawContent = openaiResponse.choices[0].message.content;
+
       try {
-        parsedContent = JSON.parse(openaiResponse.choices[0].message.content);
+         console.log("Raw content received from OpenAI:", rawContent.substring(0, 500) + (rawContent.length > 500 ? '...' : ''));
+
+        parsedContent = JSON.parse(rawContent);
+
         if (!parsedContent.keywords || !Array.isArray(parsedContent.keywords)) {
-          console.error("No 'keywords' array in parsed JSON content:", parsedContent);
-          // محاولة استخراج الكلمات إذا كانت الاستجابة نصًا مفصولًا بفواصل أو أسطر جديدة
-          const fallbackKeywords = openaiResponse.choices[0].message.content.split(/[\n,]+/).map(k => k.trim()).filter(Boolean);
+          console.warn("No 'keywords' array in parsed JSON content, attempting fallback:", parsedContent);
+          // Attempt to extract keywords from raw text if JSON parsing failed or structure is wrong
+          const fallbackKeywords = rawContent.split(/[\n,]+/).map(k => k.trim()).filter(Boolean);
+
           if (fallbackKeywords.length > 0) {
             console.log("Using fallback keyword extraction:", fallbackKeywords);
             parsedContent = { keywords: fallbackKeywords.slice(0, keywordCount) };
           } else {
+             const requestDetails = {
+                 system_prompt_sample: systemPrompt.substring(0, 500),
+                 user_prompt_sample: userPrompt.substring(0, 500),
+                 raw_openai_content_sample: rawContent.substring(0, 500)
+             };
+             console.error("Fallback extraction failed. Request details:", requestDetails);
             throw new Error("Response JSON does not contain a 'keywords' array, and fallback failed.");
           }
         }
       } catch (parseError) {
         console.error("Error parsing OpenAI response as JSON:", parseError.message);
-        console.error("Raw content from OpenAI:", openaiResponse.choices[0].message.content);
-        // محاولة استخراج الكلمات إذا كانت الاستجابة نصًا مفصولًا بفواصل أو أسطر جديدة
-        const fallbackKeywords = openaiResponse.choices[0].message.content.split(/[\n,]+/).map(k => k.trim()).filter(Boolean);
+        console.error("Raw content from OpenAI (during parse error):", rawContent.substring(0, 500) + (rawContent.length > 500 ? '...' : ''));
+
+
+        // Attempt to extract keywords from raw text if JSON parsing failed
+        const fallbackKeywords = rawContent.split(/[\n,]+/).map(k => k.trim()).filter(Boolean);
+
         if (fallbackKeywords.length > 0) {
             console.log("Using fallback keyword extraction due to parse error:", fallbackKeywords);
             parsedContent = { keywords: fallbackKeywords.slice(0, keywordCount) };
         } else {
-            throw new Error(`Failed to parse OpenAI response and no fallback possible: ${parseError.message}`);
+           const requestDetails = {
+                 system_prompt_sample: systemPrompt.substring(0, 500),
+                 user_prompt_sample: userPrompt.substring(0, 500),
+                 raw_openai_content_sample: rawContent.substring(0, 500),
+                 parse_error: parseError.message
+           };
+           console.error("Fallback extraction failed after parse error. Request details:", requestDetails);
+          throw new Error(`Failed to parse OpenAI response and no fallback possible: ${parseError.message}`);
         }
       }
 
       const keywordSuggestions = parsedContent.keywords.map((text: string) => ({
         id: crypto.randomUUID(),
-        text: text.trim() // التأكد من إزالة أي مسافات بادئة/زائدة
-      })).filter((kw: {text: string}) => kw.text !== ''); //  إزالة الكلمات الفارغة
+        text: text.trim() // Ensure leading/trailing whitespace is removed
+      })).filter((kw: {text: string}) => kw.text !== ''); // Remove empty keywords
 
       console.log("Returning secondary keyword suggestions:", keywordSuggestions);
       return new Response(
@@ -207,12 +267,15 @@ serve(async (req) => {
 
     } catch (openaiError) {
       console.error("OpenAI API call failed:", openaiError);
-      throw openaiError; //  سيتم التقاط هذا بواسطة الـ catch الخارجي
+      return new Response(
+        JSON.stringify({ error: `Failed to get suggestions from AI: ${openaiError.message || 'Unknown error'}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
   } catch (error) {
     console.error("Error in generate-secondary-keywords function:", error.message);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: `An unexpected error occurred: ${error.message || 'Unknown error'}` }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
