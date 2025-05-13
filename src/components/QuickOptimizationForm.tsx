@@ -32,23 +32,16 @@ const QuickOptimizationForm = () => {
   const [primaryKeyword, setPrimaryKeyword] = useState('');
   const [secondaryKeywords, setSecondaryKeywords] = useState<string[]>([]);
 
-  //  لا تزال هذه الحالات موجودة للتحكم في عرض/إخفاء واجهة الاقتراحات
-  const [showPrimaryKeywordSuggestions, setShowPrimaryKeywordSuggestions] = useState(false);
-  const [showSecondaryKeywordSuggestions, setShowSecondaryKeywordSuggestions] = useState(false);
-
   const [primaryKeywordSuggestions, setPrimaryKeywordSuggestions] = useState<KeywordSuggestion[]>([]);
   const [secondaryKeywordSuggestions, setSecondaryKeywordSuggestions] = useState<KeywordSuggestion[]>([]);
 
-  // --- فصل حقول الملاحظات ---
+  // فصل حقول الملاحظات
   const [primaryRegenerationNote, setPrimaryRegenerationNote] = useState('');
   const [secondaryRegenerationNote, setSecondaryRegenerationNote] = useState('');
-  // --- نهاية فصل حقول الملاحظات ---
 
-  //  const [isLoading, setIsLoading] = useState(false); //  غير مستخدمة
   const [isGeneratingPrimary, setIsGeneratingPrimary] = useState(false);
   const [isGeneratingSecondary, setIsGeneratingSecondary] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
-  //  const [extractionAttempts, setExtractionAttempts] = useState(0); //  غير مستخدمة
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isParsingFile, setIsParsingFile] = useState(false);
@@ -65,11 +58,8 @@ const QuickOptimizationForm = () => {
   const modules = { /* ... */ };
   const formats = [ /* ... */ ];
 
-  // --- لا يوجد useEffects للتوليد التلقائي هنا ---
-
   const handleUrlExtraction = async () => { /* ... (الكود الحالي جيد) ... */ return false; };
 
-  // --- تعديل handleContentConfirm لإزالة التوليد التلقائي ---
   const handleContentConfirm = async () => {
     if (contentMethod === 'link' && !content) {
       const success = await handleUrlExtraction();
@@ -81,13 +71,11 @@ const QuickOptimizationForm = () => {
     }
     setContentConfirmed(true);
     toast({ title: "Content Confirmed", description: "Your content has been added successfully." });
-    // لا تستدعي handleGeneratePrimaryKeywords هنا
+    // لا تستدعي أي دالة توليد هنا
   };
-  // --- نهاية تعديل handleContentConfirm ---
 
   const handlePrimaryKeywordSelect = (keywordText: string) => {
     setPrimaryKeyword(keywordText);
-    setShowPrimaryKeywordSuggestions(false); //  إبقاء هذا لإخفاء القائمة بعد الاختيار
   };
 
   const handleSecondaryKeywordToggle = (keywordText: string) => {
@@ -102,89 +90,59 @@ const QuickOptimizationForm = () => {
     }
   };
 
-  // --- تعديل handleGeneratePrimaryKeywords ---
-  const handleTriggerPrimarySuggestions = async (isRegen: boolean = false) => {
+  const handleGeneratePrimaryKeywords = async (isRegeneration: boolean = false) => {
     if (!contentConfirmed || !content) {
-      toast({ title: "Content Required", description: "Please confirm your content first.", variant: "destructive" });
+      toast({ title: "Content Required", description: "Please confirm your article content first.", variant: "destructive" });
       return;
     }
     if (!user?.id || !currentWorkspace?.id) {
       toast({ title: "Authentication Required", description: "You must be logged in.", variant: "destructive" });
       return;
     }
-
     setIsGeneratingPrimary(true);
-    setShowPrimaryKeywordSuggestions(true); //  إظهار قسم الاقتراحات عند بدء التوليد
-
     try {
-      const noteToSend = isRegen ? primaryRegenerationNote : ''; // استخدام الملاحظة الصحيحة
-      const suggestions = await generateKeywordSuggestions(
-        content,
-        3,
-        noteToSend,
-        user.id,
-        currentWorkspace.id
-      );
+      const noteToSend = isRegeneration ? primaryRegenerationNote : '';
+      const suggestions = await generateKeywordSuggestions(content, 3, noteToSend, user.id, currentWorkspace.id);
       setPrimaryKeywordSuggestions(suggestions || []);
       if (suggestions && suggestions.length > 0) {
-        //   لا نقم بتحديد أول اقتراح تلقائيًا إلا إذا كان هذا هو السلوك المرغوب
-        // if (!primaryKeyword && !isRegen) {
-        //   setPrimaryKeyword(suggestions[0].text);
-        // }
-        toast({ title: isRegen ? "Primary Keywords Re-generated" : "Primary Keywords Suggested", description: "Please select a primary keyword." });
-        if (isRegen) setPrimaryRegenerationNote('');
-      } else if (!isRegen) {
-        toast({ title: "No Suggestions", description: "Unable to generate primary keyword suggestions.", variant: "default" });
+        toast({ title: isRegeneration ? "Primary Keywords Re-generated" : "Primary Keywords Suggested", description: "Review the suggestions." });
+        if (isRegeneration) setPrimaryRegenerationNote('');
+      } else if (!isRegeneration) {
+        toast({ title: "No Suggestions", description: "Could not generate primary keyword suggestions.", variant: "default" });
       }
     } catch (error: any) {
-      console.error("Error generating primary keywords:", error);
-      toast({ title: "Generation Error", description: error.message || "An error occurred while generating keywords.", variant: "destructive" });
+      toast({ title: "Primary Suggestion Failed", description: error.message || "Failed to process primary keywords.", variant: "destructive" });
     } finally {
       setIsGeneratingPrimary(false);
     }
   };
-  // --- نهاية تعديل handleGeneratePrimaryKeywords ---
 
-  // --- تعديل handleGenerateSecondaryKeywords ---
-  const handleTriggerSecondarySuggestions = async (isRegen: boolean = false) => {
+  const handleGenerateSecondaryKeywords = async (isRegeneration: boolean = false) => {
     if (!contentConfirmed || !content) {
-      toast({ title: "Content Required", description: "Please confirm your content first.", variant: "destructive" });
+      toast({ title: "Content Required", description: "Please confirm your article content first.", variant: "destructive" });
       return;
     }
-    //  الخطة الأصلية سمحت بتوليد الكلمات الثانوية بدون أساسية، لذا لا يوجد شرط على primaryKeyword هنا للاقتراح الأولي
     if (!user?.id || !currentWorkspace?.id) {
       toast({ title: "Authentication Required", description: "You must be logged in.", variant: "destructive" });
       return;
     }
-
     setIsGeneratingSecondary(true);
-    setShowSecondaryKeywordSuggestions(true); // إظهار قسم الاقتراحات
-
     try {
-      const noteToSend = isRegen ? secondaryRegenerationNote : ''; // استخدام الملاحظة الصحيحة
-      const suggestions = await generateSecondaryKeywordSuggestions(
-        primaryKeyword || '',
-        content,
-        5,
-        noteToSend,
-        user.id,
-        currentWorkspace.id
-      );
+      const noteToSend = isRegeneration ? secondaryRegenerationNote : '';
+      const suggestions = await generateSecondaryKeywordSuggestions(primaryKeyword || '', content, 5, noteToSend, user.id, currentWorkspace.id);
       setSecondaryKeywordSuggestions(suggestions || []);
       if (suggestions && suggestions.length > 0) {
-        toast({ title: isRegen ? "Secondary Keywords Re-generated" : "Secondary Keywords Suggested", description: "Please select up to 5 secondary keywords." });
-        if (isRegen) setSecondaryRegenerationNote('');
-      } else if (!isRegen) {
-        toast({ title: "No Suggestions", description: "Unable to generate secondary keyword suggestions.", variant: "default" });
+        toast({ title: isRegeneration ? "Secondary Keywords Re-generated" : "Secondary Keywords Suggested", description: "Review the suggestions." });
+        if (isRegeneration) setSecondaryRegenerationNote('');
+      } else if (!isRegeneration) {
+        toast({ title: "No Suggestions", description: "Could not generate secondary keyword suggestions.", variant: "default" });
       }
     } catch (error: any) {
-      console.error("Error generating secondary keywords:", error);
-      toast({ title: "Generation Error", description: error.message || "An error occurred while generating keywords.", variant: "destructive" });
+      toast({ title: "Secondary Suggestion Failed", description: error.message || "Failed to process secondary keywords.", variant: "destructive" });
     } finally {
       setIsGeneratingSecondary(false);
     }
   };
-  // --- نهاية تعديل handleGenerateSecondaryKeywords ---
 
   const handleRetryExtraction = async () => { /* ... */ };
   const handleStartOptimization = () => { /* ... */ };
@@ -192,24 +150,18 @@ const QuickOptimizationForm = () => {
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => { /* ... */ };
   const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => { /* ... */ };
 
-  // --- JSX المحدث ---
   return (
     <div className="max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Quick SEO Optimization</h1>
       <div className="space-y-8">
         {/* Content Section */}
         <div className={`p-6 border rounded-lg ${contentConfirmed ? 'border-green-500 bg-green-50' : 'border-gray-200'} shadow-sm`}>
-          {/* ... (كود قسم المحتوى يبقى كما هو) ... */}
-           <h2 className="text-lg font-medium mb-4">1. Add your content</h2>
-          {/* ... (خيارات إدخال المحتوى، نفس الكود السابق جيد هنا) ... */}
+          <h2 className="text-lg font-medium mb-4">1. Add your content</h2>
+          <div className="space-y-4">
+            {/* ... (خيارات إدخال المحتوى) ... */}
             {!contentConfirmed && (contentMethod === 'text' || (contentMethod === 'link' && content) || (contentMethod === 'file' && content)) && (
               <div className="text-center mt-4">
-                <Button
-                  variant="seoButton"
-                  onClick={handleContentConfirm}
-                  className="z-10 relative"
-                  disabled={ (contentMethod === 'link' && isLoadingUrl) || (contentMethod === 'file' && isParsingFile)}
-                >
+                <Button variant="seoButton" onClick={handleContentConfirm} className="z-10 relative" disabled={ (contentMethod === 'link' && isLoadingUrl) || (contentMethod === 'file' && isParsingFile)}>
                   Confirm Content
                 </Button>
               </div>
@@ -220,6 +172,7 @@ const QuickOptimizationForm = () => {
                 <span>Content added/confirmed.</span>
               </div>
             )}
+          </div>
         </div>
 
         {/* Keywords Section - يظهر فقط بعد تأكيد المحتوى */}
@@ -228,11 +181,11 @@ const QuickOptimizationForm = () => {
             <h2 className="text-lg font-medium mb-4">2. Add Keywords</h2>
             <div className="space-y-6">
               {/* Primary Keyword Section */}
-              <div className="space-y-2">
-                <Label htmlFor="quickFormPrimaryKeywordInputOuter" className="block font-medium">Primary Keyword:</Label>
+              <div className="space-y-2 p-4 border rounded-md">
+                <Label htmlFor="quickFormPrimaryKeywordInput" className="block font-medium">Primary Keyword:</Label>
                 <div className="flex gap-2">
                   <Input
-                    id="quickFormPrimaryKeywordInputOuter"
+                    id="quickFormPrimaryKeywordInput"
                     type="text"
                     className="flex-1 p-3 border border-gray-300 rounded-md"
                     placeholder="Enter your main keyword..."
@@ -241,167 +194,141 @@ const QuickOptimizationForm = () => {
                     disabled={isGeneratingPrimary}
                   />
                   <Button
-                    variant="outline" //  تغيير إلى outline ليتناسب مع التصميم الحالي
-                    className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md flex items-center gap-1 transition-colors"
-                    onClick={() => {
-                        if (!showPrimaryKeywordSuggestions) { //  إذا كانت القائمة مخفية، قم بالتوليد وإظهارها
-                            handleTriggerPrimarySuggestions(false);
-                        } else { //  إذا كانت القائمة ظاهرة، قم بإخفائها فقط
-                            setShowPrimaryKeywordSuggestions(false);
-                        }
-                    }}
-                    disabled={!contentConfirmed || isGeneratingPrimary}
+                    variant="outline" //  غيرت هذا ليكون مطابقًا لـ KeywordResearchStep
+                    onClick={() => handleGeneratePrimaryKeywords(false)}
+                    className="flex items-center gap-2" //  إضافة flex و gap
+                    disabled={!contentConfirmed || isGeneratingPrimary || isGeneratingSecondary}
                   >
-                    <Search size={16} className="text-gray-600" />
-                    {showPrimaryKeywordSuggestions ? "Hide Suggestions" : "Suggest"}
+                    {isGeneratingPrimary && !primaryRegenerationNote ? (
+                      <><Loader size={16} className="animate-spin mr-2" /> Suggesting...</>
+                    ) : (
+                      <><Search size={16} className="mr-2 text-gray-600" /> Suggest (3)</> // إضافة أيقونة وعدد
+                    )}
                   </Button>
                 </div>
 
-                {showPrimaryKeywordSuggestions && (
+                {isGeneratingPrimary && !primaryRegenerationNote && (
+                    <div className="flex justify-center py-2"><Loader size={20} className="animate-spin text-purple-600" /></div>
+                )}
+
+                {primaryKeywordSuggestions.length > 0 && (
                   <div className="mt-3 p-4 border border-gray-200 rounded-lg bg-white shadow-sm">
                     <div className="mb-3 font-medium">Suggested (select one):</div>
-                    <div className="space-y-2">
-                      {isGeneratingPrimary ? (
-                        <div className="flex justify-center py-4">
-                          <Loader size={24} className="animate-spin text-[#F76D01]" />
-                          <span className="ml-2">Generating suggestions...</span>
+                    <div className="flex flex-wrap gap-2"> {/* استخدام flex-wrap لعرض الاقتراحات */}
+                      {primaryKeywordSuggestions.map((keyword) => (
+                        <div
+                          key={keyword.id}
+                          className={`px-3 py-1.5 rounded-full text-sm cursor-pointer ${primaryKeyword === keyword.text ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                          onClick={() => handlePrimaryKeywordSelect(keyword.text)}
+                        >
+                          {keyword.text}
                         </div>
-                      ) : primaryKeywordSuggestions.length > 0 ? (
-                        primaryKeywordSuggestions.map((keyword) => (
-                          <label key={keyword.id} className="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded">
-                            <input
-                              type="radio"
-                              name="primaryKeywordRadio" //  اسم موحد للـ radio buttons
-                              className="mr-2"
-                              checked={primaryKeyword === keyword.text}
-                              onChange={() => handlePrimaryKeywordSelect(keyword.text)}
-                            />
-                            {keyword.text}
-                          </label>
-                        ))
-                      ) : (
-                        <p>No suggestions available. Try regenerating or adjusting content.</p>
-                      )}
+                      ))}
                     </div>
-                    <div className="mt-4 flex justify-between items-center">
-                      <div className="text-sm text-gray-500 flex-1 mr-2"> {/*  تعديل لـ flex-1 mr-2 */}
+                    <div className="mt-4 pt-3 border-t">
+                      <Label htmlFor="quickFormPrimaryRegenNote" className="text-sm text-gray-500">Refine Primary Suggestions:</Label> {/*  تغيير طفيف في النص */}
+                      <div className="flex gap-2 items-center mt-1">
                         <Input
+                          id="quickFormPrimaryRegenNote"
                           type="text"
                           className="w-full p-2 border border-gray-300 rounded-md"
-                          placeholder="Regeneration note..."
-                          value={primaryRegenerationNote} //  استخدام الملاحظة الصحيحة
+                          placeholder="e.g., focus on AI in marketing"
+                          value={primaryRegenerationNote}
                           onChange={(e) => setPrimaryRegenerationNote(e.target.value)}
                           disabled={isGeneratingPrimary}
                         />
+                        <Button
+                          variant="outline"
+                          size="sm" //  مطابقة لـ KeywordResearchStep
+                          onClick={() => handleGeneratePrimaryKeywords(true)}
+                          className="flex items-center gap-1" //  إضافة flex و gap
+                          disabled={isGeneratingPrimary || !contentConfirmed || !primaryRegenerationNote.trim()}
+                        >
+                          {isGeneratingPrimary && primaryRegenerationNote ? (
+                            <Loader size={16} className="animate-spin" />
+                          ) : (
+                            <RefreshCw size={16} />
+                          )}
+                           {/* لا يوجد نص هنا إذا كان هناك أيقونة فقط، أو يمكنك إضافة "Re-generate" */}
+                        </Button>
                       </div>
-                      <Button
-                        variant="outline" //  تغيير إلى outline
-                        className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md flex items-center gap-1 transition-colors"
-                        onClick={() => handleTriggerPrimarySuggestions(true)} //  استدعاء مع isRegen = true
-                        disabled={isGeneratingPrimary || !primaryRegenerationNote.trim()}
-                      >
-                        {isGeneratingPrimary && primaryRegenerationNote ? (
-                          <Loader size={16} className="animate-spin" />
-                        ) : (
-                          <RefreshCw size={16} />
-                        )}
-                        Regenerate
-                      </Button>
                     </div>
                   </div>
                 )}
               </div>
 
               {/* Secondary Keywords Section */}
-              <div className="space-y-2">
+              <div className="space-y-2 p-4 border rounded-md">
                 <Label className="block font-medium">Secondary Keywords (Optional):</Label>
-                <div className="flex gap-2">
-                  <div className="flex-1 p-3 border border-gray-300 rounded-md min-h-[80px] bg-white">
-                    {/* ... (عرض الكلمات الثانوية المختارة - الكود الحالي جيد) ... */}
-                     {secondaryKeywords.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {secondaryKeywords.map((keyword, index) => (
-                            <div key={index} className="bg-gray-100 px-2 py-1 rounded-md flex items-center gap-1">
-                              <span>{keyword}</span>
-                              <button onClick={() => handleSecondaryKeywordToggle(keyword)} className="text-gray-500 hover:text-red-500"><X size={14} /></button>
-                            </div>
-                          ))}
+                <div className="flex-1 p-3 border border-gray-300 rounded-md min-h-[80px] bg-white mb-2">
+                  {secondaryKeywords.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {secondaryKeywords.map((keyword, index) => (
+                        <div key={index} className="bg-blue-100 text-blue-700 px-2 py-1 rounded-md flex items-center gap-1">
+                          <span>{keyword}</span>
+                          <button onClick={() => handleSecondaryKeywordToggle(keyword)} className="text-blue-500 hover:text-red-500"><X size={14} /></button>
                         </div>
-                      ) : (<span className="text-gray-400">Select up to 5 secondary keywords</span>)}
-                  </div>
-                  <Button
-                    variant="outline" //  تغيير إلى outline
-                    className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md h-fit flex items-center gap-1 transition-colors"
-                    onClick={() => {
-                        if (!showSecondaryKeywordSuggestions) {
-                            handleTriggerSecondarySuggestions(false);
-                        } else {
-                            setShowSecondaryKeywordSuggestions(false);
-                        }
-                    }}
-                    disabled={!contentConfirmed || isGeneratingSecondary} //  يمكن إزالة الاعتماد على primaryKeyword إذا أردنا
-                  >
-                    <Search size={16} className="text-gray-600" />
-                    {showSecondaryKeywordSuggestions ? "Hide Suggestions" : "Suggest"}
-                  </Button>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-gray-400 italic">No secondary keywords selected.</span>
+                  )}
                 </div>
+                <Button
+                  variant="outline" //  مطابقة
+                  onClick={() => handleGenerateSecondaryKeywords(false)}
+                  className="flex items-center gap-2" // إضافة flex و gap
+                  disabled={!contentConfirmed || isGeneratingSecondary || isGeneratingPrimary} //  تحديث الشرط
+                >
+                  {isGeneratingSecondary && !secondaryRegenerationNote ? (
+                     <><Loader size={16} className="animate-spin mr-2" /> Suggesting...</>
+                  ) : (
+                     <><Search size={16} className="mr-2 text-gray-600" /> Suggest (5)</> // إضافة أيقونة وعدد
+                  )}
+                </Button>
 
-                {showSecondaryKeywordSuggestions && (
+                {isGeneratingSecondary && !secondaryRegenerationNote && (
+                    <div className="flex justify-center py-2"><Loader size={20} className="animate-spin text-purple-600" /></div>
+                )}
+
+                {secondaryKeywordSuggestions.length > 0 && (
                   <div className="mt-3 p-4 border border-gray-200 rounded-lg bg-white shadow-sm">
                     <div className="mb-3 font-medium">Suggested (select multiple, max 5):</div>
-                    <div className="space-y-2">
-                      {isGeneratingSecondary ? (
-                        <div className="flex justify-center py-4">
-                          <Loader size={24} className="animate-spin text-[#F76D01]" />
-                          <span className="ml-2">Generating suggestions...</span>
-                        </div>
-                      ) : secondaryKeywordSuggestions.length > 0 ? (
-                        secondaryKeywordSuggestions.map((keyword) => (
-                          <label key={keyword.id} className="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded">
-                            <input
-                              type="checkbox"
-                              className="mr-2"
-                              checked={secondaryKeywords.includes(keyword.text)}
-                              onChange={() => handleSecondaryKeywordToggle(keyword.text)}
-                              disabled={!secondaryKeywords.includes(keyword.text) && secondaryKeywords.length >= 5}
-                            />
-                            {keyword.text}
-                            {!secondaryKeywords.includes(keyword.text) && secondaryKeywords.length >= 5 && (
-                              <span className="ml-2 text-xs text-gray-400">(max 5 reached)</span>
-                            )}
-                          </label>
-                        ))
-                      ) : (
-                        <p>No suggestions available. Try regenerating or adjusting content/primary keyword.</p>
-                      )}
+                    <div className="flex flex-wrap gap-2"> {/* استخدام flex-wrap */}
+                      {secondaryKeywordSuggestions.map((keyword) => (
+                        <label key={keyword.id} className={`flex items-center cursor-pointer px-3 py-1.5 rounded-full text-sm ${secondaryKeywords.includes(keyword.text) ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'} ${(!secondaryKeywords.includes(keyword.text) && secondaryKeywords.length >= 5) ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                          <input type="checkbox" className="sr-only" checked={secondaryKeywords.includes(keyword.text)} onChange={() => handleSecondaryKeywordToggle(keyword.text)} disabled={!secondaryKeywords.includes(keyword.text) && secondaryKeywords.length >= 5}/>
+                          {keyword.text}
+                        </label>
+                      ))}
                     </div>
-                    <div className="mt-4 flex justify-between items-center">
-                      <div className="text-sm text-gray-500 flex-1 mr-2">
-                        <div className="flex items-center gap-1"> {/*  تعديل بسيط هنا */}
-                          <Input
-                            type="text"
-                            className="w-full p-2 border border-gray-300 rounded-md"
-                            placeholder="Regeneration note..."
-                            value={secondaryRegenerationNote} //  استخدام الملاحظة الصحيحة
-                            onChange={(e) => setSecondaryRegenerationNote(e.target.value)}
-                            disabled={isGeneratingSecondary}
-                          />
-                           {/* <Pencil size={16} className="text-gray-400" />  //  يمكن إزالة هذه الأيقونة إذا لم تكن مرغوبة */}
-                        </div>
+                    <div className="mt-4 pt-3 border-t">
+                      <Label htmlFor="quickFormSecondaryRegenNote" className="text-sm text-gray-500">Refine Secondary Suggestions:</Label> {/*  تغيير طفيف في النص */}
+                      <div className="flex gap-2 items-center mt-1">
+                        <Input
+                          id="quickFormSecondaryRegenNote"
+                          type="text"
+                          className="w-full p-2 border border-gray-300 rounded-md"
+                          placeholder="e.g., long-tail, for beginners"
+                          value={secondaryRegenerationNote}
+                          onChange={(e) => setSecondaryRegenerationNote(e.target.value)}
+                          disabled={isGeneratingSecondary}
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm" //  مطابقة
+                          onClick={() => handleGenerateSecondaryKeywords(true)}
+                          className="flex items-center gap-1" // إضافة flex و gap
+                          disabled={isGeneratingSecondary || !contentConfirmed || !secondaryRegenerationNote.trim()}
+                        >
+                          {isGeneratingSecondary && secondaryRegenerationNote ? (
+                            <Loader size={16} className="animate-spin" />
+                          ) : (
+                            <RefreshCw size={16} />
+                          )}
+                           {/* لا يوجد نص هنا إذا كان هناك أيقونة فقط، أو يمكنك إضافة "Re-generate" */}
+                        </Button>
                       </div>
-                      <Button
-                        variant="outline" //  تغيير إلى outline
-                        className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md flex items-center gap-1 transition-colors"
-                        onClick={() => handleTriggerSecondarySuggestions(true)} //  استدعاء مع isRegen = true
-                        disabled={isGeneratingSecondary || !secondaryRegenerationNote.trim()}
-                      >
-                        {isGeneratingSecondary && secondaryRegenerationNote ? (
-                          <Loader size={16} className="animate-spin" />
-                        ) : (
-                          <RefreshCw size={16} />
-                        )}
-                        Regenerate
-                      </Button>
                     </div>
                   </div>
                 )}
@@ -410,13 +337,8 @@ const QuickOptimizationForm = () => {
           </div>
         )}
 
-        <Button
-          variant="seoButton"
-          className="w-full text-center py-3"
-          onClick={handleStartOptimization}
-          disabled={isOptimizing || !contentConfirmed || !primaryKeyword.trim()}
-        >
-          {isOptimizing ? ( /* ... */ ) : ( "Start Quick Optimization" )}
+        <Button variant="seoButton" className="w-full text-center py-3" onClick={handleStartOptimization} disabled={isOptimizing || !contentConfirmed || !primaryKeyword.trim()}>
+          {isOptimizing ? ( <div className="flex items-center justify-center"><Loader className="mr-2 h-5 w-5 animate-spin text-white" /><span>Analyzing...</span></div>) : ( "Start Quick Optimization" )}
         </Button>
       </div>
     </div>
