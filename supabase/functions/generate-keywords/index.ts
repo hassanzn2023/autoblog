@@ -1,3 +1,5 @@
+// Предполагаемое имя файла: supabase/functions/generate-keywords/index.ts
+// أو أي مسار تستخدمه لـ Deno Edge Function الخاصة بـ generate-keywords
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
@@ -8,7 +10,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -21,10 +22,10 @@ serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-  
+
   try {
     const { content, count, note, userId, workspaceId } = await req.json();
-    
+
     if (!content) {
       console.error("Content is required but was not provided");
       return new Response(
@@ -32,126 +33,88 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    const regenerationNote = (typeof note === 'string' && note.trim() !== '') ? note.trim() : null;
 
-    console.log(`Generating ${count || 3} keyword suggestions`);
+
+    console.log(`Generating ${count || 3} primary keyword suggestions.`);
+    if (regenerationNote) {
+      console.log(`With regeneration note: "${regenerationNote}"`);
+    }
     console.log(`User ID: ${userId ? userId : 'Not provided'}`);
     console.log(`Workspace ID: ${workspaceId ? workspaceId : 'Not provided'}`);
     console.log(`Content sample: ${content.substring(0, 100)}...`);
-    
-    // Initialize Supabase client
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
+
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error("Supabase environment variables not configured");
       throw new Error('Supabase environment variables not configured');
     }
-    
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
-    // Check if the user is authenticated and has enough credits
+
     if (userId && workspaceId) {
-      // Verify API key exists for this workspace
-      const { data: apiKeyData, error: apiKeyError } = await supabase
-        .from('api_keys')
-        .select('api_key')
-        .eq('user_id', userId)
-        .eq('workspace_id', workspaceId)
-        .eq('api_type', 'openai')
-        .eq('is_active', true)
-        .single();
-        
-      if (apiKeyError) {
-        console.error("Error fetching API key:", apiKeyError);
-        console.error("Will attempt to use system API key instead");
-      } else {
-        console.log("User API key found");
-      }
-      
-      // Check credits - verify user has enough credits
+      // ... (كود التحقق من الاعتمادات وتسجيل الاستخدام يبقى كما هو - 5 اعتمادات)
+      const required_credits = 5;
       const { data: hasEnoughCredits, error: creditsError } = await supabase.rpc(
         'check_user_has_credits',
-        { user_id_param: userId, required_credits: 5 }
+        { user_id_param: userId, required_credits: required_credits }
       );
-      
-      if (creditsError) {
-        console.error("Error checking credits:", creditsError);
-      }
-      
-      if (!hasEnoughCredits && !creditsError) {
-        console.error("User doesn't have enough credits");
-        return new Response(
-          JSON.stringify({ error: 'Insufficient credits' }),
+      // ... (بقية كود الاعتمادات)
+       if (creditsError || !hasEnoughCredits) {
+        // ... (معالجة خطأ الاعتمادات)
+         return new Response(
+          JSON.stringify({ error: creditsError?.message || 'Insufficient credits' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
-      // Record API usage even with system API key
+      // Record API usage
       try {
-        const { error: creditUsageError } = await supabase
-          .from('credits')
-          .insert({
+        await supabase.from('credits').insert({
             user_id: userId,
             workspace_id: workspaceId,
-            credit_amount: 5,
+            credit_amount: required_credits,
             transaction_type: 'used'
-          });
-          
-        if (creditUsageError) {
-          console.error("Error recording credit usage:", creditUsageError);
-        } else {
-          console.log("Credit usage recorded successfully");
-        }
-        
-        const { error: apiUsageError } = await supabase
-          .from('api_usage')
-          .insert({
+        });
+        await supabase.from('api_usage').insert({
             user_id: userId,
             workspace_id: workspaceId,
             api_type: 'openai',
             usage_amount: 1,
-            credits_consumed: 5,
-            operation_type: 'generate_keywords'
-          });
-          
-        if (apiUsageError) {
-          console.error("Error recording API usage:", apiUsageError);
-        } else {
-          console.log("API usage recorded successfully");
-        }
-      } catch (error) {
-        console.error("Error recording usage:", error);
+            credits_consumed: required_credits,
+            operation_type: 'generate_keywords' //  أو 'generate_primary_keywords'
+        });
+      } catch (usageError) {
+        console.error("Error recording usage:", usageError);
       }
     } else {
-      console.log("User not authenticated or no workspace ID provided");
+      console.log("User not authenticated or no workspace ID provided, proceeding without credit check/recording.");
     }
-    
-    // Generate keyword suggestions using OpenAI
+
     const keywordCount = count || 3;
-    
-    // Clean content (remove HTML tags if present)
-    const cleanContent = content.replace(/<[^>]*>/g, ' ');
-    const textSample = cleanContent.slice(0, 1000); // Limit content length
-    
-    // Detect language (Arabic or English)
+    const cleanContent = content.replace(/<[^>]*>/g, ' ').trim();
+    const textSample = cleanContent.slice(0, 2000); //  زيادة طفيفة لطول العينة
+
     const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
-    const hasArabicText = arabicRegex.test(cleanContent);
-    
-    console.log(`Content language: ${hasArabicText ? 'Arabic' : 'English'}`);
-    
-    // Prepare system prompt based on language
-    const systemPrompt = hasArabicText 
-      ? 'أنت مساعد متخصص في تحليل المحتوى واستخراج الكلمات المفتاحية المهمة. قم باستخراج الكلمات المفتاحية الأكثر صلة وأهمية من المحتوى المقدم.'
-      : 'You are a specialized assistant in content analysis and extracting important keywords. Extract the most relevant and important keywords from the provided content.';
-    
+    const hasArabicText = arabicRegex.test(cleanContent) || (regenerationNote && arabicRegex.test(regenerationNote));
+
+    console.log(`Content language determined as: ${hasArabicText ? 'Arabic' : 'English'}`);
+
+    const systemPrompt = hasArabicText
+      ? 'أنت خبير SEO ومساعد متخصص في تحليل المحتوى لاستخراج الكلمات المفتاحية الأساسية (Primary Keywords) الأكثر أهمية وصلة بالموضوع العام للمقال. يجب أن تكون هذه الكلمات هي التي يستهدفها المقال بشكل رئيسي.'
+      : 'You are an SEO expert and a specialized assistant in content analysis for extracting the most important and relevant Primary Keywords for an article. These keywords should be the main target terms for the article.';
+
+    const noteInstruction = regenerationNote
+        ? (hasArabicText ? ` مع الأخذ في الاعتبار الملاحظة التالية: "${regenerationNote}".` : ` Considering the following note: "${regenerationNote}".`)
+        : '';
+
     const userPrompt = hasArabicText
-      ? `استخرج ${keywordCount} كلمات مفتاحية مهمة من هذا المحتوى واعرضها فقط كمصفوفة JSON تحت اسم "keywords" دون أي تعليقات أو توضيحات إضافية:\n\n${textSample}`
-      : `Extract ${keywordCount} important keywords from this content and return them only as a JSON array named "keywords" without any additional comments or explanations:\n\n${textSample}`;
-    
-    console.log("Calling OpenAI API...");
-    
-    // Call OpenAI API
+      ? `بناءً على المحتوى التالي، استخرج ${keywordCount} كلمات مفتاحية أساسية.${noteInstruction} اعرضها فقط كمصفوفة JSON داخل كائن JSON، حيث يكون المفتاح هو "keywords" والقيمة هي مصفوفة السلاسل النصية للكلمات المفتاحية، بدون أي تعليقات أو توضيحات إضافية. مثال: {"keywords": ["كلمة1", "كلمة2"]}\n\nالمحتوى:\n${textSample}`
+      : `Based on the following content, extract ${keywordCount} primary keywords.${noteInstruction} Return them only as a JSON array inside a JSON object, where the key is "keywords" and the value is an array of strings, without any additional comments or explanations. Example: {"keywords": ["keyword1", "keyword2"]}\n\nContent:\n${textSample}`;
+
+    console.log("Calling OpenAI API with System Prompt:", systemPrompt);
+    console.log("Calling OpenAI API with User Prompt:", userPrompt);
+
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -160,75 +123,71 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'gpt-4o-mini', //  أو 'gpt-4'
           messages: [
-            {
-              role: 'system',
-              content: systemPrompt
-            },
-            {
-              role: 'user',
-              content: userPrompt
-            }
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
           ],
-          temperature: 0.7,
-          max_tokens: 500,
+          temperature: 0.6,
+          max_tokens: 150 * keywordCount,
           response_format: { "type": "json_object" }
         }),
       });
-  
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error("OpenAI API response not OK:", response.status, errorText);
-        try {
-          const errorData = JSON.parse(errorText);
-          throw new Error(`OpenAI API error: ${errorData.error?.message || JSON.stringify(errorData)}`);
-        } catch (parseError) {
-          throw new Error(`OpenAI API error: ${response.status} - ${errorText.substring(0, 100)}`);
-        }
+        throw new Error(`OpenAI API error (${response.status}): ${errorText.substring(0, 200)}`);
       }
-  
+
       const openaiResponse = await response.json();
-      console.log("OpenAI API response received");
-      
-      if (!openaiResponse.choices || !openaiResponse.choices[0] || !openaiResponse.choices[0].message || !openaiResponse.choices[0].message.content) {
-        console.error("Unexpected OpenAI API response format:", JSON.stringify(openaiResponse));
-        throw new Error("Unexpected OpenAI API response format");
+      if (!openaiResponse.choices || !openaiResponse.choices[0]?.message?.content) {
+        console.error("Unexpected OpenAI API response format:", openaiResponse);
+        throw new Error("Unexpected OpenAI API response format: No content in choices.");
       }
-      
+
       let parsedContent;
       try {
         parsedContent = JSON.parse(openaiResponse.choices[0].message.content);
-        console.log("Parsed keywords:", parsedContent);
-        
-        if (!parsedContent.keywords || !Array.isArray(parsedContent.keywords)) {
-          console.error("No keywords array in parsed content:", parsedContent);
-          throw new Error("No keywords array in response");
+         if (!parsedContent.keywords || !Array.isArray(parsedContent.keywords)) {
+          console.error("No 'keywords' array in parsed JSON content:", parsedContent);
+          const fallbackKeywords = openaiResponse.choices[0].message.content.split(/[\n,]+/).map(k => k.trim()).filter(Boolean);
+          if (fallbackKeywords.length > 0) {
+            console.log("Using fallback keyword extraction:", fallbackKeywords);
+            parsedContent = { keywords: fallbackKeywords.slice(0, keywordCount) };
+          } else {
+            throw new Error("Response JSON does not contain a 'keywords' array, and fallback failed.");
+          }
         }
       } catch (parseError) {
-        console.error("Error parsing OpenAI response:", parseError);
-        console.error("Raw content:", openaiResponse.choices[0].message.content);
-        throw new Error("Failed to parse OpenAI response as JSON");
+        console.error("Error parsing OpenAI response as JSON:", parseError.message);
+        console.error("Raw content from OpenAI:", openaiResponse.choices[0].message.content);
+        const fallbackKeywords = openaiResponse.choices[0].message.content.split(/[\n,]+/).map(k => k.trim()).filter(Boolean);
+        if (fallbackKeywords.length > 0) {
+            console.log("Using fallback keyword extraction due to parse error:", fallbackKeywords);
+            parsedContent = { keywords: fallbackKeywords.slice(0, keywordCount) };
+        } else {
+            throw new Error(`Failed to parse OpenAI response and no fallback possible: ${parseError.message}`);
+        }
       }
-      
-      // Format the keywords with UUIDs
-      const keywordSuggestions = parsedContent.keywords.map(text => ({
+
+      const keywordSuggestions = parsedContent.keywords.map((text: string) => ({
         id: crypto.randomUUID(),
-        text
-      }));
-      
-      console.log("Returning keyword suggestions:", keywordSuggestions);
-      
+        text: text.trim()
+      })).filter((kw: {text: string}) => kw.text !== '');
+
+      console.log("Returning primary keyword suggestions:", keywordSuggestions);
       return new Response(
         JSON.stringify(keywordSuggestions),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+
     } catch (openaiError) {
       console.error("OpenAI API call failed:", openaiError);
       throw openaiError;
     }
   } catch (error) {
-    console.error("Error generating keywords:", error.message);
+    console.error("Error in generate-keywords function:", error.message);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
