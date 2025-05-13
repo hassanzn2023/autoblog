@@ -1,5 +1,5 @@
 
-import { createBrowserRouter } from 'react-router-dom';
+import { RouteObject } from 'react-router-dom';
 import Layout from './components/Layout';
 import Index from './pages/Index';
 import UsagePage from './pages/UsagePage';
@@ -31,7 +31,7 @@ import NormalModePage from './pages/NormalModePage';
 import SEOCheckerPage from './pages/SEOCheckerPage';
 import QuickSEOPage from './pages/QuickSEOPage';
 
-export const router = createBrowserRouter([
+const routes: RouteObject[] = [
   {
     path: '/',
     element: <Layout />,
@@ -151,4 +151,6 @@ export const router = createBrowserRouter([
     path: '/auth',
     element: <AuthPage />
   }
-]);
+];
+
+export default routes;

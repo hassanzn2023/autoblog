@@ -10,7 +10,7 @@ import {
 const TOAST_LIMIT = 5
 const TOAST_REMOVE_DELAY = 5000
 
-export type ToasterToast = Toast & {
+export interface ToasterToast extends Omit<Toast, "id"> {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
@@ -137,9 +137,9 @@ function dispatch(action: Action) {
   })
 }
 
-type Toast = Omit<ToasterToast, "id">
+export interface ToastParams extends Omit<ToasterToast, "id"> {}
 
-function toast({ ...props }: Toast) {
+function toast(props: ToastParams) {
   const id = genId()
 
   const update = (props: ToasterToast) =>
