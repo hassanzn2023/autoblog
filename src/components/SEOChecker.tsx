@@ -1,12 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Link, Upload, RefreshCw, Search, Pencil, AlertTriangle, Check, Loader } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { 
   generateKeywordSuggestions, 
-  generateSecondaryKeywordSuggestions,
-  extractContentFromUrl
+  generateSecondaryKeywordSuggestions
 } from '@/services/openaiService';
+import { extractContentFromUrl } from '@/services/contentExtractorService';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import ReactQuill from 'react-quill';
