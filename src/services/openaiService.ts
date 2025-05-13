@@ -360,18 +360,33 @@ export const chatWithAI = async (
   }
 };
 
-// Added new function to match the imports in other files
+// Improved function to better handle errors and add more logging
 export const generateKeywordSuggestions = async (
   content: string,
   count: number = 3,
   notes: string = '',
-  userId: string,
-  workspaceId: string
+  userId?: string,
+  workspaceId?: string
 ): Promise<KeywordSuggestion[]> => {
   try {
+    console.log(`Generating keyword suggestions for content length: ${content.length} bytes`);
+    console.log(`User ID: ${userId || 'Not provided'}`);
+    console.log(`Workspace ID: ${workspaceId || 'Not provided'}`);
+    
+    if (!userId || !workspaceId) {
+      console.error('Missing user ID or workspace ID');
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to use this feature.",
+        variant: "destructive",
+      });
+      return [];
+    }
+    
     // Check if user has enough credits
     const hasCredits = await hasEnoughCredits(userId);
     if (!hasCredits) {
+      console.error('User has insufficient credits');
       toast({
         title: "Insufficient Credits",
         description: "You don't have enough credits to perform this operation.",
@@ -383,6 +398,7 @@ export const generateKeywordSuggestions = async (
     // Get API key
     const apiKey = await getApiKey(userId, workspaceId);
     if (!apiKey) {
+      console.error('No API key found for user');
       toast({
         title: "API Key Required",
         description: "Please set your OpenAI API key in the settings.",
@@ -391,37 +407,59 @@ export const generateKeywordSuggestions = async (
       return [];
     }
 
-    console.log(`Generating primary keywords with content length: ${content.length}`);
+    console.log(`Calling generate-keywords edge function with content length: ${content.length} bytes`);
     
     // Call OpenAI through our edge function
-    const { data, error } = await supabase.functions.invoke('generate-keywords', {
+    const response = await supabase.functions.invoke('generate-keywords', {
       body: { 
         content, 
-        apiKey, 
         count,
-        notes
+        note: notes,
+        userId: userId,
+        workspaceId: workspaceId 
       },
     });
 
-    if (error) {
-      console.error('Error generating primary keywords:', error);
-      throw new Error(error.message);
+    console.log('Edge function response:', response);
+    
+    if (response.error) {
+      console.error('Edge function error:', response.error);
+      toast({
+        title: "Generation Failed",
+        description: response.error.message || "Unable to generate keyword suggestions.",
+        variant: "destructive",
+      });
+      return [];
     }
 
-    // Record credit usage
-    await recordCreditUsage(userId, workspaceId, 1, 'keyword_suggestion');
+    if (!response.data || !Array.isArray(response.data)) {
+      console.error('Unexpected response format from edge function:', response.data);
+      toast({
+        title: "Generation Failed",
+        description: "Received unexpected data format from server.",
+        variant: "destructive",
+      });
+      return [];
+    }
 
-    // Convert to KeywordSuggestion format
-    return (data?.keywords || []).map((keyword: string, index: number) => ({
-      id: `kw-${Date.now()}-${index}`,
-      text: keyword,
-    }));
+    console.log('Generated keywords:', response.data);
+    
+    // Display success toast
+    toast({
+      title: "Keywords Generated",
+      description: `Successfully generated ${response.data.length} keyword suggestions.`,
+      variant: "success",
+    });
+    
+    // Return the data as is, assuming it's already in the correct format
+    return response.data;
+    
   } catch (error: any) {
     console.error('Error generating keyword suggestions:', error);
     
     toast({
-      title: "Error",
-      description: error.message || "Failed to generate keyword suggestions",
+      title: "Generation Failed",
+      description: error.message || "Unable to generate keyword suggestions.",
       variant: "destructive",
     });
     
@@ -434,13 +472,29 @@ export const generateSecondaryKeywordSuggestions = async (
   content: string,
   count: number = 5,
   notes: string = '',
-  userId: string,
-  workspaceId: string
+  userId?: string,
+  workspaceId?: string
 ): Promise<KeywordSuggestion[]> => {
   try {
+    console.log(`Generating secondary keywords for primary keyword: "${primaryKeyword}"`);
+    console.log(`Content length: ${content.length} bytes`);
+    console.log(`User ID: ${userId || 'Not provided'}`);
+    console.log(`Workspace ID: ${workspaceId || 'Not provided'}`);
+    
+    if (!userId || !workspaceId) {
+      console.error('Missing user ID or workspace ID');
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to use this feature.",
+        variant: "destructive",
+      });
+      return [];
+    }
+    
     // Check if user has enough credits
     const hasCredits = await hasEnoughCredits(userId);
     if (!hasCredits) {
+      console.error('User has insufficient credits');
       toast({
         title: "Insufficient Credits",
         description: "You don't have enough credits to perform this operation.",
@@ -452,6 +506,7 @@ export const generateSecondaryKeywordSuggestions = async (
     // Get API key
     const apiKey = await getApiKey(userId, workspaceId);
     if (!apiKey) {
+      console.error('No API key found for user');
       toast({
         title: "API Key Required",
         description: "Please set your OpenAI API key in the settings.",
@@ -460,38 +515,60 @@ export const generateSecondaryKeywordSuggestions = async (
       return [];
     }
 
-    console.log(`Generating secondary keywords for primary keyword: ${primaryKeyword}`);
+    console.log(`Calling generate-secondary-keywords edge function`);
     
     // Call OpenAI through our edge function
-    const { data, error } = await supabase.functions.invoke('generate-secondary-keywords', {
+    const response = await supabase.functions.invoke('generate-secondary-keywords', {
       body: { 
         primaryKeyword,
         content, 
-        apiKey, 
         count,
-        notes
+        note: notes,
+        userId: userId,
+        workspaceId: workspaceId 
       },
     });
 
-    if (error) {
-      console.error('Error generating secondary keywords:', error);
-      throw new Error(error.message);
+    console.log('Edge function response:', response);
+    
+    if (response.error) {
+      console.error('Edge function error:', response.error);
+      toast({
+        title: "Generation Failed",
+        description: response.error.message || "Unable to generate secondary keyword suggestions.",
+        variant: "destructive",
+      });
+      return [];
     }
 
-    // Record credit usage
-    await recordCreditUsage(userId, workspaceId, 1, 'secondary_keyword_suggestion');
+    if (!response.data || !Array.isArray(response.data)) {
+      console.error('Unexpected response format from edge function:', response.data);
+      toast({
+        title: "Generation Failed",
+        description: "Received unexpected data format from server.",
+        variant: "destructive",
+      });
+      return [];
+    }
 
-    // Convert to KeywordSuggestion format
-    return (data?.keywords || []).map((keyword: string, index: number) => ({
-      id: `skw-${Date.now()}-${index}`,
-      text: keyword,
-    }));
+    console.log('Generated secondary keywords:', response.data);
+    
+    // Display success toast
+    toast({
+      title: "Keywords Generated",
+      description: `Successfully generated ${response.data.length} secondary keyword suggestions.`,
+      variant: "success",
+    });
+    
+    // Return the data as is, assuming it's already in the correct format
+    return response.data;
+    
   } catch (error: any) {
     console.error('Error generating secondary keyword suggestions:', error);
     
     toast({
-      title: "Error",
-      description: error.message || "Failed to generate secondary keyword suggestions",
+      title: "Generation Failed",
+      description: error.message || "Unable to generate secondary keyword suggestions.",
       variant: "destructive",
     });
     

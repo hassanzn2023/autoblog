@@ -51,16 +51,39 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
       return;
     }
     
+    // Check for user and workspace
+    if (!user || !currentWorkspace) {
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to use this feature.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    console.log('Starting primary keyword generation');
+    console.log('User ID:', user.id);
+    console.log('Workspace ID:', currentWorkspace.id);
+    console.log('Content length:', content.length);
+    
     try {
       setIsGeneratingPrimary(true);
+      
+      // Display toast to show we're generating keywords
+      toast({
+        title: "Generating Keywords",
+        description: "Please wait while we analyze your content...",
+      });
       
       const suggestions = await generateKeywordSuggestions(
         content, 
         3, 
         regenerationNote,
-        user?.id,
-        currentWorkspace?.id
+        user.id,
+        currentWorkspace.id
       );
+      
+      console.log('Received keyword suggestions:', suggestions);
       
       setPrimaryKeywordSuggestions(suggestions);
       
@@ -71,14 +94,15 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
       toast({
         title: "Keywords Generated",
         description: "Primary keyword suggestions have been generated successfully.",
+        variant: "success"
       });
     } catch (error: any) {
+      console.error("Error generating primary keywords:", error);
       toast({
-        title: "Error",
+        title: "Generation Failed",
         description: error.message || "Failed to generate keyword suggestions",
         variant: "destructive"
       });
-      console.error("Error generating primary keywords:", error);
     } finally {
       setIsGeneratingPrimary(false);
     }
@@ -103,31 +127,55 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
       return;
     }
     
+    // Check for user and workspace
+    if (!user || !currentWorkspace) {
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to use this feature.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    console.log('Starting secondary keyword generation');
+    console.log('Primary keyword:', primaryKeyword);
+    console.log('User ID:', user.id);
+    console.log('Workspace ID:', currentWorkspace.id);
+    
     try {
       setIsGeneratingSecondary(true);
+      
+      // Display toast to show we're generating keywords
+      toast({
+        title: "Generating Secondary Keywords",
+        description: "Please wait while we analyze your content...",
+      });
       
       const suggestions = await generateSecondaryKeywordSuggestions(
         primaryKeyword,
         content,
         5,
         regenerationNote,
-        user?.id,
-        currentWorkspace?.id
+        user.id,
+        currentWorkspace.id
       );
+      
+      console.log('Received secondary keyword suggestions:', suggestions);
       
       setSecondaryKeywordSuggestions(suggestions);
       
       toast({
         title: "Keywords Generated",
         description: "Secondary keyword suggestions have been generated successfully.",
+        variant: "success"
       });
     } catch (error: any) {
+      console.error("Error generating secondary keywords:", error);
       toast({
-        title: "Error",
+        title: "Generation Failed",
         description: error.message || "Failed to generate keyword suggestions",
         variant: "destructive"
       });
-      console.error("Error generating secondary keywords:", error);
     } finally {
       setIsGeneratingSecondary(false);
     }
