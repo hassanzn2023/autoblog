@@ -291,10 +291,15 @@ function fallbackExtractContent(doc: Document): string {
 
   // Try to find main content container using extended selectors
   const contentSelectors = [
-    'main', 'article', '[role="main"]',
+    'div.post-details-content', // <<-- المحدد الجديد والأكثر دقة في الأعلى
+    'article .article-body',    // يبقى كخيار جيد لمواقع أخرى
+    'main .content-area',       // يبقى كخيار جيد لمواقع أخرى
+    'article',                  // محدد عام
+    '[role="main"]',            // محدد عام
+    'main',                     // محدد عام (كما كان يستخدم سابقاً)
     '.content', '.article', '.post', '.entry-content', '.story', '.blog-post',
     '#content', '#main-content', '#article-content', '#story-content', '#post-content',
-    'article', '.article-body', '.story-body', '.content-area', '.post-body',
+    '.story-body', '.post-body',
     '.main-content', '.page-content', '.entry', '.single-content', '.wordpress-content'
   ];
 
