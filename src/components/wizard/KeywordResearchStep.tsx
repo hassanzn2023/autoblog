@@ -52,50 +52,15 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
     }
     
     try {
-      console.log("Starting primary keyword generation...");
-      console.log("User auth state:", user?.id ? "Authenticated" : "Not authenticated");
-      console.log("Current workspace:", currentWorkspace?.id || "No workspace");
-      
       setIsGeneratingPrimary(true);
-      
-      // Ensure we have valid user and workspace data
-      if (!user || !user.id) {
-        console.log("No user ID available for keyword generation");
-        toast({
-          title: "Authentication Required",
-          description: "Please ensure you're logged in to use this feature",
-          variant: "destructive"
-        });
-        setIsGeneratingPrimary(false);
-        return;
-      }
-      
-      if (!currentWorkspace || !currentWorkspace.id) {
-        console.log("No workspace ID available for keyword generation");
-        toast({
-          title: "Workspace Required",
-          description: "Please ensure you have a valid workspace",
-          variant: "destructive"
-        });
-        setIsGeneratingPrimary(false);
-        return;
-      }
-      
-      console.log("Calling generateKeywordSuggestions with:", {
-        contentLength: content.length,
-        userId: user.id,
-        workspaceId: currentWorkspace.id
-      });
       
       const suggestions = await generateKeywordSuggestions(
         content, 
         3, 
         regenerationNote,
-        user.id,
-        currentWorkspace.id
+        user?.id,
+        currentWorkspace?.id
       );
-      
-      console.log("Keyword suggestions received:", suggestions);
       
       setPrimaryKeywordSuggestions(suggestions);
       
@@ -108,12 +73,12 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
         description: "Primary keyword suggestions have been generated successfully.",
       });
     } catch (error: any) {
-      console.error("Error in handleSuggestPrimary:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to generate keyword suggestions",
         variant: "destructive"
       });
+      console.error("Error generating primary keywords:", error);
     } finally {
       setIsGeneratingPrimary(false);
     }
@@ -139,52 +104,16 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
     }
     
     try {
-      console.log("Starting secondary keyword generation...");
-      console.log("User auth state:", user?.id ? "Authenticated" : "Not authenticated");
-      console.log("Current workspace:", currentWorkspace?.id || "No workspace");
-      
       setIsGeneratingSecondary(true);
-      
-      // Ensure we have valid user and workspace data
-      if (!user || !user.id) {
-        console.log("No user ID available for keyword generation");
-        toast({
-          title: "Authentication Required",
-          description: "Please ensure you're logged in to use this feature",
-          variant: "destructive"
-        });
-        setIsGeneratingSecondary(false);
-        return;
-      }
-      
-      if (!currentWorkspace || !currentWorkspace.id) {
-        console.log("No workspace ID available for keyword generation");
-        toast({
-          title: "Workspace Required",
-          description: "Please ensure you have a valid workspace",
-          variant: "destructive"
-        });
-        setIsGeneratingSecondary(false);
-        return;
-      }
-      
-      console.log("Calling generateSecondaryKeywordSuggestions with:", {
-        primaryKeyword,
-        contentLength: content.length,
-        userId: user.id,
-        workspaceId: currentWorkspace.id
-      });
       
       const suggestions = await generateSecondaryKeywordSuggestions(
         primaryKeyword,
         content,
         5,
         regenerationNote,
-        user.id,
-        currentWorkspace.id
+        user?.id,
+        currentWorkspace?.id
       );
-      
-      console.log("Secondary keyword suggestions received:", suggestions);
       
       setSecondaryKeywordSuggestions(suggestions);
       
@@ -193,12 +122,12 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
         description: "Secondary keyword suggestions have been generated successfully.",
       });
     } catch (error: any) {
-      console.error("Error in handleSuggestSecondary:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to generate keyword suggestions",
         variant: "destructive"
       });
+      console.error("Error generating secondary keywords:", error);
     } finally {
       setIsGeneratingSecondary(false);
     }

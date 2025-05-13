@@ -56,8 +56,8 @@ serve(async (req) => {
       const { data: apiKeyData, error: apiKeyError } = await supabase
         .from('api_keys')
         .select('api_key')
-        .eq('user_id', userId as any)
-        .eq('workspace_id', workspaceId as any)
+        .eq('user_id', userId)
+        .eq('workspace_id', workspaceId)
         .eq('api_type', 'openai')
         .eq('is_active', true)
         .single();
@@ -87,8 +87,8 @@ serve(async (req) => {
         );
       }
       
+      // Record API usage even with system API key
       try {
-        // Attempt to record credit usage (if fails, we'll still proceed with system API key)
         const { error: creditUsageError } = await supabase
           .from('credits')
           .insert({
@@ -122,7 +122,6 @@ serve(async (req) => {
         }
       } catch (error) {
         console.error("Error recording usage:", error);
-        // We continue despite errors to ensure user experience remains intact
       }
     } else {
       console.log("User not authenticated or no workspace ID provided");
