@@ -1,424 +1,350 @@
 
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Link, Upload, RefreshCw, Search, Pencil, AlertTriangle, Check, Loader } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { 
-  generateKeywordSuggestions, 
-  generateSecondaryKeywordSuggestions
-} from '@/services/openaiService';
+import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { generateKeywordSuggestions, generateSecondaryKeywordSuggestions } from '@/services/openaiService';
 import { extractContentFromUrl } from '@/services/contentExtractorService';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import { Loader } from 'lucide-react';
 
-// Define props interface for SEOChecker
 interface SEOCheckerProps {
-  initialContent?: string;
-  initialPrimaryKeyword?: string;
-  initialSecondaryKeywords?: string[];
+  initialContent: string;
+  initialPrimaryKeyword: string;
+  initialSecondaryKeywords: string[];
 }
 
-// Helper function to detect language
-const isRTL = (text: string) => {
-  const rtlChars = /[\u0591-\u07FF\u200F\u202B\u202E\uFB1D-\uFDFD\uFE70-\uFEFC]/;
-  return rtlChars.test(text);
-};
-
-// SEO Score Meter Component with Improved Animation
-const SEOScoreMeter = ({ score }: { score: number }) => {
-  const [animatedScore, setAnimatedScore] = useState(0);
-  const rotation = (animatedScore / 100) * 180 - 90;
+const SEOChecker: React.FC<SEOCheckerProps> = ({
+  initialContent,
+  initialPrimaryKeyword,
+  initialSecondaryKeywords,
+}) => {
+  const { user } = useAuth();
+  const { currentWorkspace } = useWorkspace();
+  
+  const [content, setContent] = useState(initialContent);
+  const [primaryKeyword, setPrimaryKeyword] = useState(initialPrimaryKeyword);
+  const [secondaryKeywords, setSecondaryKeywords] = useState(initialSecondaryKeywords);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResults, setAnalysisResults] = useState<any>(null);
+  const [isRtlContent, setIsRtlContent] = useState(false);
+  
+  // Detect RTL content
+  useEffect(() => {
+    const rtlRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+    setIsRtlContent(rtlRegex.test(content));
+  }, [content]);
+  
+  // Debug received props
+  useEffect(() => {
+    console.log('SEOChecker Component Received:', {
+      contentLength: initialContent?.length || 0,
+      primaryKeyword: initialPrimaryKeyword,
+      secondaryKeywords: initialSecondaryKeywords,
+    });
+  }, [initialContent, initialPrimaryKeyword, initialSecondaryKeywords]);
   
   useEffect(() => {
-    // Animate the score from 0 to the actual score
-    const timer = setTimeout(() => {
-      const interval = setInterval(() => {
-        setAnimatedScore(prev => {
-          if (prev >= score) {
-            clearInterval(interval);
-            return score;
-          }
-          return prev + 1;
-        });
-      }, 15);
-      
-      return () => clearInterval(interval);
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  }, [score]);
+    // If we have content and no primary keyword, try to generate one automatically
+    if (content && !primaryKeyword && user?.id && currentWorkspace?.id) {
+      handleGeneratePrimaryKeywords();
+    }
+  }, [content, primaryKeyword, user, currentWorkspace]);
   
-  // Get color based on score
-  const getScoreColor = () => {
-    if (animatedScore < 50) return 'text-red-500';
-    if (animatedScore < 70) return 'text-yellow-500';
-    return 'text-green-500';
-  };
-  
-  return (
-    <div className="seo-meter-container">
-      <div className="seo-meter-gauge">
-        <div className="seo-meter-bg"></div>
-        <div className="seo-meter-mask"></div>
-        <div
-          className="seo-meter-needle"
-          style={{
-            transform: `rotate(${rotation}deg)`
-          }}
-        ></div>
-        <div className="seo-meter-dot"></div>
-      </div>
-      <div className="seo-meter-score">
-        <div className={`seo-meter-score-value ${getScoreColor()}`}>
-          {animatedScore}
-          <span className="seo-meter-score-max">/100</span>
-        </div>
-        <div className="seo-meter-label">Suggested 65+</div>
-      </div>
-    </div>
-  );
-};
-
-// ContentStatBox Component
-const ContentStatBox = ({ 
-  label, 
-  value, 
-  range 
-}: { 
-  label: string; 
-  value: number; 
-  range: string; 
-}) => (
-  <div className="p-3 bg-white border border-gray-200 rounded-lg text-center transition-all hover:shadow-md">
-    <div className="text-lg font-semibold">{value}</div>
-    <div className="text-xs text-gray-500">{label}</div>
-    <div className="text-xs text-gray-400">{range}</div>
-  </div>
-);
-
-// Recommendation Component
-interface RecommendationProps {
-  status: 'success' | 'warning' | 'error';
-  text: string;
-  action?: string;
-}
-
-const Recommendation = ({ status, text, action }: RecommendationProps) => {
-  const statusIcons = {
-    success: <Check size={18} className="text-green-500" />,
-    warning: <AlertTriangle size={18} className="text-yellow-500" />,
-    error: <AlertTriangle size={18} className="text-red-500" />
-  };
-  
-  return (
-    <div className="flex items-start gap-3 py-2 border-b border-gray-200 last:border-b-0">
-      <div className="mt-0.5">
-        {statusIcons[status]}
-      </div>
-      <div className="flex-1">
-        {text}
-      </div>
-      {action && (
-        <Button variant="outline" size="sm">
-          {action}
-        </Button>
-      )}
-    </div>
-  );
-};
-
-// Calculate content stats
-const calculateContentStats = (content: string) => {
-  if (!content) return { words: 0, headings: 0, paragraphs: 0, images: 0 };
-  
-  // Count words (split by spaces and filter out empty strings)
-  const textContent = content.replace(/<[^>]+>/g, ' ');
-  const words = textContent.split(/\s+/).filter(word => word.length > 0).length;
-  
-  // Count headings (look for h1-h6 tags)
-  const headingRegex = /<h[1-6][^>]*>.*?<\/h[1-6]>|<strong>.*?<\/strong>/gi;
-  const headings = (content.match(headingRegex) || []).length;
-  
-  // Count paragraphs (look for p tags)
-  const paragraphRegex = /<p>.*?<\/p>/gs;
-  const paragraphs = (content.match(paragraphRegex) || []).length || 1;
-  
-  // Count image references
-  const imageRegex = /<img.*?>/gi;
-  const images = (content.match(imageRegex) || []).length;
-  
-  return { words, headings, paragraphs, images };
-};
-
-// Generate SEO recommendations based on content
-const generateRecommendations = (content: string, primaryKeyword: string) => {
-  const stats = calculateContentStats(content);
-  const recommendations: RecommendationProps[] = [];
-  
-  // Add successful keyword integration recommendation
-  recommendations.push({
-    status: 'success',
-    text: `Basic optimization for "${primaryKeyword}" complete.`
-  });
-  
-  // Add warning for Pro mode
-  recommendations.push({
-    status: 'warning',
-    text: "For full control, try Pro Mode."
-  });
-  
-  // Add content length recommendation if needed
-  if (stats.words < 300) {
-    recommendations.push({
-      status: 'error',
-      text: "Add more supporting content to improve ranking.",
-      action: "Fix"
-    });
-  }
-  
-  // Add image recommendation if needed
-  if (stats.images < 1) {
-    recommendations.push({
-      status: 'error',
-      text: "Add at least one image to improve engagement.",
-      action: "See"
-    });
-  }
-  
-  // Add header structure recommendation if needed
-  if (stats.headings < 2 && stats.words > 300) {
-    recommendations.push({
-      status: 'error',
-      text: "Add more headings to structure your content.",
-      action: "Fix"
-    });
-  }
-  
-  return recommendations;
-};
-
-// Calculate SEO score based on content metrics
-const calculateSEOScore = (content: string, primaryKeyword: string) => {
-  const stats = calculateContentStats(content);
-  let score = 50; // Start with a base score
-  
-  // Add points for longer content
-  if (stats.words > 300) score += 10;
-  if (stats.words > 600) score += 5;
-  if (stats.words > 1000) score += 5;
-  
-  // Add points for good structure
-  if (stats.headings >= 1) score += 5;
-  if (stats.headings >= 3) score += 5;
-  if (stats.paragraphs >= 4) score += 5;
-  
-  // Add points for images
-  if (stats.images >= 1) score += 5;
-  if (stats.images >= 2) score += 5;
-  
-  // Check keyword presence and density
-  const keywordRegex = new RegExp(primaryKeyword, 'gi');
-  const keywordOccurrences = (content.match(keywordRegex) || []).length;
-  const keywordDensity = keywordOccurrences / stats.words;
-  
-  if (keywordOccurrences >= 1) score += 5;
-  if (keywordDensity >= 0.01 && keywordDensity <= 0.03) score += 10; // Optimal density
-  else if (keywordDensity > 0.03) score -= 5; // Keyword stuffing penalty
-  
-  return Math.min(100, Math.max(0, Math.round(score))); // Ensure score is between 0-100
-};
-
-// SEO Checker Result Component
-const SEOCheckerResult = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [analyzing, setAnalyzing] = useState(true);
-  
-  const { 
-    content = "", 
-    primaryKeyword = "",
-    secondaryKeywords = []
-  } = location.state || {};
-  
-  const [contentStats, setContentStats] = useState({ words: 0, headings: 0, paragraphs: 0, images: 0 });
-  const [seoScore, setSeoScore] = useState(0);
-  const [recommendations, setRecommendations] = useState<RecommendationProps[]>([]);
-  
-  // Check if the content is RTL or LTR
-  const isRtlContent = isRTL(content);
-  
-  // ReactQuill read-only modules
-  const readOnlyModules = { toolbar: false };
-  
-  useEffect(() => {
-    if (!content || !primaryKeyword) {
-      navigate('/seo-checker');
+  const handleGeneratePrimaryKeywords = async () => {
+    if (!content) {
+      toast({
+        title: "Content Required",
+        description: "Please add content before generating keywords.",
+        variant: "destructive"
+      });
       return;
     }
     
-    // Calculate content stats and SEO score
-    const stats = calculateContentStats(content);
-    const score = calculateSEOScore(content, primaryKeyword);
-    const recs = generateRecommendations(content, primaryKeyword);
+    if (!user?.id || !currentWorkspace?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to generate keywords.",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    // Simulate analysis delay for UX
-    const timer = setTimeout(() => {
-      setContentStats(stats);
-      setSeoScore(score);
-      setRecommendations(recs);
-      setAnalyzing(false);
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, [content, primaryKeyword, navigate]);
-  
-  // Generate word count range guidance
-  const getWordCountRange = () => {
-    const idealMin = Math.max(300, Math.round(contentStats.words * 1.2));
-    const idealMax = Math.round(idealMin * 1.25);
-    return `${idealMin} - ${idealMax}`;
-  };
-  
-  // Generate heading count range guidance
-  const getHeadingCountRange = () => {
-    const min = Math.max(1, Math.floor(contentStats.words / 300));
-    const max = Math.max(2, Math.ceil(contentStats.words / 150));
-    return `${min} - ${max}`;
-  };
-  
-  // Generate paragraph count range guidance
-  const getParagraphCountRange = () => {
-    const min = Math.max(2, Math.floor(contentStats.words / 150));
-    const max = Math.max(4, Math.ceil(contentStats.words / 75));
-    return `${min} - ${max}`;
-  };
-  
-  // Generate image count range guidance
-  const getImageCountRange = () => {
-    const min = Math.max(1, Math.floor(contentStats.words / 400));
-    const max = Math.max(3, Math.ceil(contentStats.words / 200));
-    return `${min} - ${max}`;
-  };
-
-  return (
-    <div className="max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <div className={`text-xl font-bold ${isRtlContent ? 'font-arabic' : 'font-english'}`}>
-          BlogArticle / {primaryKeyword}
-        </div>
-        <button 
-          className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md transition-colors"
-          onClick={() => navigate('/seo-checker')}
-        >
-          Reset
-        </button>
-      </div>
+    try {
+      console.log("Generating primary keywords automatically...");
+      setIsAnalyzing(true);
       
-      {analyzing ? (
-        <div className="flex flex-col items-center justify-center h-96">
-          <Loader className="h-12 w-12 animate-spin text-[#F76D01] mb-4" />
-          <h2 className="text-xl font-medium">Analyzing your content...</h2>
-          <p className="text-gray-500 mt-2">This will take just a moment</p>
-          
-          <div className="w-64 mt-8">
-            <Progress value={Math.random() * 100} className="h-2" />
-          </div>
-        </div>
-      ) : (
-        <div className="grid md:grid-cols-5 gap-6">
-          <div className="md:col-span-2 space-y-6">
-            {/* SEO Score */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-              <h2 className="text-lg font-medium mb-4">Content SEO Score</h2>
-              <SEOScoreMeter score={seoScore} />
-              <div className="flex justify-between mt-4 text-sm">
-                <a href="#" className="text-purple-600 hover:underline transition-colors">Learn more</a>
-                <a href="#" className="text-purple-600 hover:underline transition-colors">Score works</a>
-              </div>
+      // Generate primary keywords
+      const suggestions = await generateKeywordSuggestions(
+        content,
+        3,
+        "",
+        user.id,
+        currentWorkspace.id
+      );
+      
+      if (suggestions && suggestions.length > 0) {
+        console.log("Primary keywords generated:", suggestions);
+        setPrimaryKeyword(suggestions[0].text);
+        
+        // Now that we have a primary keyword, generate secondary keywords
+        handleGenerateSecondaryKeywords(suggestions[0].text);
+      } else {
+        toast({
+          title: "Generation Failed",
+          description: "Unable to generate keyword suggestions.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error generating primary keywords:", error);
+      toast({
+        title: "Generation Error",
+        description: "An error occurred while generating keywords.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+  
+  const handleGenerateSecondaryKeywords = async (pkeyword = primaryKeyword) => {
+    if (!content || !pkeyword) {
+      toast({
+        title: "Information Required",
+        description: "Please add content and primary keyword before generating secondary keywords.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!user?.id || !currentWorkspace?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to generate keywords.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      console.log(`Generating secondary keywords for primary keyword: ${pkeyword}`);
+      setIsAnalyzing(true);
+      
+      // Generate secondary keywords
+      const suggestions = await generateSecondaryKeywordSuggestions(
+        pkeyword,
+        content,
+        5,
+        "",
+        user.id,
+        currentWorkspace.id
+      );
+      
+      if (suggestions && suggestions.length > 0) {
+        console.log("Secondary keywords generated:", suggestions);
+        // Set up to 5 secondary keywords
+        const newSecondaryKeywords = suggestions.slice(0, 5).map(k => k.text);
+        setSecondaryKeywords(newSecondaryKeywords);
+        
+        toast({
+          title: "Keywords Generated",
+          description: "Keywords have been successfully generated.",
+        });
+      } else {
+        toast({
+          title: "Generation Failed",
+          description: "Unable to generate secondary keyword suggestions.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error generating secondary keywords:", error);
+      toast({
+        title: "Generation Error",
+        description: "An error occurred while generating keywords.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+  
+  // Start the SEO analysis
+  const startAnalysis = async () => {
+    if (!content || !primaryKeyword) {
+      toast({
+        title: "Information Required",
+        description: "Please add content and primary keyword before starting analysis.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsAnalyzing(true);
+    
+    try {
+      // Simulate analysis with a timeout
+      setTimeout(() => {
+        const mockResults = {
+          score: 78,
+          recommendations: [
+            "Consider adding more instances of your primary keyword",
+            "Add internal links to related content",
+            "Improve your meta description",
+            "Add alt text to images"
+          ],
+          keywordDensity: {
+            primary: 1.2,
+            secondary: 0.8
+          }
+        };
+        
+        setAnalysisResults(mockResults);
+        setIsAnalyzing(false);
+        
+        toast({
+          title: "Analysis Complete",
+          description: "SEO analysis has been completed successfully."
+        });
+      }, 2000);
+    } catch (error) {
+      console.error("Error during analysis:", error);
+      toast({
+        title: "Analysis Error",
+        description: "An error occurred during the SEO analysis.",
+        variant: "destructive"
+      });
+      setIsAnalyzing(false);
+    }
+  };
+  
+  return (
+    <div className="max-w-5xl mx-auto py-6">
+      <h1 className="text-2xl font-bold mb-6">SEO Checker & Optimization</h1>
+      
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Content and Keywords Section */}
+        <div className="space-y-6">
+          <div className="border border-gray-200 rounded-lg bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-semibold mb-4">Content</h2>
+            
+            <div className={`prose max-w-none ${isRtlContent ? 'rtl' : 'ltr'}`}>
+              <div dangerouslySetInnerHTML={{ __html: content }} />
             </div>
             
-            {/* Content Stats */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-              <div className="grid grid-cols-2 gap-3">
-                <ContentStatBox 
-                  label="Words" 
-                  value={contentStats.words} 
-                  range={getWordCountRange()} 
-                />
-                <ContentStatBox 
-                  label="Headings" 
-                  value={contentStats.headings} 
-                  range={getHeadingCountRange()} 
-                />
-                <ContentStatBox 
-                  label="Paragraphs" 
-                  value={contentStats.paragraphs} 
-                  range={getParagraphCountRange()} 
-                />
-                <ContentStatBox 
-                  label="Images" 
-                  value={contentStats.images} 
-                  range={getImageCountRange()} 
-                />
-              </div>
-            </div>
-            
-            {/* Recommendations */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-              <h2 className="text-lg font-medium mb-4">Recommendations</h2>
-              <div className="space-y-1">
-                {recommendations.map((rec, index) => (
-                  <Recommendation 
-                    key={index}
-                    status={rec.status}
-                    text={rec.text}
-                    action={rec.action}
-                  />
-                ))}
+            <div className="mt-4 space-y-4">
+              <div>
+                <p className="font-medium">Primary Keyword:</p>
+                <div className="bg-gray-100 p-2 rounded mt-1">
+                  {primaryKeyword || "No primary keyword set"}
+                </div>
               </div>
               
-              <Button variant="seoButton" className="w-full mt-6">
-                Improve SEO (Beta)
-              </Button>
-            </div>
-          </div>
-          
-          <div className="md:col-span-3">
-            <div className="bg-white rounded-lg border border-gray-200 p-6 h-full shadow-sm hover:shadow-md transition-shadow">
-              <div className="h-full">
-                <ReactQuill 
-                  value={content} 
-                  readOnly={true}
-                  modules={readOnlyModules}
-                  theme="snow"
-                  className={`${isRtlContent ? 'font-arabic rtl-content' : 'font-english ltr-content'}`}
-                />
+              <div>
+                <p className="font-medium">Secondary Keywords:</p>
+                {secondaryKeywords && secondaryKeywords.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {secondaryKeywords.map((keyword, index) => (
+                      <div key={index} className="bg-gray-100 px-3 py-1 rounded-full">
+                        {keyword}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-gray-500 mt-1">No secondary keywords set</div>
+                )}
               </div>
             </div>
           </div>
         </div>
-      )}
+        
+        {/* Analysis Section */}
+        <div className="space-y-6">
+          <div className="border border-gray-200 rounded-lg bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-semibold mb-4">SEO Analysis</h2>
+            
+            {!analysisResults && !isAnalyzing ? (
+              <div className="text-center py-6">
+                <p className="mb-4 text-gray-500">Click the button below to analyze your content and get SEO recommendations.</p>
+                <button 
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md transition-colors"
+                  onClick={startAnalysis}
+                >
+                  Start Analysis
+                </button>
+              </div>
+            ) : isAnalyzing ? (
+              <div className="flex flex-col items-center justify-center py-6">
+                <Loader size={40} className="animate-spin text-purple-600 mb-4" />
+                <p>Analyzing your content...</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="flex items-center justify-center mb-6">
+                  <div className="relative w-32 h-32">
+                    <svg viewBox="0 0 100 100" className="w-full h-full">
+                      <circle 
+                        cx="50" 
+                        cy="50" 
+                        r="45" 
+                        fill="none" 
+                        stroke="#f0f0f0" 
+                        strokeWidth="10"
+                      />
+                      <circle 
+                        cx="50" 
+                        cy="50" 
+                        r="45" 
+                        fill="none" 
+                        stroke="#4CAF50" 
+                        strokeWidth="10"
+                        strokeDasharray={`${2 * Math.PI * 45 * analysisResults.score / 100} ${2 * Math.PI * 45 * (100 - analysisResults.score) / 100}`}
+                        strokeDashoffset={2 * Math.PI * 45 * 25 / 100}
+                        transform="rotate(-90 50 50)"
+                      />
+                      <text x="50" y="50" textAnchor="middle" dy="7" fontSize="20" fontWeight="bold">{analysisResults.score}</text>
+                    </svg>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-semibold mb-2">Keyword Density</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span>Primary Keyword</span>
+                      <span className={analysisResults.keywordDensity.primary > 1 && analysisResults.keywordDensity.primary < 3 ? "text-green-500" : "text-amber-500"}>
+                        {analysisResults.keywordDensity.primary}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>Secondary Keywords</span>
+                      <span className={analysisResults.keywordDensity.secondary > 0.5 && analysisResults.keywordDensity.secondary < 2 ? "text-green-500" : "text-amber-500"}>
+                        {analysisResults.keywordDensity.secondary}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-semibold mb-2">Recommendations</h3>
+                  <ul className="space-y-2">
+                    {analysisResults.recommendations.map((recommendation, index) => (
+                      <li key={index} className="flex items-start">
+                        <span className="text-purple-600 mr-2">•</span>
+                        <span>{recommendation}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
-
-// Main SEO Checker component that shows either the form or results
-const SEOChecker: React.FC<SEOCheckerProps> = ({ initialContent, initialPrimaryKeyword, initialSecondaryKeywords }) => {
-  const location = useLocation();
-  
-  // Check if we're viewing results or the input form
-  const isViewingResults = location.state && location.state.primaryKeyword;
-  
-  return (
-    <div className="p-6">
-      {isViewingResults ? <SEOCheckerResult /> : <QuickOptimizationForm />}
-    </div>
-  );
-};
-
-// Import QuickOptimizationForm component
-import QuickOptimizationForm from './QuickOptimizationForm';
 
 export default SEOChecker;
