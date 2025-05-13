@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Link, Upload, RefreshCw, Search, Pencil, AlertTriangle, Check, Loader } from 'lucide-react';
@@ -16,7 +15,6 @@ import 'react-quill/dist/quill.snow.css';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/integrations/supabase/client';
-import { AspectRatio } from '@/components/ui/aspect-ratio';
 
 // Define props interface for SEOChecker
 interface SEOCheckerProps {
@@ -31,9 +29,10 @@ const isRTL = (text: string) => {
   return rtlChars.test(text);
 };
 
-// Improved SEO Score Meter Component with circular gauge design
+// SEO Score Meter Component with Improved Animation
 const SEOScoreMeter = ({ score }: { score: number }) => {
   const [animatedScore, setAnimatedScore] = useState(0);
+  const rotation = (animatedScore / 100) * 180 - 90;
   
   useEffect(() => {
     // Animate the score from 0 to the actual score
@@ -56,72 +55,30 @@ const SEOScoreMeter = ({ score }: { score: number }) => {
   
   // Get color based on score
   const getScoreColor = () => {
-    if (animatedScore < 50) return '#EF4444'; // red
-    if (animatedScore < 70) return '#F59E0B'; // amber
-    return '#10B981'; // green
+    if (animatedScore < 50) return 'text-red-500';
+    if (animatedScore < 70) return 'text-yellow-500';
+    return 'text-green-500';
   };
-
-  // Calculate the circumference and offset for the SVG circle
-  const radius = 40;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (animatedScore / 100) * circumference;
   
   return (
-    <div className="flex flex-col items-center justify-center">
-      <div className="relative h-32 w-32 flex items-center justify-center">
-        {/* Background circle */}
-        <svg className="w-full h-full" viewBox="0 0 100 100">
-          <circle 
-            cx="50" 
-            cy="50" 
-            r={radius} 
-            fill="none" 
-            stroke="#E5E7EB" 
-            strokeWidth="8"
-          />
-          
-          {/* Progress circle */}
-          <circle 
-            cx="50" 
-            cy="50" 
-            r={radius} 
-            fill="none" 
-            stroke={getScoreColor()}
-            strokeWidth="8"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            transform="rotate(-90 50 50)"
-          />
-          
-          {/* Score text */}
-          <text 
-            x="50" 
-            y="45" 
-            textAnchor="middle" 
-            dominantBaseline="middle"
-            className="text-3xl font-bold"
-            fill={getScoreColor()}
-          >
-            {animatedScore}
-          </text>
-          
-          <text 
-            x="50" 
-            y="65" 
-            textAnchor="middle" 
-            dominantBaseline="middle"
-            className="text-sm"
-            fill="#6B7280"
-          >
-            /100
-          </text>
-        </svg>
+    <div className="seo-meter-container">
+      <div className="seo-meter-gauge">
+        <div className="seo-meter-bg"></div>
+        <div className="seo-meter-mask"></div>
+        <div
+          className="seo-meter-needle"
+          style={{
+            transform: `rotate(${rotation}deg)`
+          }}
+        ></div>
+        <div className="seo-meter-dot"></div>
       </div>
-      <div className="text-sm text-gray-500 mt-2">Suggested 65+</div>
-      <div className="flex justify-between w-full mt-2 text-sm">
-        <a href="#" className="text-purple-600 hover:underline transition-colors">Learn more</a>
-        <a href="#" className="text-purple-600 hover:underline transition-colors">Score works</a>
+      <div className="seo-meter-score">
+        <div className={`seo-meter-score-value ${getScoreColor()}`}>
+          {animatedScore}
+          <span className="seo-meter-score-max">/100</span>
+        </div>
+        <div className="seo-meter-label">Suggested 65+</div>
       </div>
     </div>
   );
@@ -533,7 +490,7 @@ const SEOCheckerResult = () => {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <div className={`text-xl font-bold ${isRtlContent ? 'font-cairo' : 'font-english'}`}>
+        <div className={`text-xl font-bold ${isRtlContent ? 'font-arabic' : 'font-english'}`}>
           BlogArticle / {primaryKeyword}
         </div>
         <button 
@@ -556,111 +513,108 @@ const SEOCheckerResult = () => {
         </div>
       ) : (
         <div className="grid md:grid-cols-5 gap-6">
-          <div className="md:col-span-2">
-            <div className="space-y-6 sticky top-6">
-              {/* SEO Score */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-                <h2 className="text-lg font-medium mb-4">Content SEO Score</h2>
-                <SEOScoreMeter score={seoScore} />
+          <div className="md:col-span-2 space-y-6">
+            {/* SEO Score */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+              <h2 className="text-lg font-medium mb-4">Content SEO Score</h2>
+              <SEOScoreMeter score={seoScore} />
+              <div className="flex justify-between mt-4 text-sm">
+                <a href="#" className="text-purple-600 hover:underline transition-colors">Learn more</a>
+                <a href="#" className="text-purple-600 hover:underline transition-colors">Score works</a>
               </div>
-              
-              {/* Content Stats */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-                <div className="grid grid-cols-2 gap-3">
-                  <ContentStatBox 
-                    label="Words" 
-                    value={contentStats.words} 
-                    range={getWordCountRange()} 
-                  />
-                  <ContentStatBox 
-                    label="Headings" 
-                    value={contentStats.headings} 
-                    range={getHeadingCountRange()} 
-                  />
-                  <ContentStatBox 
-                    label="Paragraphs" 
-                    value={contentStats.paragraphs} 
-                    range={getParagraphCountRange()} 
-                  />
-                  <ContentStatBox 
-                    label="Images" 
-                    value={contentStats.images} 
-                    range={getImageCountRange()} 
-                  />
+            </div>
+            
+            {/* Content Stats */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="grid grid-cols-2 gap-3">
+                <ContentStatBox 
+                  label="Words" 
+                  value={contentStats.words} 
+                  range={getWordCountRange()} 
+                />
+                <ContentStatBox 
+                  label="Headings" 
+                  value={contentStats.headings} 
+                  range={getHeadingCountRange()} 
+                />
+                <ContentStatBox 
+                  label="Paragraphs" 
+                  value={contentStats.paragraphs} 
+                  range={getParagraphCountRange()} 
+                />
+                <ContentStatBox 
+                  label="Images" 
+                  value={contentStats.images} 
+                  range={getImageCountRange()} 
+                />
+              </div>
+            </div>
+            
+            {/* Categories and Recommendations */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+              {seoAnalysis && seoAnalysis.categories && seoAnalysis.categories.length > 0 && (
+                <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                  {seoAnalysis.categories.map((category) => (
+                    <button 
+                      key={category.name}
+                      onClick={() => setActiveCategory(category.name)}
+                      className={`px-3 py-1 text-sm rounded-full whitespace-nowrap ${
+                        activeCategory === category.name 
+                          ? 'bg-purple-600 text-white' 
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
+                      }`}
+                    >
+                      {category.name}
+                    </button>
+                  ))}
                 </div>
-              </div>
+              )}
               
-              {/* Categories and Recommendations */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-                {seoAnalysis && seoAnalysis.categories && seoAnalysis.categories.length > 0 && (
-                  <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-                    {seoAnalysis.categories.map((category) => (
-                      <button 
-                        key={category.name}
-                        onClick={() => setActiveCategory(category.name)}
-                        className={`px-3 py-1 text-sm rounded-full whitespace-nowrap ${
-                          activeCategory === category.name 
-                            ? 'bg-purple-600 text-white' 
-                            : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
-                        }`}
-                      >
-                        {category.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                
-                <h2 className="text-lg font-medium mb-4">
-                  {activeCategory || "Recommendations"}
-                </h2>
-                
-                <ScrollArea className="h-[calc(100vh-480px)] min-h-[300px]">
-                  <div className="space-y-1 pr-3">
-                    {!analysisFailed && activeCategory && seoAnalysis 
-                      ? getFilteredRecommendations().map((rec, index) => (
-                        <Recommendation 
-                          key={index}
-                          severity={rec.severity}
-                          text={rec.text}
-                          solution={rec.solution}
-                          action={rec.action}
-                        />
-                      ))
-                      : recommendations.map((rec, index) => (
-                        <Recommendation 
-                          key={index}
-                          severity={rec.severity}
-                          text={rec.text}
-                          solution={rec.solution}
-                          action={rec.action}
-                        />
-                      ))
-                    }
-                  </div>
-                </ScrollArea>
-                
-                <Button variant="seoButton" className="w-full mt-6">
-                  Improve SEO (Beta)
-                </Button>
-              </div>
+              <h2 className="text-lg font-medium mb-4">
+                {activeCategory || "Recommendations"}
+              </h2>
+              
+              <ScrollArea className="h-[300px]">
+                <div className="space-y-1 pr-3">
+                  {!analysisFailed && activeCategory && seoAnalysis 
+                    ? getFilteredRecommendations().map((rec, index) => (
+                      <Recommendation 
+                        key={index}
+                        severity={rec.severity}
+                        text={rec.text}
+                        solution={rec.solution}
+                        action={rec.action}
+                      />
+                    ))
+                    : recommendations.map((rec, index) => (
+                      <Recommendation 
+                        key={index}
+                        severity={rec.severity}
+                        text={rec.text}
+                        solution={rec.solution}
+                        action={rec.action}
+                      />
+                    ))
+                  }
+                </div>
+              </ScrollArea>
+              
+              <Button variant="seoButton" className="w-full mt-6">
+                Improve SEO (Beta)
+              </Button>
             </div>
           </div>
           
           <div className="md:col-span-3">
-            <div className="bg-white rounded-lg border border-gray-200 p-6 h-[calc(100vh-110px)] shadow-sm hover:shadow-md transition-shadow">
-              <div className="h-full flex flex-col">
-                <h2 className="text-lg font-medium mb-4">Content Preview</h2>
-                <ScrollArea className="flex-1">
-                  <div className="content-display-container pr-4">
-                    <ReactQuill 
-                      value={content} 
-                      readOnly={true}
-                      modules={readOnlyModules}
-                      theme="snow"
-                      className={`${isRtlContent ? 'font-cairo rtl-content' : 'font-english ltr-content'}`}
-                    />
-                  </div>
-                </ScrollArea>
+            <div className="bg-white rounded-lg border border-gray-200 p-6 h-full shadow-sm hover:shadow-md transition-shadow">
+              <div className="content-display-container">
+                <ReactQuill 
+                  value={content} 
+                  readOnly={true}
+                  modules={readOnlyModules}
+                  theme="snow"
+                  className={`${isRtlContent ? 'font-arabic rtl-content' : 'font-english ltr-content'}`}
+                />
               </div>
             </div>
           </div>
