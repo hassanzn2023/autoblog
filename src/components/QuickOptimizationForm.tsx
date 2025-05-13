@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
@@ -80,19 +81,8 @@ const QuickOptimizationForm = () => {
     'link', 'image'
   ];
 
-  // Auto-generate keyword suggestions after content is confirmed
-  useEffect(() => {
-    if (contentConfirmed && content) {
-      handleGeneratePrimaryKeywords();
-    }
-  }, [contentConfirmed]);
-
-  // Auto-generate secondary keywords when primary keyword is selected
-  useEffect(() => {
-    if (primaryKeyword && contentConfirmed && content) {
-      handleGenerateSecondaryKeywords();
-    }
-  }, [primaryKeyword]);
+  // Remove auto-generate keyword suggestions functionality - this will only happen when the user
+  // explicitly clicks the suggest buttons
 
   // Handle URL extraction
   const handleUrlExtraction = async () => {
@@ -181,11 +171,8 @@ const QuickOptimizationForm = () => {
       title: "Content Confirmed",
       description: "Your content has been added successfully.",
     });
-
-    // Auto-generate keywords after content confirmation
-    if (user?.id && currentWorkspace?.id) {
-      handleGeneratePrimaryKeywords();
-    }
+    
+    // We no longer auto-generate keywords here - this only happens when the user explicitly clicks the suggest buttons
   };
   
   const handlePrimaryKeywordSelect = (keyword: string) => {
@@ -212,7 +199,7 @@ const QuickOptimizationForm = () => {
     }
   };
   
-  // Fix primary keyword generation
+  // Primary keyword generation - only happens when the user clicks the suggest button
   const handleGeneratePrimaryKeywords = async () => {
     if (!content) {
       toast({
@@ -249,12 +236,6 @@ const QuickOptimizationForm = () => {
       
       if (suggestions && suggestions.length > 0) {
         setPrimaryKeywordSuggestions(suggestions);
-        
-        // Auto-select the first keyword if none is selected
-        if (!primaryKeyword) {
-          setPrimaryKeyword(suggestions[0].text);
-        }
-        
         setRegenerationNote('');
         toast({
           title: "Primary Keywords Generated",
@@ -279,12 +260,12 @@ const QuickOptimizationForm = () => {
     }
   };
   
-  // Fix secondary keyword generation
+  // Secondary keyword generation - only happens when the user clicks the suggest button
   const handleGenerateSecondaryKeywords = async () => {
-    if (!primaryKeyword || !content) {
+    if (!content) {
       toast({
         title: "Information Required",
-        description: "Please confirm your content and select a primary keyword first.",
+        description: "Please confirm your content first.",
         variant: "destructive"
       });
       return;
@@ -303,7 +284,7 @@ const QuickOptimizationForm = () => {
     setShowSecondaryKeywordSuggestions(true);
     
     try {
-      console.log("Generating secondary keywords for primary keyword:", primaryKeyword);
+      console.log("Generating secondary keywords for content");
       
       // Pass all required parameters to the function
       const suggestions = await generateSecondaryKeywordSuggestions(
@@ -779,7 +760,20 @@ const QuickOptimizationForm = () => {
                 />
                 <button 
                   className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md flex items-center gap-1 transition-colors"
-                  onClick={() => setShowPrimaryKeywordSuggestions(!showPrimaryKeywordSuggestions)}
+                  onClick={() => {
+                    if (contentConfirmed) {
+                      setShowPrimaryKeywordSuggestions(!showPrimaryKeywordSuggestions);
+                      if (!primaryKeywordSuggestions.length && !showPrimaryKeywordSuggestions) {
+                        handleGeneratePrimaryKeywords();
+                      }
+                    } else {
+                      toast({
+                        title: "Content Required",
+                        description: "Please confirm your content first.",
+                        variant: "destructive"
+                      });
+                    }
+                  }}
                   disabled={!contentConfirmed || isGeneratingPrimary}
                 >
                   <Search size={16} className="text-gray-600" />
@@ -868,8 +862,21 @@ const QuickOptimizationForm = () => {
                 </div>
                 <button 
                   className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md h-fit flex items-center gap-1 transition-colors"
-                  onClick={() => setShowSecondaryKeywordSuggestions(!showSecondaryKeywordSuggestions)}
-                  disabled={!primaryKeyword || isGeneratingSecondary}
+                  onClick={() => {
+                    if (contentConfirmed) {
+                      setShowSecondaryKeywordSuggestions(!showSecondaryKeywordSuggestions);
+                      if (!secondaryKeywordSuggestions.length && !showSecondaryKeywordSuggestions) {
+                        handleGenerateSecondaryKeywords();
+                      }
+                    } else {
+                      toast({
+                        title: "Content Required",
+                        description: "Please confirm your content first.",
+                        variant: "destructive"
+                      });
+                    }
+                  }}
+                  disabled={!contentConfirmed || isGeneratingSecondary}
                 >
                   <Search size={16} className="text-gray-600" />
                   Suggest
@@ -971,7 +978,7 @@ const CheckIcon = ({ className = "" }) => (
     strokeLinejoin="round"
     className={className}
   >
-    <path d="M20 6L9 17l-5-5" />
+    <polyline points="20 6 9 17 4 12"></polyline>
   </svg>
 );
 
