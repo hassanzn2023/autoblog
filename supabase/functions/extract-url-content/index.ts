@@ -287,9 +287,8 @@ serve(async (req) => {
  * @returns {string} The extracted HTML content or an empty string.
  */
 function fallbackExtractContent(doc: Document): string {
-  console.log("[FALLBACK] Starting fallback content extraction."); // Log fallback start
+  console.log("[FALLBACK] Starting fallback content extraction.");
 
-  // Try to find main content container using extended selectors
   const contentSelectors = [
     'div.post-details-content', // <<-- المحدد الجديد والأكثر دقة في الأعلى
     'article .article-body',    // يبقى كخيار جيد لمواقع أخرى
@@ -304,13 +303,13 @@ function fallbackExtractContent(doc: Document): string {
   ];
 
   let contentElement: Element | null = null;
-  let foundSelector = ''; // Variable to store the selector that worked
+  let foundSelector = '';
 
   for (const selector of contentSelectors) {
     contentElement = doc.querySelector(selector);
     if (contentElement) {
       foundSelector = selector;
-      console.log(`[FALLBACK] Found potential content element using selector: ${selector}`); // Log selector found
+      console.log(`[FALLBACK] Found potential content element using selector: ${selector}`);
       break;
     }
   }
