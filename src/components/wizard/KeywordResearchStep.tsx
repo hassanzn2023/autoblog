@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -6,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { 
+  generateCombinedKeywords,
   generateKeywordSuggestions, 
   generateSecondaryKeywordSuggestions, 
   KeywordSuggestion 
@@ -33,11 +33,17 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
   
   const [isGeneratingPrimary, setIsGeneratingPrimary] = useState(false);
   const [isGeneratingSecondary, setIsGeneratingSecondary] = useState(false);
+  const [isGeneratingCombined, setIsGeneratingCombined] = useState(false);
   const [regenerationNote, setRegenerationNote] = useState('');
   const [primaryKeywordSuggestions, setPrimaryKeywordSuggestions] = useState<KeywordSuggestion[]>([]);
   const [secondaryKeywordSuggestions, setSecondaryKeywordSuggestions] = useState<KeywordSuggestion[]>([]);
   
-  // Remove auto-generate functionality to follow the exact flow requested
+  // Auto-generate combined keywords when content is confirmed
+  useEffect(() => {
+    if (contentConfirmed && content && !primaryKeyword && secondaryKeywords.length === 0) {
+      handleGenerateCombinedKeywords();
+    }
+  }, [contentConfirmed, content]);
   
   const handleAddSecondaryKeyword = (keyword: string) => {
     if (secondaryKeywords.length < 7 && !secondaryKeywords.includes(keyword)) {
@@ -47,7 +53,79 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
     }
   };
 
-  // Function to generate primary keywords - only when explicitly requested
+  // New function to generate both primary and secondary keywords at once
+  const handleGenerateCombinedKeywords = async () => {
+    if (!contentConfirmed || !content) {
+      toast({
+        title: "Content Required",
+        description: "Please confirm your content first.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Check for user and workspace
+    if (!user || !currentWorkspace) {
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to use this feature.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    console.log('Starting combined keyword generation');
+    console.log('User ID:', user.id);
+    console.log('Workspace ID:', currentWorkspace.id);
+    console.log('Content length:', content.length);
+    
+    try {
+      setIsGeneratingCombined(true);
+      
+      // Display toast to show we're generating keywords
+      toast({
+        title: "Generating Keywords",
+        description: "Please wait while we analyze your content...",
+      });
+      
+      const result = await generateCombinedKeywords(
+        content, 
+        3, // primary count
+        5, // secondary count
+        regenerationNote,
+        user.id,
+        currentWorkspace.id
+      );
+      
+      console.log('Received combined keyword suggestions:', result);
+      
+      // Update both primary and secondary keyword suggestions
+      setPrimaryKeywordSuggestions(result.primaryKeywords);
+      setSecondaryKeywordSuggestions(result.secondaryKeywords);
+      
+      // Set primary keyword if we got suggestions and none is selected
+      if (result.primaryKeywords.length > 0 && !primaryKeyword) {
+        onUpdate('primaryKeyword', result.primaryKeywords[0].text);
+      }
+      
+      toast({
+        title: "Keywords Generated",
+        description: "Keyword suggestions have been generated successfully.",
+        variant: "success"
+      });
+    } catch (error: any) {
+      console.error("Error generating combined keywords:", error);
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate keyword suggestions",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingCombined(false);
+    }
+  };
+
+  // Existing function to generate just primary keywords
   const handleSuggestPrimary = async () => {
     if (!contentConfirmed || !content) {
       toast({
@@ -94,6 +172,10 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
       
       setPrimaryKeywordSuggestions(suggestions);
       
+      if (suggestions.length > 0 && !primaryKeyword) {
+        onUpdate('primaryKeyword', suggestions[0].text);
+      }
+      
       toast({
         title: "Keywords Generated",
         description: "Primary keyword suggestions have been generated successfully.",
@@ -111,12 +193,21 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
     }
   };
 
-  // Function to generate secondary keywords - only when explicitly requested
+  // Existing function to generate secondary keywords
   const handleSuggestSecondary = async () => {
     if (!contentConfirmed || !content) {
       toast({
         title: "Content Required",
         description: "Please confirm your content first.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!primaryKeyword) {
+      toast({
+        title: "Primary Keyword Required",
+        description: "Please select a primary keyword first.",
         variant: "destructive"
       });
       return;
@@ -133,9 +224,9 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
     }
     
     console.log('Starting secondary keyword generation');
+    console.log('Primary keyword:', primaryKeyword);
     console.log('User ID:', user.id);
     console.log('Workspace ID:', currentWorkspace.id);
-    console.log('Content length:', content.length);
     
     try {
       setIsGeneratingSecondary(true);
@@ -196,16 +287,16 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
           variant="outline"
           onClick={handleSuggestPrimary}
           className="flex items-center gap-2 mt-1"
-          disabled={isGeneratingPrimary || !contentConfirmed}
+          disabled={isGeneratingPrimary || isGeneratingCombined || !contentConfirmed}
         >
-          {isGeneratingPrimary ? (
+          {isGeneratingPrimary || isGeneratingCombined ? (
             <>
               <Loader size={16} className="animate-spin" />
               <span>Generating...</span>
             </>
           ) : (
             <>
-              <span>🔄</span> Generate Primary Keywords
+              <span>🔄</span> Regenerate Primary Keywords
             </>
           )}
         </Button>
@@ -264,16 +355,16 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
           variant="outline"
           onClick={handleSuggestSecondary}
           className="flex items-center gap-2 mt-1"
-          disabled={isGeneratingSecondary || !contentConfirmed}
+          disabled={isGeneratingSecondary || isGeneratingCombined || !primaryKeyword || !contentConfirmed}
         >
-          {isGeneratingSecondary ? (
+          {isGeneratingSecondary || isGeneratingCombined ? (
             <>
               <Loader size={16} className="animate-spin" />
               <span>Generating...</span>
             </>
           ) : (
             <>
-              <span>🔄</span> Generate Secondary Keywords
+              <span>🔄</span> Regenerate Secondary Keywords
             </>
           )}
         </Button>
