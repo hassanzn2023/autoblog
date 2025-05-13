@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { 
-  generateCombinedKeywords,
-  generateKeywordSuggestions, 
-  generateSecondaryKeywordSuggestions, 
-  KeywordSuggestion 
+import {
+  generateKeywordSuggestions, // For Primary
+  generateSecondaryKeywordSuggestions, // For Secondary
+  KeywordSuggestion
 } from '@/services/openaiService';
 import { Loader } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -30,237 +29,116 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
 }) => {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
-  
+
   const [isGeneratingPrimary, setIsGeneratingPrimary] = useState(false);
   const [isGeneratingSecondary, setIsGeneratingSecondary] = useState(false);
-  const [isGeneratingCombined, setIsGeneratingCombined] = useState(false);
-  const [regenerationNote, setRegenerationNote] = useState('');
+
+  const [primaryRegenerationNote, setPrimaryRegenerationNote] = useState('');
+  const [secondaryRegenerationNote, setSecondaryRegenerationNote] = useState('');
+
   const [primaryKeywordSuggestions, setPrimaryKeywordSuggestions] = useState<KeywordSuggestion[]>([]);
   const [secondaryKeywordSuggestions, setSecondaryKeywordSuggestions] = useState<KeywordSuggestion[]>([]);
-  
-  // Auto-generate combined keywords when content is confirmed
-  useEffect(() => {
-    if (contentConfirmed && content && !primaryKeyword && secondaryKeywords.length === 0) {
-      handleGenerateCombinedKeywords();
-    }
-  }, [contentConfirmed, content]);
-  
+
   const handleAddSecondaryKeyword = (keyword: string) => {
-    if (secondaryKeywords.length < 7 && !secondaryKeywords.includes(keyword)) {
-      onUpdate('secondaryKeywords', [...secondaryKeywords, keyword]);
-    } else if (secondaryKeywords.includes(keyword)) {
-      onUpdate('secondaryKeywords', secondaryKeywords.filter((k) => k !== keyword));
+    const currentSecondary = secondaryKeywords || [];
+    if (currentSecondary.length < 7 && !currentSecondary.includes(keyword)) {
+      onUpdate('secondaryKeywords', [...currentSecondary, keyword]);
+    } else if (currentSecondary.includes(keyword)) {
+      onUpdate('secondaryKeywords', currentSecondary.filter((k) => k !== keyword));
     }
   };
 
-  // New function to generate both primary and secondary keywords at once
-  const handleGenerateCombinedKeywords = async () => {
+  const handleSuggestPrimaryKeywords = async (isRegeneration: boolean = false) => {
     if (!contentConfirmed || !content) {
       toast({
         title: "Content Required",
-        description: "Please confirm your content first.",
+        description: "Please confirm your article content first before suggesting keywords.",
         variant: "destructive"
       });
       return;
     }
-    
-    // Check for user and workspace
     if (!user || !currentWorkspace) {
-      toast({
-        title: "Authentication Required",
-        description: "You must be logged in to use this feature.",
-        variant: "destructive"
-      });
+      toast({ title: "Authentication Required", description: "You must be logged in.", variant: "destructive" });
       return;
     }
-    
-    console.log('Starting combined keyword generation');
-    console.log('User ID:', user.id);
-    console.log('Workspace ID:', currentWorkspace.id);
-    console.log('Content length:', content.length);
-    
-    try {
-      setIsGeneratingCombined(true);
-      
-      // Display toast to show we're generating keywords
-      toast({
-        title: "Generating Keywords",
-        description: "Please wait while we analyze your content...",
-      });
-      
-      const result = await generateCombinedKeywords(
-        content, 
-        3, // primary count
-        5, // secondary count
-        regenerationNote,
-        user.id,
-        currentWorkspace.id
-      );
-      
-      console.log('Received combined keyword suggestions:', result);
-      
-      // Update both primary and secondary keyword suggestions
-      setPrimaryKeywordSuggestions(result.primaryKeywords);
-      setSecondaryKeywordSuggestions(result.secondaryKeywords);
-      
-      // Set primary keyword if we got suggestions and none is selected
-      if (result.primaryKeywords.length > 0 && !primaryKeyword) {
-        onUpdate('primaryKeyword', result.primaryKeywords[0].text);
-      }
-      
-      toast({
-        title: "Keywords Generated",
-        description: "Keyword suggestions have been generated successfully.",
-        variant: "success"
-      });
-    } catch (error: any) {
-      console.error("Error generating combined keywords:", error);
-      toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate keyword suggestions",
-        variant: "destructive"
-      });
-    } finally {
-      setIsGeneratingCombined(false);
-    }
-  };
 
-  // Existing function to generate just primary keywords
-  const handleSuggestPrimary = async () => {
-    if (!contentConfirmed || !content) {
-      toast({
-        title: "Content Required",
-        description: "Please confirm your content before generating keywords.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Check for user and workspace
-    if (!user || !currentWorkspace) {
-      toast({
-        title: "Authentication Required",
-        description: "You must be logged in to use this feature.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    console.log('Starting primary keyword generation');
-    console.log('User ID:', user.id);
-    console.log('Workspace ID:', currentWorkspace.id);
-    console.log('Content length:', content.length);
-    
+    setIsGeneratingPrimary(true);
+    toast({ 
+      title: isRegeneration ? "Re-generating Primary Keywords" : "Suggesting Primary Keywords", 
+      description: "Analyzing content..." 
+    });
+
     try {
-      setIsGeneratingPrimary(true);
-      
-      // Display toast to show we're generating keywords
-      toast({
-        title: "Generating Keywords",
-        description: "Please wait while we analyze your content...",
-      });
-      
+      const noteToSend = isRegeneration ? primaryRegenerationNote : '';
       const suggestions = await generateKeywordSuggestions(
-        content, 
-        3, 
-        regenerationNote,
+        content,
+        3, // 3 primary keywords
+        noteToSend,
         user.id,
         currentWorkspace.id
       );
-      
-      console.log('Received keyword suggestions:', suggestions);
-      
       setPrimaryKeywordSuggestions(suggestions);
-      
-      if (suggestions.length > 0 && !primaryKeyword) {
-        onUpdate('primaryKeyword', suggestions[0].text);
-      }
-      
       toast({
-        title: "Keywords Generated",
-        description: "Primary keyword suggestions have been generated successfully.",
+        title: "Primary Suggestions Ready",
+        description: "Primary keyword suggestions have been generated.",
         variant: "success"
       });
+      if (isRegeneration) setPrimaryRegenerationNote('');
     } catch (error: any) {
-      console.error("Error generating primary keywords:", error);
-      toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate keyword suggestions",
-        variant: "destructive"
+      console.error("Error suggesting/regenerating primary keywords:", error);
+      toast({ 
+        title: "Primary Suggestion Failed", 
+        description: error.message || "Failed to process primary keywords.", 
+        variant: "destructive" 
       });
     } finally {
       setIsGeneratingPrimary(false);
     }
   };
 
-  // Existing function to generate secondary keywords
-  const handleSuggestSecondary = async () => {
+  const handleSuggestSecondaryKeywords = async (isRegeneration: boolean = false) => {
     if (!contentConfirmed || !content) {
       toast({
         title: "Content Required",
-        description: "Please confirm your content first.",
+        description: "Please confirm your article content first before suggesting keywords.",
         variant: "destructive"
       });
       return;
     }
-    
-    if (!primaryKeyword) {
-      toast({
-        title: "Primary Keyword Required",
-        description: "Please select a primary keyword first.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Check for user and workspace
     if (!user || !currentWorkspace) {
-      toast({
-        title: "Authentication Required",
-        description: "You must be logged in to use this feature.",
-        variant: "destructive"
-      });
+      toast({ title: "Authentication Required", description: "You must be logged in.", variant: "destructive" });
       return;
     }
-    
-    console.log('Starting secondary keyword generation');
-    console.log('Primary keyword:', primaryKeyword);
-    console.log('User ID:', user.id);
-    console.log('Workspace ID:', currentWorkspace.id);
-    
+
+    setIsGeneratingSecondary(true);
+    toast({ 
+      title: isRegeneration ? "Re-generating Secondary Keywords" : "Suggesting Secondary Keywords", 
+      description: "Analyzing content..." 
+    });
+
     try {
-      setIsGeneratingSecondary(true);
-      
-      // Display toast to show we're generating keywords
-      toast({
-        title: "Generating Secondary Keywords",
-        description: "Please wait while we analyze your content...",
-      });
-      
+      const noteToSend = isRegeneration ? secondaryRegenerationNote : '';
       const suggestions = await generateSecondaryKeywordSuggestions(
-        primaryKeyword,
+        primaryKeyword || '', // Send primary keyword if available, otherwise empty string
         content,
-        5,
-        regenerationNote,
+        5, // 5 secondary keywords
+        noteToSend,
         user.id,
         currentWorkspace.id
       );
-      
-      console.log('Received secondary keyword suggestions:', suggestions);
-      
       setSecondaryKeywordSuggestions(suggestions);
-      
       toast({
-        title: "Keywords Generated",
-        description: "Secondary keyword suggestions have been generated successfully.",
+        title: "Secondary Suggestions Ready",
+        description: "Secondary keyword suggestions have been generated.",
         variant: "success"
       });
+      if (isRegeneration) setSecondaryRegenerationNote('');
     } catch (error: any) {
-      console.error("Error generating secondary keywords:", error);
-      toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate keyword suggestions",
-        variant: "destructive"
+      console.error("Error suggesting/regenerating secondary keywords:", error);
+      toast({ 
+        title: "Secondary Suggestion Failed", 
+        description: error.message || "Failed to process secondary keywords.", 
+        variant: "destructive" 
       });
     } finally {
       setIsGeneratingSecondary(false);
@@ -269,151 +147,193 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
 
   return (
     <div className="space-y-8 animate-fade-in" dir={/[\u0600-\u06FF]/.test(content) ? 'rtl' : 'ltr'}>
-      <div className="space-y-4">
+      {/* Primary Keywords Section */}
+      <div className="space-y-4 p-4 border rounded-md shadow-sm">
         <div className="space-y-2">
-          <Label className="text-base font-medium">Primary Keyword</Label>
-          <p className="text-sm text-gray-500">Your Primary Keyword:</p>
+          <Label htmlFor="primaryKeywordInput" className="text-lg font-semibold text-gray-800 dark:text-gray-200">Primary Keyword</Label>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Enter your main keyword or let us suggest one based on your article.
+          </p>
           <Input
+            id="primaryKeywordInput"
             type="text"
             value={primaryKeyword}
             onChange={(e) => onUpdate('primaryKeyword', e.target.value)}
-            placeholder="Enter your primary keyword"
-            className="w-full"
+            placeholder="e.g., digital marketing strategies"
+            className="w-full bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+            disabled={isGeneratingPrimary}
           />
         </div>
 
         <Button
           type="button"
-          variant="outline"
-          onClick={handleSuggestPrimary}
-          className="flex items-center gap-2 mt-1"
-          disabled={isGeneratingPrimary || isGeneratingCombined || !contentConfirmed}
+          variant="default"
+          onClick={() => handleSuggestPrimaryKeywords(false)}
+          className="flex items-center gap-2 mt-1 w-full sm:w-auto"
+          disabled={!contentConfirmed || isGeneratingPrimary || isGeneratingSecondary}
         >
-          {isGeneratingPrimary || isGeneratingCombined ? (
+          {isGeneratingPrimary ? (
             <>
               <Loader size={16} className="animate-spin" />
-              <span>Generating...</span>
+              <span>Suggesting...</span>
             </>
           ) : (
-            <>
-              <span>🔄</span> Regenerate Primary Keywords
-            </>
+            "Suggest Primary Keywords (3)"
           )}
         </Button>
-        
+
         {primaryKeywordSuggestions.length > 0 && (
-          <div className="mt-3">
-            <p className="text-sm text-gray-500 mb-2">Suggestions:</p>
+          <div className="mt-4 space-y-3">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Suggestions (select one):</p>
             <div className="flex flex-wrap gap-2">
               {primaryKeywordSuggestions.map((keyword) => (
-                <div 
+                <div
                   key={keyword.id}
-                  className={`px-3 py-1.5 rounded-full text-sm cursor-pointer ${
-                    primaryKeyword === keyword.text 
-                      ? 'bg-purple-600 text-white' 
-                      : 'bg-gray-100 hover:bg-gray-200'
+                  className={`px-3 py-1.5 rounded-full text-sm cursor-pointer transition-all duration-150 ease-in-out ${
+                    primaryKeyword === keyword.text
+                      ? 'bg-blue-600 text-white shadow-md scale-105'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200'
                   }`}
-                  onClick={() => onUpdate('primaryKeyword', keyword.text)}
+                  onClick={() => {
+                    if (!isGeneratingPrimary) onUpdate('primaryKeyword', keyword.text);
+                  }}
                 >
                   {keyword.text}
                 </div>
               ))}
             </div>
+            {/* Primary Keywords Regeneration Section */}
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <Label htmlFor="primaryRegenNote" className="text-sm font-medium text-gray-700 dark:text-gray-300">Refine Primary Suggestions:</Label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Add a note for more targeted primary keyword suggestions.</p>
+              <div className="flex flex-col sm:flex-row gap-2 items-center">
+                <Input
+                  id="primaryRegenNote"
+                  type="text"
+                  placeholder="e.g., focus on AI in marketing"
+                  value={primaryRegenerationNote}
+                  onChange={(e) => setPrimaryRegenerationNote(e.target.value)}
+                  className="flex-1 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                  disabled={isGeneratingPrimary}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSuggestPrimaryKeywords(true)}
+                  disabled={isGeneratingPrimary || !contentConfirmed || !primaryRegenerationNote.trim()}
+                  className="w-full sm:w-auto"
+                >
+                  {isGeneratingPrimary ? (
+                    <Loader size={16} className="animate-spin" />
+                  ) : (
+                    "Re-generate Primary"
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>
 
-      <div className="space-y-4">
+      {/* Secondary Keywords Section */}
+      <div className="space-y-4 p-4 border rounded-md shadow-sm">
         <div className="space-y-2">
-          <Label className="text-base font-medium">Secondary Keywords</Label>
-          <p className="text-sm text-gray-500">Selected Keywords (up to 7):</p>
-          <div className="flex flex-wrap gap-2 mb-2">
+          <Label className="text-lg font-semibold text-gray-800 dark:text-gray-200">Secondary Keywords</Label>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Add supporting keywords manually or get suggestions. Select up to 7.
+          </p>
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Selected Keywords ({secondaryKeywords.length} of 7):</p>
+          <div className="flex flex-wrap gap-2 mb-2 min-h-[40px] p-2 border rounded-md bg-gray-50 dark:bg-gray-700">
+            {secondaryKeywords.length === 0 && !isGeneratingSecondary && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 italic">No secondary keywords selected.</p>
+            )}
             {secondaryKeywords.map((keyword, index) => (
-              <div key={index} className="bg-gray-100 px-3 py-1 rounded-full text-sm flex items-center">
-                {keyword}
-                <button 
+              <div key={index} className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm flex items-center shadow-sm">
+                <span>{keyword}</span>
+                <button
+                  type="button"
                   onClick={() => {
-                    const updatedKeywords = secondaryKeywords.filter((_, i) => i !== index);
-                    onUpdate('secondaryKeywords', updatedKeywords);
-                  }} 
-                  className="ml-2 text-gray-500 hover:text-red-500"
+                    if (!isGeneratingSecondary) {
+                      const updatedKeywords = secondaryKeywords.filter((_, i) => i !== index);
+                      onUpdate('secondaryKeywords', updatedKeywords);
+                    }
+                  }}
+                  className="ml-2 text-blue-500 hover:text-red-500 focus:outline-none"
+                  aria-label={`Remove ${keyword}`}
+                  disabled={isGeneratingSecondary}
                 >
                   ×
                 </button>
               </div>
             ))}
           </div>
-          <div className="flex items-center gap-2">
-            <p className="text-xs text-gray-500">
-              {secondaryKeywords.length} of 7 added
-            </p>
-          </div>
         </div>
-        
+
         <Button
-          type="button" 
-          variant="outline"
-          onClick={handleSuggestSecondary}
-          className="flex items-center gap-2 mt-1"
-          disabled={isGeneratingSecondary || isGeneratingCombined || !primaryKeyword || !contentConfirmed}
+          type="button"
+          variant="default"
+          onClick={() => handleSuggestSecondaryKeywords(false)}
+          className="flex items-center gap-2 mt-1 w-full sm:w-auto"
+          disabled={!contentConfirmed || isGeneratingSecondary || isGeneratingPrimary}
         >
-          {isGeneratingSecondary || isGeneratingCombined ? (
+          {isGeneratingSecondary ? (
             <>
               <Loader size={16} className="animate-spin" />
-              <span>Generating...</span>
+              <span>Suggesting...</span>
             </>
           ) : (
-            <>
-              <span>🔄</span> Regenerate Secondary Keywords
-            </>
+            "Suggest Secondary Keywords (5)"
           )}
         </Button>
-        
+
         {secondaryKeywordSuggestions.length > 0 && (
-          <div className="mt-3">
-            <p className="text-sm text-gray-500 mb-2">Suggestions (click to select):</p>
+          <div className="mt-4 space-y-3">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Suggestions (click to add/remove, up to 7):</p>
             <div className="flex flex-wrap gap-2">
               {secondaryKeywordSuggestions.map((keyword) => (
-                <div 
+                <div
                   key={keyword.id}
-                  className={`px-3 py-1.5 rounded-full text-sm cursor-pointer ${
-                    secondaryKeywords.includes(keyword.text) 
-                      ? 'bg-purple-600 text-white' 
-                      : 'bg-gray-100 hover:bg-gray-200'
+                  className={`px-3 py-1.5 rounded-full text-sm cursor-pointer transition-all duration-150 ease-in-out ${
+                    secondaryKeywords.includes(keyword.text)
+                      ? 'bg-blue-600 text-white shadow-md scale-105'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200'
                   }`}
-                  onClick={() => handleAddSecondaryKeyword(keyword.text)}
+                  onClick={() => {
+                    if (!isGeneratingSecondary) handleAddSecondaryKeyword(keyword.text);
+                  }}
                 >
                   {keyword.text}
                 </div>
               ))}
             </div>
-          </div>
-        )}
-        
-        {(primaryKeywordSuggestions.length > 0 || secondaryKeywordSuggestions.length > 0) && (
-          <div className="mt-4">
-            <Label className="text-sm">Regeneration Note</Label>
-            <div className="flex gap-2">
-              <Input 
-                type="text"
-                placeholder="Add note for regeneration..."
-                value={regenerationNote}
-                onChange={(e) => setRegenerationNote(e.target.value)}
-                className="flex-1"
-              />
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => {
-                  if (primaryKeywordSuggestions.length > 0) {
-                    handleSuggestPrimary();
-                  } else if (secondaryKeywordSuggestions.length > 0) {
-                    handleSuggestSecondary();
-                  }
-                }}
-              >
-                Regenerate
-              </Button>
+            {/* Secondary Keywords Regeneration Section */}
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <Label htmlFor="secondaryRegenNote" className="text-sm font-medium text-gray-700 dark:text-gray-300">Refine Secondary Suggestions:</Label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Add a note for more targeted secondary keyword suggestions.</p>
+              <div className="flex flex-col sm:flex-row gap-2 items-center">
+                <Input
+                  id="secondaryRegenNote"
+                  type="text"
+                  placeholder="e.g., long-tail, for beginners"
+                  value={secondaryRegenerationNote}
+                  onChange={(e) => setSecondaryRegenerationNote(e.target.value)}
+                  className="flex-1 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                  disabled={isGeneratingSecondary}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSuggestSecondaryKeywords(true)}
+                  disabled={isGeneratingSecondary || !contentConfirmed || !secondaryRegenerationNote.trim()}
+                  className="w-full sm:w-auto"
+                >
+                  {isGeneratingSecondary ? (
+                    <Loader size={16} className="animate-spin" />
+                  ) : (
+                    "Re-generate Secondary"
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         )}
