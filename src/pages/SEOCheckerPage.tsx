@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import SEOChecker from "@/components/SEOChecker";
 import AuthRequired from '@/components/AuthRequired';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@/components/ui/toaster';
 
 const SEOCheckerPage = () => {
   const location = useLocation();
