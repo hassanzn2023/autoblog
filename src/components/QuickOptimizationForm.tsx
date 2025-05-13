@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
@@ -214,13 +213,16 @@ const QuickOptimizationForm = () => {
     });
   };
 
+  // Update handlePrimaryKeywordSelect to also update the input field
   const handlePrimaryKeywordSelect = (keyword: string) => {
     setPrimaryKeyword(keyword);
+    setPrimaryKeywordInput(keyword); // هنا نضيف هذا السطر لتحديث حقل الإدخال عند النقر على كلمة مقترحة
   };
   
   const handlePrimaryKeywordInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPrimaryKeywordInput(e.target.value);
-    setPrimaryKeyword(e.target.value); // Update the main keyword as user types
+    const value = e.target.value;
+    setPrimaryKeywordInput(value);
+    setPrimaryKeyword(value); // تحديث الكلمة الرئيسية أيضًا عند ��لكتابة
   };
 
   const handleSecondaryKeywordToggle = (keyword: string) => {

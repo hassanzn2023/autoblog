@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -38,6 +38,15 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
 
   const [primaryKeywordSuggestions, setPrimaryKeywordSuggestions] = useState<KeywordSuggestion[]>([]);
   const [secondaryKeywordSuggestions, setSecondaryKeywordSuggestions] = useState<KeywordSuggestion[]>([]);
+
+  const [primaryInputValue, setPrimaryInputValue] = useState(primaryKeyword || '');
+
+  // إضافة هذه الدالة لتحديث حقل الإدخال عند كتابة المستخدم
+  const handlePrimaryInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setPrimaryInputValue(value);
+    onUpdate('primaryKeyword', value);
+  };
 
   const handleAddSecondaryKeyword = (keyword: string) => {
     const currentSecondary = secondaryKeywords || [];
@@ -145,6 +154,11 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
     }
   };
 
+  // تحديث قيمة الإدخال الأساسي عندما تتغير الـ primaryKeyword من الخارج
+  useEffect(() => {
+    setPrimaryInputValue(primaryKeyword);
+  }, [primaryKeyword]);
+
   return (
     <div className="space-y-8 animate-fade-in" dir={/[\u0600-\u06FF]/.test(content) ? 'rtl' : 'ltr'}>
       {/* Primary Keywords Section */}
@@ -157,8 +171,8 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
           <Input
             id="primaryKeywordInput"
             type="text"
-            value={primaryKeyword}
-            onChange={(e) => onUpdate('primaryKeyword', e.target.value)}
+            value={primaryInputValue}
+            onChange={handlePrimaryInputChange}
             placeholder="e.g., digital marketing strategies"
             className="w-full bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
             disabled={isGeneratingPrimary}
@@ -195,13 +209,17 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
                       : 'bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200'
                   }`}
                   onClick={() => {
-                    if (!isGeneratingPrimary) onUpdate('primaryKeyword', keyword.text);
+                    if (!isGeneratingPrimary) {
+                      onUpdate('primaryKeyword', keyword.text);
+                      setPrimaryInputValue(keyword.text);
+                    }
                   }}
                 >
                   {keyword.text}
                 </div>
               ))}
             </div>
+            
             {/* Primary Keywords Regeneration Section */}
             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
               <Label htmlFor="primaryRegenNote" className="text-sm font-medium text-gray-700 dark:text-gray-300">Refine Primary Suggestions:</Label>
@@ -306,6 +324,7 @@ const KeywordResearchStep: React.FC<KeywordResearchStepProps> = ({
                 </div>
               ))}
             </div>
+            
             {/* Secondary Keywords Regeneration Section */}
             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
               <Label htmlFor="secondaryRegenNote" className="text-sm font-medium text-gray-700 dark:text-gray-300">Refine Secondary Suggestions:</Label>

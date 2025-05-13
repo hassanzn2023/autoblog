@@ -188,9 +188,10 @@ const ProModeForm = () => {
       
       setSuggestedKeywords(keywords);
       
-      if (keywords.length > 0 && !primaryKeyword) {
-        setPrimaryKeyword(keywords[0].text);
-      }
+      // إزالة السطر التالي الذي يعين تلقائيًا الكلمة الرئيسية
+      // if (keywords.length > 0 && !primaryKeyword) {
+      //   setPrimaryKeyword(keywords[0].text);
+      // }
       
       toast({
         title: "Keywords Generated",
@@ -366,6 +367,10 @@ const ProModeForm = () => {
     } finally {
       setIsLoadingUrl(false);
     }
+  };
+  
+  const handleSecondaryKeywordsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setSecondaryKeywords(e.target.value);
   };
   
   const isAllCompleted = Object.values(completedSteps).every(status => status);
@@ -661,11 +666,11 @@ const ProModeForm = () => {
                         placeholder="Enter your secondary keywords, separated by commas..."
                         rows={2}
                         value={secondaryKeywords}
-                        onChange={(e) => setSecondaryKeywords(e.target.value)}
+                        onChange={handleSecondaryKeywordsChange}
                       />
                       <button 
                         className="seo-button seo-button-secondary h-fit"
-                        onClick={handleSuggestSecondaryKeywords} // Add this onClick handler
+                        onClick={handleSuggestSecondaryKeywords}
                         disabled={!primaryKeyword || !hasRequiredApiKey}
                       >
                         Suggest
