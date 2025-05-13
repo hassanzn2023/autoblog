@@ -49,6 +49,7 @@ const defaultCreditsPerRequest = 1;
 
 const getApiKey = async (userId: string, workspaceId: string): Promise<string | null> => {
   try {
+    console.log(`Getting API key for user ${userId} and workspace ${workspaceId}`);
     // First try to get the user's API key
     const { data, error } = await supabase
       .from('api_keys')
@@ -65,12 +66,19 @@ const getApiKey = async (userId: string, workspaceId: string): Promise<string | 
 
     // Check if we have a valid, active API key
     if (data && data.is_active && data.api_key && data.api_key.trim() !== '') {
+      console.log('Found valid OpenAI API key for user');
       return data.api_key;
     }
 
     // If no valid key found for the user, we could implement a fallback to an admin key here
-    // This could be a future enhancement to fetch from a system_api_keys table or similar
-    console.log('No valid API key found for user');
+    // Try to use the system key from environment variables
+    const systemApiKey = import.meta.env.VITE_OPENAI_API_KEY || '';
+    if (systemApiKey && systemApiKey.trim() !== '') {
+      console.log('Using system OpenAI API key');
+      return systemApiKey;
+    }
+
+    console.log('No valid API key found for user or system');
     return null;
   } catch (error) {
     console.error('Exception getting API key:', error);
@@ -80,6 +88,7 @@ const getApiKey = async (userId: string, workspaceId: string): Promise<string | 
 
 const hasEnoughCredits = async (userId: string, requiredCredits: number = defaultCreditsPerRequest): Promise<boolean> => {
   try {
+    console.log(`Checking if user ${userId} has ${requiredCredits} credits`);
     // Calculate total available credits
     const { data, error } = await supabase
       .from('credits')
@@ -102,11 +111,75 @@ const hasEnoughCredits = async (userId: string, requiredCredits: number = defaul
       }
     }
 
+    console.log(`User ${userId} has ${availableCredits} credits available`);
     return availableCredits >= requiredCredits;
   } catch (error) {
     console.error('Exception checking credits:', error);
     return false;
   }
+};
+
+// الدالة الجديدة التي تستخدم Edge Function لتسجيل استخدام API
+const recordApiUsageWithEdgeFunction = async (
+  userId: string, 
+  workspaceId: string, 
+  creditAmount: number,
+  operationType: string
+): Promise<boolean> => {
+  try {
+    console.log(`Recording API usage via Edge Function: user ${userId}, workspace ${workspaceId}, credits ${creditAmount}, operation ${operationType}`);
+    
+    const { data, error } = await supabase.functions.invoke('track-api-usage', {
+      body: {
+        userId,
+        workspaceId,
+        apiType: 'openai',
+        operation: operationType,
+        credits: creditAmount
+      }
+    });
+    
+    if (error) {
+      console.error('Edge Function error recording API usage:', error);
+      toast({
+        title: "Error Recording Usage",
+        description: error.message || "Failed to record API usage",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
+    if (!data.success) {
+      console.error('Edge Function returned error:', data.error);
+      toast({
+        title: "Error",
+        description: data.error || "Failed to process credits",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
+    console.log('Successfully recorded API usage with Edge Function');
+    return true;
+  } catch (error: any) {
+    console.error('Exception recording API usage with Edge Function:', error);
+    toast({
+      title: "Error",
+      description: error.message || "Failed to record API usage",
+      variant: "destructive"
+    });
+    return false;
+  }
+};
+
+// نستعيض عن الدالة القديمة بالدالة الجديدة لتسجيل استخدام API
+const recordCreditUsage = async (
+  userId: string,
+  workspaceId: string,
+  creditAmount: number,
+  operationType: string
+): Promise<boolean> => {
+  return await recordApiUsageWithEdgeFunction(userId, workspaceId, creditAmount, operationType);
 };
 
 export const generateText = async (
@@ -115,6 +188,7 @@ export const generateText = async (
   workspaceId: string
 ): Promise<string> => {
   try {
+    console.log(`Generating text for user ${userId}, workspace ${workspaceId}`);
     const { prompt, maxTokens = 500, temperature = 0.7, openaiApiKey, systemMessage = '', model = defaultModel } = params;
 
     // Check if user has enough credits
@@ -157,6 +231,7 @@ export const generateText = async (
       content: prompt
     });
 
+    console.log(`Calling OpenAI API with model ${model}`);
     // Call OpenAI API
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -175,7 +250,10 @@ export const generateText = async (
     );
 
     // Record credit usage
-    await recordCreditUsage(userId, workspaceId, defaultCreditsPerRequest, 'text_generation');
+    const usageRecorded = await recordCreditUsage(userId, workspaceId, defaultCreditsPerRequest, 'text_generation');
+    if (!usageRecorded) {
+      console.warn('Failed to record credit usage for text generation');
+    }
 
     return response.data.choices[0].message.content.trim();
   } catch (error: any) {
@@ -204,6 +282,7 @@ export const generateKeywords = async (
   workspaceId: string
 ): Promise<KeywordResponse> => {
   try {
+    console.log(`Generating keywords for user ${userId}, workspace ${workspaceId}`);
     const { content, openaiApiKey, count = 10 } = params;
 
     // Check if user has enough credits
@@ -221,6 +300,7 @@ export const generateKeywords = async (
       }
     }
 
+    console.log('Calling generate-keywords Edge Function');
     // Call our Supabase Edge Function that handles keyword generation
     const { data, error } = await supabase.functions.invoke('generate-keywords', {
       body: { content, apiKey, count },
@@ -232,53 +312,15 @@ export const generateKeywords = async (
     }
 
     // Record credit usage
-    await recordCreditUsage(userId, workspaceId, defaultCreditsPerRequest, 'keyword_generation');
+    const usageRecorded = await recordCreditUsage(userId, workspaceId, defaultCreditsPerRequest, 'keyword_generation');
+    if (!usageRecorded) {
+      console.warn('Failed to record credit usage for keyword generation');
+    }
 
     return { keywords: data?.keywords || [] };
   } catch (error: any) {
     console.error('Error generating keywords:', error);
     return { keywords: [], error: error.message };
-  }
-};
-
-const recordCreditUsage = async (
-  userId: string,
-  workspaceId: string,
-  creditAmount: number,
-  operationType: string
-) => {
-  try {
-    // Record credit usage
-    const { error: creditError } = await supabase
-      .from('credits')
-      .insert({
-        user_id: userId,
-        workspace_id: workspaceId,
-        credit_amount: creditAmount,
-        transaction_type: 'used',
-      } as any);
-
-    if (creditError) {
-      console.error('Error recording credit usage:', creditError.message);
-    }
-
-    // Record API usage
-    const { error: usageError } = await supabase
-      .from('api_usage')
-      .insert({
-        user_id: userId,
-        workspace_id: workspaceId,
-        api_type: 'openai',
-        usage_amount: 1,
-        credits_consumed: creditAmount,
-        operation_type: operationType,
-      } as any);
-
-    if (usageError) {
-      console.error('Error recording API usage:', usageError.message);
-    }
-  } catch (error) {
-    console.error('Exception recording usage:', error);
   }
 };
 
@@ -290,6 +332,7 @@ export const chatWithAI = async (
   model: string = defaultModel
 ): Promise<ChatMessage> => {
   try {
+    console.log(`Chat with AI for user ${userId}, workspace ${workspaceId}`);
     // Check if user has enough credits
     const hasCredits = await hasEnoughCredits(userId);
     if (!hasCredits) {
@@ -315,6 +358,7 @@ export const chatWithAI = async (
       }
     }
 
+    console.log(`Calling OpenAI API with model ${model}`);
     // Call OpenAI API
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -333,7 +377,10 @@ export const chatWithAI = async (
     );
 
     // Record credit usage (2 credits for chat)
-    await recordCreditUsage(userId, workspaceId, 2, 'chat_completion');
+    const usageRecorded = await recordCreditUsage(userId, workspaceId, 2, 'chat_completion');
+    if (!usageRecorded) {
+      console.warn('Failed to record credit usage for chat completion');
+    }
 
     return {
       role: 'assistant',
@@ -369,6 +416,7 @@ export const generateKeywordSuggestions = async (
   workspaceId: string
 ): Promise<KeywordSuggestion[]> => {
   try {
+    console.log(`Generating keyword suggestions for user ${userId}, workspace ${workspaceId}`);
     // Check if user has enough credits
     const hasCredits = await hasEnoughCredits(userId);
     if (!hasCredits) {
@@ -409,7 +457,10 @@ export const generateKeywordSuggestions = async (
     }
 
     // Record credit usage
-    await recordCreditUsage(userId, workspaceId, 1, 'keyword_suggestion');
+    const usageRecorded = await recordCreditUsage(userId, workspaceId, 1, 'keyword_suggestion');
+    if (!usageRecorded) {
+      console.warn('Failed to record credit usage for keyword suggestion');
+    }
 
     // Convert to KeywordSuggestion format
     return (data?.keywords || []).map((keyword: string, index: number) => ({
@@ -438,6 +489,7 @@ export const generateSecondaryKeywordSuggestions = async (
   workspaceId: string
 ): Promise<KeywordSuggestion[]> => {
   try {
+    console.log(`Generating secondary keywords for user ${userId}, workspace ${workspaceId}, primary keyword: ${primaryKeyword}`);
     // Check if user has enough credits
     const hasCredits = await hasEnoughCredits(userId);
     if (!hasCredits) {
@@ -479,7 +531,10 @@ export const generateSecondaryKeywordSuggestions = async (
     }
 
     // Record credit usage
-    await recordCreditUsage(userId, workspaceId, 1, 'secondary_keyword_suggestion');
+    const usageRecorded = await recordCreditUsage(userId, workspaceId, 1, 'secondary_keyword_suggestion');
+    if (!usageRecorded) {
+      console.warn('Failed to record credit usage for secondary keyword suggestion');
+    }
 
     // Convert to KeywordSuggestion format
     return (data?.keywords || []).map((keyword: string, index: number) => ({
