@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useLocation } from 'react-router-dom';
 import SEOChecker from "@/components/SEOChecker";
 import AuthRequired from '@/components/AuthRequired';
@@ -9,13 +9,11 @@ const SEOCheckerPage = () => {
   const { content, primaryKeyword, secondaryKeywords } = location.state || {};
 
   // Debugging the passed props
-  useEffect(() => {
-    console.log("SEOCheckerPage received:", {
-      contentLength: content ? content.length : 0,
-      primaryKeyword,
-      secondaryKeywords,
-    });
-  }, [content, primaryKeyword, secondaryKeywords]);
+  console.log("SEOCheckerPage received:", {
+    contentLength: content ? content.length : 0,
+    primaryKeyword,
+    secondaryKeywords,
+  });
 
   return (
     <AuthRequired>

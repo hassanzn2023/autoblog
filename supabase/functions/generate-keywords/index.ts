@@ -14,11 +14,17 @@ serve(async (req) => {
   }
 
   const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+  if (!OPENAI_API_KEY) {
+    console.error("OPENAI_API_KEY environment variable is not set");
+    return new Response(
+      JSON.stringify({ error: 'OpenAI API key not configured' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
   
   try {
-    const { content, apiKey, count, notes, userId, workspaceId } = await req.json();
+    const { content, count, note, userId, workspaceId } = await req.json();
     
-    // Validate required fields
     if (!content) {
       console.error("Content is required but was not provided");
       return new Response(
@@ -28,53 +34,101 @@ serve(async (req) => {
     }
 
     console.log(`Generating ${count || 3} keyword suggestions`);
+    console.log(`User ID: ${userId ? userId : 'Not provided'}`);
+    console.log(`Workspace ID: ${workspaceId ? workspaceId : 'Not provided'}`);
     console.log(`Content sample: ${content.substring(0, 100)}...`);
     
-    const usedApiKey = apiKey || OPENAI_API_KEY;
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
-    if (!usedApiKey) {
-      console.error("OpenAI API key is required but was not provided");
-      return new Response(
-        JSON.stringify({ error: 'OpenAI API key is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("Supabase environment variables not configured");
+      throw new Error('Supabase environment variables not configured');
     }
     
-    // Record usage metrics if userId and workspaceId provided
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Check if the user is authenticated and has enough credits
     if (userId && workspaceId) {
-      console.log(`User ID: ${userId}`);
-      console.log(`Workspace ID: ${workspaceId}`);
-      
-      // Initialize Supabase client
-      const supabaseUrl = Deno.env.get('SUPABASE_URL');
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-      
-      if (supabaseUrl && supabaseServiceKey) {
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      // Verify API key exists for this workspace
+      const { data: apiKeyData, error: apiKeyError } = await supabase
+        .from('api_keys')
+        .select('api_key')
+        .eq('user_id', userId)
+        .eq('workspace_id', workspaceId)
+        .eq('api_type', 'openai')
+        .eq('is_active', true)
+        .single();
         
-        try {
-          // Record API usage
-          const { error: apiUsageError } = await supabase
-            .from('api_usage')
-            .insert({
-              user_id: userId,
-              workspace_id: workspaceId,
-              api_type: 'openai',
-              usage_amount: 1,
-              credits_consumed: 1,
-              operation_type: 'generate_keywords'
-            });
-            
-          if (apiUsageError) {
-            console.error("Error recording API usage:", apiUsageError);
-          } else {
-            console.log("API usage recorded successfully");
-          }
-        } catch (error) {
-          console.error("Error recording usage:", error);
-        }
+      if (apiKeyError) {
+        console.error("Error fetching API key:", apiKeyError);
+        console.error("Will attempt to use system API key instead");
+      } else {
+        console.log("User API key found");
       }
+      
+      // Check credits - verify user has enough credits
+      const { data: hasEnoughCredits, error: creditsError } = await supabase.rpc(
+        'check_user_has_credits',
+        { user_id_param: userId, required_credits: 5 }
+      );
+      
+      if (creditsError) {
+        console.error("Error checking credits:", creditsError);
+      }
+      
+      if (!hasEnoughCredits && !creditsError) {
+        console.error("User doesn't have enough credits");
+        return new Response(
+          JSON.stringify({ error: 'Insufficient credits' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Record API usage even with system API key
+      try {
+        const { error: creditUsageError } = await supabase
+          .from('credits')
+          .insert({
+            user_id: userId,
+            workspace_id: workspaceId,
+            credit_amount: 5,
+            transaction_type: 'used'
+          });
+          
+        if (creditUsageError) {
+          console.error("Error recording credit usage:", creditUsageError);
+        } else {
+          console.log("Credit usage recorded successfully");
+        }
+        
+        const { error: apiUsageError } = await supabase
+          .from('api_usage')
+          .insert({
+            user_id: userId,
+            workspace_id: workspaceId,
+            api_type: 'openai',
+            usage_amount: 1,
+            credits_consumed: 5,
+            operation_type: 'generate_keywords'
+          });
+          
+        if (apiUsageError) {
+          console.error("Error recording API usage:", apiUsageError);
+        } else {
+          console.log("API usage recorded successfully");
+        }
+      } catch (error) {
+        console.error("Error recording usage:", error);
+      }
+    } else {
+      console.log("User not authenticated or no workspace ID provided");
     }
+    
+    // Generate keyword suggestions using OpenAI
+    const keywordCount = count || 3;
     
     // Clean content (remove HTML tags if present)
     const cleanContent = content.replace(/<[^>]*>/g, ' ');
@@ -91,16 +145,9 @@ serve(async (req) => {
       ? 'أنت مساعد متخصص في تحليل المحتوى واستخراج الكلمات المفتاحية المهمة. قم باستخراج الكلمات المفتاحية الأكثر صلة وأهمية من المحتوى المقدم.'
       : 'You are a specialized assistant in content analysis and extracting important keywords. Extract the most relevant and important keywords from the provided content.';
     
-    // Add notes to the prompt if provided
-    let userPrompt = hasArabicText
-      ? `استخرج ${count || 3} كلمات مفتاحية مهمة من هذا المحتوى واعرضها فقط كمصفوفة JSON تحت اسم "keywords" دون أي تعليقات أو توضيحات إضافية:\n\n${textSample}`
-      : `Extract ${count || 3} important keywords from this content and return them only as a JSON array named "keywords" without any additional comments or explanations:\n\n${textSample}`;
-      
-    if (notes) {
-      userPrompt += hasArabicText
-        ? `\n\nملاحظات إضافية: ${notes}`
-        : `\n\nAdditional notes: ${notes}`;
-    }
+    const userPrompt = hasArabicText
+      ? `استخرج ${keywordCount} كلمات مفتاحية مهمة من هذا المحتوى واعرضها فقط كمصفوفة JSON تحت اسم "keywords" دون أي تعليقات أو توضيحات إضافية:\n\n${textSample}`
+      : `Extract ${keywordCount} important keywords from this content and return them only as a JSON array named "keywords" without any additional comments or explanations:\n\n${textSample}`;
     
     console.log("Calling OpenAI API...");
     
@@ -109,7 +156,7 @@ serve(async (req) => {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${usedApiKey}`,
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

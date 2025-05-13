@@ -390,9 +390,7 @@ export const generateKeywordSuggestions = async (
         content, 
         apiKey, 
         count,
-        notes,
-        userId,
-        workspaceId
+        notes
       },
     });
 
@@ -403,15 +401,8 @@ export const generateKeywordSuggestions = async (
 
     // Record credit usage
     await recordCreditUsage(userId, workspaceId, 1, 'keyword_suggestion');
-    
-    console.log('Generated keywords:', data);
 
-    // Return data directly if it's already in the correct format
-    if (Array.isArray(data) && data.length > 0 && data[0].id && data[0].text) {
-      return data;
-    }
-
-    // Convert to KeywordSuggestion format if needed
+    // Convert to KeywordSuggestion format
     return (data?.keywords || []).map((keyword: string, index: number) => ({
       id: `kw-${Date.now()}-${index}`,
       text: keyword,
@@ -469,9 +460,7 @@ export const generateSecondaryKeywordSuggestions = async (
         content, 
         apiKey, 
         count,
-        notes,
-        userId,
-        workspaceId
+        notes
       },
     });
 
@@ -482,13 +471,6 @@ export const generateSecondaryKeywordSuggestions = async (
 
     // Record credit usage
     await recordCreditUsage(userId, workspaceId, 1, 'secondary_keyword_suggestion');
-    
-    console.log('Generated secondary keywords:', data);
-
-    // Return data directly if it's already in the correct format
-    if (Array.isArray(data) && data.length > 0 && data[0].id && data[0].text) {
-      return data;
-    }
 
     // Convert to KeywordSuggestion format
     return (data?.keywords || []).map((keyword: string, index: number) => ({
