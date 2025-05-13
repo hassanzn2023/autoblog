@@ -60,10 +60,6 @@ const QuickOptimizationForm = () => {
   // Determine if the content is RTL or LTR
   const [isRtlContent, setIsRtlContent] = useState(false);
 
-  // New state for manual secondary keyword input
-  const [manualSecondaryKeywordInput, setManualSecondaryKeywordInput] = useState('');
-
-
   // Update RTL detection when content changes
   useEffect(() => {
     setIsRtlContent(isRTL(content));
@@ -210,50 +206,6 @@ const QuickOptimizationForm = () => {
     }
   };
 
-  // Handle manual secondary keyword input (on Enter key press)
-  const handleManualSecondaryKeywordInput = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault(); // Prevent default form submission
-
-      const keyword = manualSecondaryKeywordInput.trim();
-
-      if (!keyword) {
-        // Ignore empty input
-        return;
-      }
-
-      if (secondaryKeywords.length >= 5) {
-        toast({
-          title: "Maximum Keywords Reached",
-          description: "You can add up to 5 secondary keywords.",
-          variant: "default"
-        });
-        return;
-      }
-
-      // Check for duplicates (case-insensitive comparison)
-      if (secondaryKeywords.some(k => k.toLowerCase() === keyword.toLowerCase())) {
-           toast({
-            title: "Duplicate Keyword",
-            description: `"${keyword}" is already added.`,
-            variant: "default"
-          });
-        setManualSecondaryKeywordInput(''); // Clear input anyway
-        return;
-      }
-
-      // Add the keyword to the array
-      setSecondaryKeywords([...secondaryKeywords, keyword]);
-      setManualSecondaryKeywordInput(''); // Clear the input field
-
-      // Optional success toast
-      // toast({
-      //   title: "Keyword Added",
-      //   description: `"${keyword}" added manually.`,
-      // });
-    }
-  };
-
 
   // Primary keyword generation (triggered by button)
   const handleGeneratePrimaryKeywords = async () => {
@@ -276,7 +228,7 @@ const QuickOptimizationForm = () => {
 
 
     setIsGeneratingPrimary(true);
-    setShowPrimaryKeywordSuggestions(true); // Show suggestions box when generating
+    setShowPrimaryKeywordSuggestions(true);
 
     try {
       console.log("Generating primary keywords for content with length:", content.length);
@@ -293,7 +245,8 @@ const QuickOptimizationForm = () => {
       if (suggestions && suggestions.length > 0) {
         setPrimaryKeywordSuggestions(suggestions);
 
-        // Auto-select the first keyword if none is selected (optional, keep or remove based on desired UX)
+        // Auto-select the first keyword if none is selected
+        // You might want to remove this auto-select too if you want manual selection only
         if (!primaryKeyword) {
            setPrimaryKeyword(suggestions[0].text);
         }
@@ -324,10 +277,10 @@ const QuickOptimizationForm = () => {
 
   // Secondary keyword generation (triggered by button)
   const handleGenerateSecondaryKeywords = async () => {
-    if (!primaryKeyword || !contentConfirmed) { // Must have primary keyword and confirmed content
+    if (!primaryKeyword || !content) {
       toast({
         title: "Information Required",
-        description: "Please confirm your content and add a primary keyword first.",
+        description: "Please confirm your content and select a primary keyword first.",
         variant: "destructive"
       });
       return;
@@ -343,7 +296,7 @@ const QuickOptimizationForm = () => {
 
 
     setIsGeneratingSecondary(true);
-    setShowSecondaryKeywordSuggestions(true); // Show suggestions box when generating
+    setShowSecondaryKeywordSuggestions(true);
 
     try {
       console.log("Generating secondary keywords for primary keyword:", primaryKeyword);
@@ -420,7 +373,7 @@ const QuickOptimizationForm = () => {
         state: {
           content,
           primaryKeyword,
-          secondaryKeywords // Pass the combined list of keywords
+          secondaryKeywords
         }
       });
       setIsOptimizing(false);
@@ -794,7 +747,6 @@ const QuickOptimizationForm = () => {
               </div>
             )}
 
-             {/* THIS IS THE CORRECTED LOCATION FOR THE CONFIRMED MESSAGE */}
             {contentConfirmed && (
               <div className="flex items-center text-green-600 mt-4">
                 <CheckIcon className="mr-2" />
@@ -818,12 +770,11 @@ const QuickOptimizationForm = () => {
                   placeholder="Enter your main keyword..."
                   value={primaryKeyword}
                   onChange={(e) => setPrimaryKeyword(e.target.value)}
-                  disabled={!contentConfirmed} // Disable if content not confirmed
                 />
                 <button
                   className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md flex items-center gap-1 transition-colors"
                   onClick={handleGeneratePrimaryKeywords} // Trigger generation on button click
-                  disabled={!contentConfirmed || isGeneratingPrimary} // Disabled if content not confirmed or generating
+                  disabled={!contentConfirmed || isGeneratingPrimary}
                 >
                   {isGeneratingPrimary ? (
                     <Loader size={16} className="mr-2 animate-spin text-gray-600" />
@@ -869,13 +820,12 @@ const QuickOptimizationForm = () => {
                         placeholder="Regeneration note..."
                         value={regenerationNote}
                         onChange={(e) => setRegenerationNote(e.target.value)}
-                        disabled={isGeneratingPrimary} // Disable note input while generating
                       />
                     </div>
                     <button
                       className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md flex items-center gap-1 transition-colors"
                       onClick={handleGeneratePrimaryKeywords}
-                      disabled={isGeneratingPrimary || !contentConfirmed} // Disable if generating or content not confirmed
+                      disabled={isGeneratingPrimary}
                     >
                       {isGeneratingPrimary ? (
                         <Loader size={16} className="animate-spin" />
@@ -891,59 +841,33 @@ const QuickOptimizationForm = () => {
 
             <div className="space-y-2">
               <label className="block font-medium">Secondary Keywords (Optional):</label>
-              <div className="flex gap-2 items-start"> {/* Use items-start for better alignment */}
-                 <div className="flex-1 space-y-2"> {/* Container for manual input and display area */}
-                   {/* Manual Input Field */}
-                   <input
-                     type="text"
-                     value={manualSecondaryKeywordInput}
-                     onChange={(e) => setManualSecondaryKeywordInput(e.target.value)}
-                     onKeyDown={handleManualSecondaryKeywordInput} // Handle Enter key
-                     placeholder={secondaryKeywords.length >= 5 ? "Maximum 5 keywords reached" : "Type a keyword and press Enter"}
-                     className="w-full p-3 border border-gray-300 rounded-md" // Match other input styles
-                     disabled={secondaryKeywords.length >= 5 || !contentConfirmed || !primaryKeyword} // Disable if max reached, content not confirmed, or no primary keyword
-                   />
-
-                   {/* Display Area for Selected Keywords (Manual + Suggested) */}
-                   <div className="p-3 border border-gray-300 rounded-md min-h-[80px] bg-white">
-                     {secondaryKeywords.length > 0 ? (
-                       <div className="flex flex-wrap gap-2">
-                         {secondaryKeywords.map((keyword, index) => (
-                           <div
-                             key={index} // Use index if no unique id for manual keywords
-                             className="bg-gray-100 px-2 py-1 rounded-md flex items-center gap-1"
-                           >
-                             <span>{keyword}</span>
-                             <button
-                               onClick={() => handleSecondaryKeywordToggle(keyword)} // Use the existing toggle to remove
-                               className="text-gray-500 hover:text-red-500"
-                             >
-                               <X size={14} />
-                             </button>
-                           </div>
-                         ))}
-                       </div>
-                     ) : (
-                       <span className="text-gray-400">Select up to 5 secondary keywords or type and press Enter</span>
-                     )}
-                   </div>
-                    {secondaryKeywords.length >= 5 && (
-                        <p className="text-xs text-gray-500 mt-1">Maximum 5 keywords reached.</p>
-                     )}
-                 </div>
-
-                {/* Suggest Button for Secondary Keywords */}
+              <div className="flex gap-2">
+                <div className="flex-1 p-3 border border-gray-300 rounded-md min-h-[80px] bg-white">
+                  {secondaryKeywords.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {secondaryKeywords.map((keyword, index) => (
+                        <div
+                          key={index}
+                          className="bg-gray-100 px-2 py-1 rounded-md flex items-center gap-1"
+                        >
+                          <span>{keyword}</span>
+                          <button
+                            onClick={() => handleSecondaryKeywordToggle(keyword)}
+                            className="text-gray-500 hover:text-red-500"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">Select up to 5 secondary keywords</span>
+                  )}
+                </div>
                 <button
-                  className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md h-fit flex items-center gap-1 transition-colors mt-0" // Adjust margin-top
-                  onClick={() => {
-                    // Only generate if suggestions are not shown, otherwise just toggle view
-                    if (!showSecondaryKeywordSuggestions) {
-                        handleGenerateSecondaryKeywords();
-                    } else {
-                        setShowSecondaryKeywordSuggestions(false); // Hide suggestions if already showing
-                    }
-                  }}
-                  disabled={!primaryKeyword || isGeneratingSecondary || !contentConfirmed} // Disable if no primary, generating, or content not confirmed
+                  className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md h-fit flex items-center gap-1 transition-colors"
+                  onClick={handleGenerateSecondaryKeywords} // Trigger generation on button click
+                  disabled={!primaryKeyword || isGeneratingSecondary}
                 >
                    {isGeneratingSecondary ? (
                     <Loader size={16} className="mr-2 animate-spin text-gray-600" />
@@ -954,7 +878,6 @@ const QuickOptimizationForm = () => {
                 </button>
               </div>
 
-              {/* Suggestions box for secondary keywords */}
               {showSecondaryKeywordSuggestions && (
                 <div className="mt-3 p-4 border border-gray-200 rounded-lg bg-white shadow-sm">
                   <div className="mb-3 font-medium">Suggested (select multiple, max 5):</div>
@@ -994,15 +917,14 @@ const QuickOptimizationForm = () => {
                           placeholder="Regeneration note..."
                           value={regenerationNote}
                           onChange={(e) => setRegenerationNote(e.target.value)}
-                           disabled={isGeneratingSecondary} // Disable note input while generating
                         />
-                        {/* <Pencil size={16} className="text-gray-400" /> {/* Removed redundant pencil icon */}
+                        <Pencil size={16} className="text-gray-400" />
                       </div>
                     </div>
                     <button
                       className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md flex items-center gap-1 transition-colors"
                       onClick={handleGenerateSecondaryKeywords}
-                      disabled={isGeneratingSecondary || !primaryKeyword || !contentConfirmed} // Disable appropriately
+                      disabled={isGeneratingSecondary}
                     >
                       {isGeneratingSecondary ? (
                         <Loader size={16} className="animate-spin" />
@@ -1018,12 +940,11 @@ const QuickOptimizationForm = () => {
           </div>
         </div>
 
-        {/* Start Optimization Button */}
         <Button
           variant="seoButton"
           className="w-full text-center py-3"
           onClick={handleStartOptimization}
-          disabled={isOptimizing || !contentConfirmed || !primaryKeyword.trim()} // Disable if optimizing, content not confirmed, or primary keyword is empty
+          disabled={isOptimizing}
         >
           {isOptimizing ? (
             <div className="flex items-center justify-center">
@@ -1039,7 +960,6 @@ const QuickOptimizationForm = () => {
   );
 };
 
-// Re-using the existing CheckIcon component
 const CheckIcon = ({ className = "" }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
