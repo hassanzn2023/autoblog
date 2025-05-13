@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import axios from 'axios';
@@ -48,21 +49,29 @@ const defaultCreditsPerRequest = 1;
 
 const getApiKey = async (userId: string, workspaceId: string): Promise<string | null> => {
   try {
+    // First try to get the user's API key
     const { data, error } = await supabase
       .from('api_keys')
-      .select('api_key')
+      .select('api_key, is_active')
       .eq('user_id', userId as any)
       .eq('workspace_id', workspaceId as any)
       .eq('api_type', 'openai' as any)
-      .eq('is_active', true)
       .single();
 
-    if (error || !data) {
+    if (error) {
       console.error('Error getting API key:', error?.message);
       return null;
     }
 
-    return data.api_key;
+    // Check if we have a valid, active API key
+    if (data && data.is_active && data.api_key && data.api_key.trim() !== '') {
+      return data.api_key;
+    }
+
+    // If no valid key found for the user, we could implement a fallback to an admin key here
+    // This could be a future enhancement to fetch from a system_api_keys table or similar
+    console.log('No valid API key found for user');
+    return null;
   } catch (error) {
     console.error('Exception getting API key:', error);
     return null;

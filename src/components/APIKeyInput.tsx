@@ -25,7 +25,8 @@ const APIKeyInput: React.FC<APIKeyInputProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   
   const existingKey = getAPIKey(type);
-  const hasStoredKey = !!existingKey;
+  const hasStoredKey = !!existingKey && existingKey.api_key && existingKey.api_key.trim() !== '';
+  const hasEmptyKey = !!existingKey && (!existingKey.api_key || existingKey.api_key.trim() === '');
 
   const handleSave = async () => {
     if (!apiKey.trim() && !hasStoredKey) return;
@@ -47,6 +48,11 @@ const APIKeyInput: React.FC<APIKeyInputProps> = ({
         {hasStoredKey && (
           <div className="bg-green-100 text-green-800 text-xs py-1 px-2 rounded-full flex items-center">
             Active
+          </div>
+        )}
+        {hasEmptyKey && (
+          <div className="bg-amber-100 text-amber-800 text-xs py-1 px-2 rounded-full flex items-center">
+            Pending
           </div>
         )}
       </div>
@@ -76,7 +82,14 @@ const APIKeyInput: React.FC<APIKeyInputProps> = ({
         </Button>
       </div>
       
-      {!hasStoredKey && (
+      {hasEmptyKey && (
+        <div className="flex items-center gap-2 text-amber-600 text-sm">
+          <AlertCircle size={16} />
+          <span>API key record exists but needs a value. Set one here or ask an admin to set it for you.</span>
+        </div>
+      )}
+      
+      {!hasStoredKey && !hasEmptyKey && (
         <div className="flex items-center gap-2 text-amber-600 text-sm">
           <AlertCircle size={16} />
           <span>Required for {type === 'openai' ? 'AI-powered features' : 'image analysis'}</span>
