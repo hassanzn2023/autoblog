@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label'; //   <--- إضافة هذا السطر
-import { Input } from '@/components/ui/input'; //   <--- إضافة هذا السطر
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { Search, X, Loader, RefreshCw, Pencil, Link as LinkIcon, ExternalLink, AlertTriangle, Upload, FileText, Check } from 'lucide-react';
@@ -123,7 +124,6 @@ const QuickOptimizationForm = () => {
           setIsRtlContent(isRTL(extractedContent.textContent || ''));
         }
 
-
         toast({
           title: "Content Extracted",
           description: `Successfully extracted content from "${extractedContent.title || 'URL'}"`,
@@ -152,7 +152,6 @@ const QuickOptimizationForm = () => {
       setIsLoadingUrl(false);
     }
   };
-
 
   const handleContentConfirm = async () => {
     if (contentMethod === 'link' && !content && url) {
@@ -223,7 +222,6 @@ const QuickOptimizationForm = () => {
     }
   };
 
-
   // Primary keyword generation (triggered by button)
   const handleGeneratePrimaryKeywords = async () => {
     if (!content) {
@@ -242,7 +240,6 @@ const QuickOptimizationForm = () => {
       });
       return;
     }
-
 
     setIsGeneratingPrimary(true);
     setShowPrimaryKeywordSuggestions(true);
@@ -311,7 +308,6 @@ const QuickOptimizationForm = () => {
       return;
     }
 
-
     setIsGeneratingSecondary(true);
     setShowSecondaryKeywordSuggestions(true);
 
@@ -375,7 +371,6 @@ const QuickOptimizationForm = () => {
       });
       return;
     }
-
 
     // Show loading state only in button
     setIsOptimizing(true);
@@ -495,7 +490,6 @@ const QuickOptimizationForm = () => {
     }
   };
 
-
   return (
     <div className="max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Quick SEO Optimization</h1>
@@ -554,7 +548,7 @@ const QuickOptimizationForm = () => {
                     formats={formats}
                     readOnly={contentConfirmed}
                     placeholder="Paste your article content here..."
-                     className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'}`}
+                    className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'}`}
                   />
                 </div>
 
@@ -632,11 +626,12 @@ const QuickOptimizationForm = () => {
                         <LinkIcon size={16} className="mr-2" />
                         <span>Content from URL</span>
                       </div>
-                       <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-500">
                         You can edit the extracted content below
                       </div>
                     </div>
-                     <div className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'}`}>
+
+                    <div className="quill-container url-content-container">
                       <ReactQuill
                         theme="snow"
                         value={content}
@@ -644,9 +639,9 @@ const QuickOptimizationForm = () => {
                         modules={modules}
                         formats={formats}
                         placeholder="Edit content from URL here..."
-                        className="mb-4"
+                        className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'}`}
                       />
-                     </div>
+                    </div>
 
                     <div className="text-center mt-6">
                       <Button
@@ -726,41 +721,41 @@ const QuickOptimizationForm = () => {
                   </div>
                 )}
 
-                 {content && contentMethod === 'file' && !contentConfirmed && (
-                   <div className="mt-4">
-                     <div className="mb-2 flex items-center justify-between">
-                       <div className="font-medium flex items-center">
-                         <FileText size={16} className="mr-2" />
-                         <span>Content from Document</span>
-                       </div>
-                       <div className="text-xs text-gray-500">
+                {content && contentMethod === 'file' && !contentConfirmed && (
+                  <div className="mt-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="font-medium flex items-center">
+                        <FileText size={16} className="mr-2" />
+                        <span>Content from Document</span>
+                      </div>
+                      <div className="text-xs text-gray-500">
                         You can edit the extracted content below
                       </div>
-                     </div>
+                    </div>
 
-                     <div className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'}`}>
-                       <ReactQuill
-                         theme="snow"
-                         value={content}
-                         onChange={setContent}
-                         modules={modules}
-                         formats={formats}
-                         placeholder="Edit content from document here..."
-                         className="mb-4"
-                       />
-                     </div>
+                    <div className="quill-container file-upload-container">
+                      <ReactQuill
+                        theme="snow"
+                        value={content}
+                        onChange={setContent}
+                        modules={modules}
+                        formats={formats}
+                        placeholder="Edit content from document here..."
+                        className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'}`}
+                      />
+                    </div>
 
-                     <div className="text-center mt-6">
-                       <Button
-                         variant="seoButton"
-                         onClick={handleContentConfirm}
-                         className="z-10 relative"
-                       >
-                         Confirm Content
-                       </Button>
-                     </div>
-                   </div>
-                 )}
+                    <div className="text-center mt-6">
+                      <Button
+                        variant="seoButton"
+                        onClick={handleContentConfirm}
+                        className="z-10 relative"
+                      >
+                        Confirm Content
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

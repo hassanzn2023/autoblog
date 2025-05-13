@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Link, Upload, RefreshCw, Search, Pencil, AlertTriangle, Check, Loader } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   generateKeywordSuggestions, 
   generateSecondaryKeywordSuggestions
@@ -574,28 +574,30 @@ const SEOCheckerResult = () => {
                 {activeCategory || "Recommendations"}
               </h2>
               
-              <div className="space-y-1">
-                {!analysisFailed && activeCategory && seoAnalysis 
-                  ? getFilteredRecommendations().map((rec, index) => (
-                    <Recommendation 
-                      key={index}
-                      severity={rec.severity}
-                      text={rec.text}
-                      solution={rec.solution}
-                      action={rec.action}
-                    />
-                  ))
-                  : recommendations.map((rec, index) => (
-                    <Recommendation 
-                      key={index}
-                      severity={rec.severity}
-                      text={rec.text}
-                      solution={rec.solution}
-                      action={rec.action}
-                    />
-                  ))
-                }
-              </div>
+              <ScrollArea className="h-[300px]">
+                <div className="space-y-1 pr-3">
+                  {!analysisFailed && activeCategory && seoAnalysis 
+                    ? getFilteredRecommendations().map((rec, index) => (
+                      <Recommendation 
+                        key={index}
+                        severity={rec.severity}
+                        text={rec.text}
+                        solution={rec.solution}
+                        action={rec.action}
+                      />
+                    ))
+                    : recommendations.map((rec, index) => (
+                      <Recommendation 
+                        key={index}
+                        severity={rec.severity}
+                        text={rec.text}
+                        solution={rec.solution}
+                        action={rec.action}
+                      />
+                    ))
+                  }
+                </div>
+              </ScrollArea>
               
               <Button variant="seoButton" className="w-full mt-6">
                 Improve SEO (Beta)
@@ -605,7 +607,7 @@ const SEOCheckerResult = () => {
           
           <div className="md:col-span-3">
             <div className="bg-white rounded-lg border border-gray-200 p-6 h-full shadow-sm hover:shadow-md transition-shadow">
-              <div className="h-full">
+              <div className="content-display-container">
                 <ReactQuill 
                   value={content} 
                   readOnly={true}
