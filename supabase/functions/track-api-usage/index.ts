@@ -37,19 +37,16 @@ serve(async (req) => {
       );
     }
     
-    console.log(`Processing API usage tracking for user ${userId}, workspace ${workspaceId}, operation: ${operation}, credits: ${credits}`);
-    
     // Check if user has enough credits
     const { data: creditsData, error: creditsError } = await supabaseClient.rpc(
       'check_user_has_credits',
       { user_id_param: userId, required_credits: credits }
     );
     
-    if (creditsError) {
-      console.error('Error checking credits:', creditsError);
+    if (creditsError || !creditsData) {
       return new Response(
         JSON.stringify({
-          error: 'Error checking credits',
+          error: 'Error checking credits or insufficient credits',
           details: creditsError
         }),
         {
@@ -62,24 +59,7 @@ serve(async (req) => {
       );
     }
     
-    if (!creditsData) {
-      console.log('Insufficient credits for user:', userId);
-      return new Response(
-        JSON.stringify({
-          error: 'Insufficient credits',
-          details: 'User does not have enough credits for this operation'
-        }),
-        {
-          status: 400,
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-    }
-    
-    // Record credit usage using service role client (bypasses RLS)
+    // Record credit usage
     const { error: creditUsageError } = await supabaseClient
       .from('credits')
       .insert({
@@ -90,7 +70,6 @@ serve(async (req) => {
       });
       
     if (creditUsageError) {
-      console.error('Error recording credit usage:', creditUsageError);
       return new Response(
         JSON.stringify({
           error: 'Error recording credit usage',
@@ -106,9 +85,7 @@ serve(async (req) => {
       );
     }
     
-    console.log(`Successfully recorded credit usage for user ${userId}`);
-    
-    // Record API usage using service role client (bypasses RLS)
+    // Record API usage
     const { error: apiUsageError } = await supabaseClient
       .from('api_usage')
       .insert({
@@ -121,7 +98,6 @@ serve(async (req) => {
       });
       
     if (apiUsageError) {
-      console.error('Error recording API usage:', apiUsageError);
       return new Response(
         JSON.stringify({
           error: 'Error recording API usage',
@@ -137,8 +113,6 @@ serve(async (req) => {
       );
     }
     
-    console.log(`Successfully recorded API usage for user ${userId}, operation: ${operation}`);
-    
     return new Response(
       JSON.stringify({
         success: true,
@@ -153,7 +127,6 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Unexpected error:', error);
     return new Response(
       JSON.stringify({
         error: 'Internal server error',
