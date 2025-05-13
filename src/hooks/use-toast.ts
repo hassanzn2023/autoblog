@@ -2,19 +2,22 @@
 import * as React from "react"
 
 import {
-  Toast,
-  ToastActionElement,
   ToastProps,
+  ToastActionElement,
 } from "@/components/ui/toast"
 
 const TOAST_LIMIT = 5
 const TOAST_REMOVE_DELAY = 5000
 
-export interface ToasterToast extends Omit<Toast, "id"> {
+export interface ToasterToast {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  variant?: "default" | "destructive" | "success" | "warning"
+  className?: string
 }
 
 const actionTypes = {
@@ -137,7 +140,7 @@ function dispatch(action: Action) {
   })
 }
 
-export interface ToastParams extends Omit<ToasterToast, "id"> {}
+export interface ToastParams extends Partial<Omit<ToasterToast, "id">> {}
 
 function toast(props: ToastParams) {
   const id = genId()
@@ -158,7 +161,7 @@ function toast(props: ToastParams) {
       onOpenChange: (open) => {
         if (!open) dismiss()
       },
-    },
+    } as ToasterToast,
   })
 
   return {
