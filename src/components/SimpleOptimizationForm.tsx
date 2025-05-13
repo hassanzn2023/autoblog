@@ -8,7 +8,12 @@ import 'react-quill/dist/quill.snow.css';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { generateKeywordSuggestions, generateSecondaryKeywordSuggestions, KeywordSuggestion } from '@/services/openaiService';
+import { 
+  generateCombinedKeywords,
+  generateKeywordSuggestions, 
+  generateSecondaryKeywordSuggestions, 
+  KeywordSuggestion 
+} from '@/services/openaiService';
 import { extractContentFromUrl } from '@/services/contentExtractorService';
 import { parseWordDocument } from '@/services/documentParserService';
 
@@ -27,11 +32,9 @@ const SimpleOptimizationForm = () => {
   const [isRtlContent, setIsRtlContent] = useState(false);
   const [primaryKeywordSuggestions, setPrimaryKeywordSuggestions] = useState<KeywordSuggestion[]>([]);
   const [secondaryKeywordSuggestions, setSecondaryKeywordSuggestions] = useState<KeywordSuggestion[]>([]);
-  const [isGeneratingPrimary, setIsGeneratingPrimary] = useState(false);
-  const [isGeneratingSecondary, setIsGeneratingSecondary] = useState(false);
+  const [isGeneratingKeywords, setIsGeneratingKeywords] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isAutoGeneratingKeywords, setIsAutoGeneratingKeywords] = useState(false);
   
   // Detection for RTL text
   useEffect(() => {
@@ -133,6 +136,54 @@ const SimpleOptimizationForm = () => {
     }
   };
   
+  // Combined function to generate both primary and secondary keywords at once
+  const generateKeywords = async () => {
+    if (!user || !currentWorkspace) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to generate keywords with AI",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setIsGeneratingKeywords(true);
+      
+      console.log("Generating keywords with user:", user.id);
+      console.log("Current workspace:", currentWorkspace.id);
+      
+      const result = await generateCombinedKeywords(
+        content,
+        3, // primary count
+        5, // secondary count
+        "",
+        user.id,
+        currentWorkspace.id
+      );
+      
+      // Update state with the results
+      if (result.primaryKeywords.length > 0) {
+        setPrimaryKeywordSuggestions(result.primaryKeywords);
+        setPrimaryKeyword(result.primaryKeywords[0].text);
+      }
+      
+      if (result.secondaryKeywords.length > 0) {
+        setSecondaryKeywordSuggestions(result.secondaryKeywords);
+      }
+      
+    } catch (error) {
+      console.error("Error generating keywords:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate keyword suggestions",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingKeywords(false);
+    }
+  };
+  
   const handleContentConfirm = async () => {
     if (contentMethod === 'link' && !content) {
       await handleUrlExtraction();
@@ -154,30 +205,15 @@ const SimpleOptimizationForm = () => {
       description: "Content has been confirmed",
     });
     
-    // Auto-generate primary keywords immediately after content is confirmed
-    setIsAutoGeneratingKeywords(true);
-    try {
-      await handleGeneratePrimaryKeywords();
-      toast({
-        title: "Keywords Generated",
-        description: "Keywords have been automatically generated based on your content",
-      });
-    } catch (error) {
-      console.error("Error auto-generating keywords:", error);
-      toast({
-        title: "Error",
-        description: "Failed to automatically generate keywords. Please try generating them manually.",
-        variant: "destructive"
-      });
-      setIsAutoGeneratingKeywords(false);
-    }
+    // Auto-generate keywords immediately after content is confirmed
+    generateKeywords();
   };
   
   const handleGeneratePrimaryKeywords = async () => {
     if (!content) return;
     
     try {
-      setIsGeneratingPrimary(true);
+      setIsGeneratingKeywords(true);
       
       if (!user || !currentWorkspace) {
         toast({
@@ -185,8 +221,7 @@ const SimpleOptimizationForm = () => {
           description: "Please log in to generate keywords with AI",
           variant: "destructive"
         });
-        setIsGeneratingPrimary(false);
-        setIsAutoGeneratingKeywords(false);
+        setIsGeneratingKeywords(false);
         return;
       }
       
@@ -206,9 +241,6 @@ const SimpleOptimizationForm = () => {
         
         if (suggestions.length > 0 && !primaryKeyword) {
           setPrimaryKeyword(suggestions[0].text);
-          
-          // Auto-generate secondary keywords based on the first primary keyword
-          handleGenerateSecondaryKeywords(suggestions[0].text);
         }
       } else {
         toast({
@@ -225,16 +257,15 @@ const SimpleOptimizationForm = () => {
         variant: "destructive"
       });
     } finally {
-      setIsGeneratingPrimary(false);
-      setIsAutoGeneratingKeywords(false);
+      setIsGeneratingKeywords(false);
     }
   };
   
-  const handleGenerateSecondaryKeywords = async (primaryKey: string = primaryKeyword) => {
-    if (!primaryKey || !content) return;
+  const handleGenerateSecondaryKeywords = async () => {
+    if (!primaryKeyword || !content) return;
     
     try {
-      setIsGeneratingSecondary(true);
+      setIsGeneratingKeywords(true);
       
       if (!user || !currentWorkspace) {
         toast({
@@ -242,16 +273,16 @@ const SimpleOptimizationForm = () => {
           description: "Please log in to generate secondary keywords with AI",
           variant: "destructive"
         });
-        setIsGeneratingSecondary(false);
+        setIsGeneratingKeywords(false);
         return;
       }
       
       console.log("Generating secondary keywords with user:", user.id);
       console.log("Current workspace:", currentWorkspace.id);
-      console.log("Primary keyword:", primaryKey);
+      console.log("Primary keyword:", primaryKeyword);
       
       const suggestions = await generateSecondaryKeywordSuggestions(
-        primaryKey,
+        primaryKeyword,
         content,
         5,
         "",
@@ -276,13 +307,12 @@ const SimpleOptimizationForm = () => {
         variant: "destructive"
       });
     } finally {
-      setIsGeneratingSecondary(false);
+      setIsGeneratingKeywords(false);
     }
   };
   
   const handleSelectPrimaryKeyword = (keyword: string) => {
     setPrimaryKeyword(keyword);
-    handleGenerateSecondaryKeywords(keyword);
   };
   
   const handleToggleSecondaryKeyword = (keyword: string) => {
@@ -495,16 +525,16 @@ const SimpleOptimizationForm = () => {
                   />
                   <Button 
                     variant="outline"
-                    onClick={() => handleGeneratePrimaryKeywords()}
-                    disabled={isGeneratingPrimary || isAutoGeneratingKeywords}
+                    onClick={handleGeneratePrimaryKeywords}
+                    disabled={isGeneratingKeywords}
                     className="whitespace-nowrap"
                   >
-                    {isGeneratingPrimary || isAutoGeneratingKeywords ? (
+                    {isGeneratingKeywords ? (
                       <Loader size={16} className="animate-spin" />
                     ) : (
                       <>
                         <Search className="w-4 h-4 mr-1" /> 
-                        Suggest
+                        Regenerate
                       </>
                     )}
                   </Button>
@@ -542,16 +572,16 @@ const SimpleOptimizationForm = () => {
                   />
                   <Button 
                     variant="outline"
-                    onClick={() => handleGenerateSecondaryKeywords()}
-                    disabled={!primaryKeyword || isGeneratingSecondary}
+                    onClick={handleGenerateSecondaryKeywords}
+                    disabled={!primaryKeyword || isGeneratingKeywords}
                     className="whitespace-nowrap"
                   >
-                    {isGeneratingSecondary ? (
+                    {isGeneratingKeywords ? (
                       <Loader size={16} className="animate-spin" />
                     ) : (
                       <>
                         <Search className="w-4 h-4 mr-1" /> 
-                        Suggest
+                        Regenerate
                       </>
                     )}
                   </Button>

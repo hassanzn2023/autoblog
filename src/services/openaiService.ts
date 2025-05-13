@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import axios from 'axios';
@@ -37,11 +36,15 @@ export interface ChatMessage {
   id?: string;
 }
 
-// Added KeywordSuggestion interface that was missing
 export interface KeywordSuggestion {
   id: string;
   text: string;
   score?: number;
+}
+
+export interface CombinedKeywordResponse {
+  primaryKeywords: KeywordSuggestion[];
+  secondaryKeywords: KeywordSuggestion[];
 }
 
 const defaultModel = 'gpt-3.5-turbo';
@@ -573,5 +576,116 @@ export const generateSecondaryKeywordSuggestions = async (
     });
     
     return [];
+  }
+};
+
+export const generateCombinedKeywords = async (
+  content: string,
+  primaryCount: number = 3,
+  secondaryCount: number = 5,
+  notes: string = '',
+  userId?: string,
+  workspaceId?: string
+): Promise<CombinedKeywordResponse> => {
+  try {
+    console.log(`Generating combined keywords for content length: ${content.length} bytes`);
+    console.log(`User ID: ${userId || 'Not provided'}`);
+    console.log(`Workspace ID: ${workspaceId || 'Not provided'}`);
+    
+    if (!userId || !workspaceId) {
+      console.error('Missing user ID or workspace ID');
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to use this feature.",
+        variant: "destructive",
+      });
+      return { primaryKeywords: [], secondaryKeywords: [] };
+    }
+    
+    // Check if user has enough credits - require 2 credits for combined generation
+    const hasCredits = await hasEnoughCredits(userId, 2);
+    if (!hasCredits) {
+      console.error('User has insufficient credits');
+      toast({
+        title: "Insufficient Credits",
+        description: "You need at least 2 credits to perform this operation.",
+        variant: "destructive",
+      });
+      return { primaryKeywords: [], secondaryKeywords: [] };
+    }
+
+    // Get API key
+    const apiKey = await getApiKey(userId, workspaceId);
+    if (!apiKey) {
+      console.error('No API key found for user');
+      toast({
+        title: "API Key Required",
+        description: "Please set your OpenAI API key in the settings.",
+        variant: "destructive",
+      });
+      return { primaryKeywords: [], secondaryKeywords: [] };
+    }
+
+    console.log(`Calling generate-combined-keywords edge function with content length: ${content.length} bytes`);
+    
+    // Call OpenAI through our edge function
+    const response = await supabase.functions.invoke('generate-combined-keywords', {
+      body: { 
+        content, 
+        primaryCount,
+        secondaryCount,
+        note: notes,
+        userId: userId,
+        workspaceId: workspaceId 
+      },
+    });
+
+    console.log('Edge function response:', response);
+    
+    if (response.error) {
+      console.error('Edge function error:', response.error);
+      toast({
+        title: "Generation Failed",
+        description: response.error.message || "Unable to generate keyword suggestions.",
+        variant: "destructive",
+      });
+      return { primaryKeywords: [], secondaryKeywords: [] };
+    }
+
+    if (!response.data || !response.data.primaryKeywords || !response.data.secondaryKeywords) {
+      console.error('Unexpected response format from edge function:', response.data);
+      toast({
+        title: "Generation Failed",
+        description: "Received unexpected data format from server.",
+        variant: "destructive",
+      });
+      return { primaryKeywords: [], secondaryKeywords: [] };
+    }
+
+    console.log('Generated primary keywords:', response.data.primaryKeywords);
+    console.log('Generated secondary keywords:', response.data.secondaryKeywords);
+    
+    // Display success toast
+    toast({
+      title: "Keywords Generated",
+      description: `Successfully generated ${response.data.primaryKeywords.length} primary and ${response.data.secondaryKeywords.length} secondary keyword suggestions.`,
+      variant: "success",
+    });
+    
+    return {
+      primaryKeywords: response.data.primaryKeywords,
+      secondaryKeywords: response.data.secondaryKeywords
+    };
+    
+  } catch (error: any) {
+    console.error('Error generating combined keywords:', error);
+    
+    toast({
+      title: "Generation Failed",
+      description: error.message || "Unable to generate keyword suggestions.",
+      variant: "destructive",
+    });
+    
+    return { primaryKeywords: [], secondaryKeywords: [] };
   }
 };
