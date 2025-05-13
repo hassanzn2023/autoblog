@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
@@ -31,14 +32,22 @@ const QuickOptimizationForm = () => {
   const { currentWorkspace } = useWorkspace();
 
   const [contentMethod, setContentMethod] = useState<'text' | 'link' | 'file'>('text');
+  const [textContent, setTextContent] = useState('');
+  const [linkContent, setLinkContent] = useState('');
+  const [fileContent, setFileContent] = useState('');
+  
+  // This will be the content used for optimization
   const [content, setContent] = useState('');
+  
   const [url, setUrl] = useState('');
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [extractionError, setExtractionError] = useState<string | null>(null);
   const [contentConfirmed, setContentConfirmed] = useState(false);
 
   const [primaryKeyword, setPrimaryKeyword] = useState('');
+  const [primaryKeywordInput, setPrimaryKeywordInput] = useState('');
   const [secondaryKeywords, setSecondaryKeywords] = useState<string[]>([]);
+  const [secondaryKeywordInput, setSecondaryKeywordInput] = useState('');
   const [showPrimaryKeywordSuggestions, setShowPrimaryKeywordSuggestions] = useState(false);
   const [showSecondaryKeywordSuggestions, setShowSecondaryKeywordSuggestions] = useState(false);
   const [primaryKeywordSuggestions, setPrimaryKeywordSuggestions] = useState<Keyword[]>([]);
@@ -61,10 +70,24 @@ const QuickOptimizationForm = () => {
   // Determine if the content is RTL or LTR
   const [isRtlContent, setIsRtlContent] = useState(false);
 
-  // Update RTL detection when content changes
+  // Update RTL detection based on the active content
   useEffect(() => {
-    setIsRtlContent(isRTL(content));
-  }, [content]);
+    let activeContent = '';
+    
+    switch(contentMethod) {
+      case 'text':
+        activeContent = textContent;
+        break;
+      case 'link':
+        activeContent = linkContent;
+        break;
+      case 'file':
+        activeContent = fileContent;
+        break;
+    }
+    
+    setIsRtlContent(isRTL(activeContent));
+  }, [textContent, linkContent, fileContent, contentMethod]);
 
   // Apply appropriate font class only to the content
   const editorFontClass = isRtlContent ? 'font-arabic' : 'font-english';
@@ -115,7 +138,7 @@ const QuickOptimizationForm = () => {
 
       if (extractedContent && !extractedContent.error) {
         // Use the HTML content from the extraction
-        setContent(extractedContent.content || '');
+        setLinkContent(extractedContent.content || '');
 
         // Set RTL flag based on content if available
         if (extractedContent.rtl) {
@@ -154,12 +177,25 @@ const QuickOptimizationForm = () => {
   };
 
   const handleContentConfirm = async () => {
-    if (contentMethod === 'link' && !content && url) {
-      const success = await handleUrlExtraction();
-      if (!success) return;
+    let contentToConfirm = '';
+    
+    switch(contentMethod) {
+      case 'text':
+        contentToConfirm = textContent;
+        break;
+      case 'link':
+        if (!linkContent && url) {
+          const success = await handleUrlExtraction();
+          if (!success) return;
+        }
+        contentToConfirm = linkContent;
+        break;
+      case 'file':
+        contentToConfirm = fileContent;
+        break;
     }
     
-    if (!content.trim()) {
+    if (!contentToConfirm.trim()) {
       toast({
         title: "Content Required",
         description: "Please add your content before confirming.",
@@ -168,39 +204,23 @@ const QuickOptimizationForm = () => {
       return;
     }
     
+    // Set the main content that will be used for optimization
+    setContent(contentToConfirm);
     setContentConfirmed(true);
+    
     toast({
       title: "Content Confirmed",
       description: "Your content has been added successfully.",
     });
-    
-    // REMOVE OR COMMENT OUT THIS CODE BLOCK TO PREVENT AUTO-GENERATION
-    // if (user && currentWorkspace) {
-    //   try {
-    //     setIsLoadingKeywords(true);
-    //     const keywords = await generateKeywordSuggestions(
-    //       content, 
-    //       3, 
-    //       '', 
-    //       user.id, 
-    //       currentWorkspace.id
-    //     );
-    //     
-    //     if (keywords.length > 0) {
-    //       setPrimaryKeyword(keywords[0].text);
-    //       setSuggestedKeywords(keywords);
-    //     }
-    //   } catch (error) {
-    //     console.error("Error generating keywords:", error);
-    //   } finally {
-    //     setIsLoadingKeywords(false);
-    //   }
-    // }
   };
 
   const handlePrimaryKeywordSelect = (keyword: string) => {
     setPrimaryKeyword(keyword);
-    setShowPrimaryKeywordSuggestions(false);
+  };
+  
+  const handlePrimaryKeywordInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPrimaryKeywordInput(e.target.value);
+    setPrimaryKeyword(e.target.value); // Update the main keyword as user types
   };
 
   const handleSecondaryKeywordToggle = (keyword: string) => {
@@ -221,18 +241,49 @@ const QuickOptimizationForm = () => {
       }
     }
   };
+  
+  // Handle secondary keyword input with Enter key
+  const handleSecondaryKeywordInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && secondaryKeywordInput.trim()) {
+      e.preventDefault();
+      
+      // Check if already at max keywords
+      if (secondaryKeywords.length >= 5) {
+        toast({
+          title: "Maximum Keywords Reached",
+          description: "You can select up to 5 secondary keywords.",
+          variant: "default"
+        });
+        return;
+      }
+      
+      // Check if keyword already exists
+      if (secondaryKeywords.includes(secondaryKeywordInput.trim())) {
+        toast({
+          title: "Duplicate Keyword",
+          description: "This keyword is already in your list.",
+          variant: "default"
+        });
+        return;
+      }
+      
+      // Add the keyword
+      setSecondaryKeywords([...secondaryKeywords, secondaryKeywordInput.trim()]);
+      setSecondaryKeywordInput('');
+    }
+  };
 
   // Primary keyword generation (triggered by button)
   const handleGeneratePrimaryKeywords = async () => {
     if (!content) {
       toast({
         title: "Content Required",
-        description: "Please add your content before generating keywords.",
+        description: "Please add and confirm your content before generating keywords.",
         variant: "destructive"
       });
       return;
     }
-     if (!user?.id || !currentWorkspace?.id) {
+    if (!user?.id || !currentWorkspace?.id) {
       toast({
         title: "Authentication Required",
         description: "Please log in to generate keywords.",
@@ -258,13 +309,6 @@ const QuickOptimizationForm = () => {
 
       if (suggestions && suggestions.length > 0) {
         setPrimaryKeywordSuggestions(suggestions);
-
-        // Auto-select the first keyword if none is selected
-        // You might want to remove this auto-select too if you want manual selection only
-        if (!primaryKeyword) {
-           setPrimaryKeyword(suggestions[0].text);
-        }
-
         setRegenerationNote('');
         toast({
           title: "Primary Keywords Generated",
@@ -299,7 +343,7 @@ const QuickOptimizationForm = () => {
       });
       return;
     }
-     if (!user?.id || !currentWorkspace?.id) {
+    if (!user?.id || !currentWorkspace?.id) {
       toast({
         title: "Authentication Required",
         description: "Please log in to generate keywords.",
@@ -418,7 +462,7 @@ const QuickOptimizationForm = () => {
       setFileParsingError(null);
 
       const result = await parseWordDocument(file);
-      setContent(result.html);
+      setFileContent(result.html);
 
       toast({
         title: "File Uploaded",
@@ -471,7 +515,7 @@ const QuickOptimizationForm = () => {
       setFileParsingError(null);
 
       const result = await parseWordDocument(file);
-      setContent(result.html);
+      setFileContent(result.html);
 
       toast({
         title: "File Uploaded",
@@ -539,17 +583,19 @@ const QuickOptimizationForm = () => {
 
             {contentMethod === 'text' && (
               <>
-                <div className="quill-container">
-                  <ReactQuill
-                    theme="snow"
-                    value={content}
-                    onChange={setContent}
-                    modules={modules}
-                    formats={formats}
-                    readOnly={contentConfirmed}
-                    placeholder="Paste your article content here..."
-                    className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'}`}
-                  />
+                <div className="quill-container single-scrollbar h-[300px]">
+                  <ScrollArea className="h-full">
+                    <ReactQuill
+                      theme="snow"
+                      value={textContent}
+                      onChange={setTextContent}
+                      modules={modules}
+                      formats={formats}
+                      readOnly={contentConfirmed}
+                      placeholder="Paste your article content here..."
+                      className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'}`}
+                    />
+                  </ScrollArea>
                 </div>
 
                 {!contentConfirmed && (
@@ -619,7 +665,7 @@ const QuickOptimizationForm = () => {
                   </div>
                 )}
 
-                {content && !contentConfirmed && (
+                {(linkContent || contentMethod === 'link') && !contentConfirmed && (
                   <div className="mb-4">
                     <div className="mb-2 flex items-center justify-between">
                       <div className="font-medium flex items-center">
@@ -631,16 +677,18 @@ const QuickOptimizationForm = () => {
                       </div>
                     </div>
 
-                    <div className="quill-container url-content-container">
-                      <ReactQuill
-                        theme="snow"
-                        value={content}
-                        onChange={setContent}
-                        modules={modules}
-                        formats={formats}
-                        placeholder="Edit content from URL here..."
-                        className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'}`}
-                      />
+                    <div className="quill-container url-content-container single-scrollbar h-[300px]">
+                      <ScrollArea className="h-full">
+                        <ReactQuill
+                          theme="snow"
+                          value={linkContent}
+                          onChange={setLinkContent}
+                          modules={modules}
+                          formats={formats}
+                          placeholder="Edit content from URL here..."
+                          className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'}`}
+                        />
+                      </ScrollArea>
                     </div>
 
                     <div className="text-center mt-6">
@@ -673,7 +721,7 @@ const QuickOptimizationForm = () => {
                     onChange={handleFileUpload}
                     disabled={contentConfirmed || isParsingFile}
                   />
-                  {!selectedFile && !content ? (
+                  {!selectedFile && !fileContent ? (
                     <div className="flex flex-col items-center justify-center py-4">
                       <Upload size={40} className="mb-4 text-purple-600" />
                       <label
@@ -698,7 +746,7 @@ const QuickOptimizationForm = () => {
                           className="ml-2 text-red-500 hover:text-red-700"
                           onClick={() => {
                             setSelectedFile(null);
-                            setContent('');
+                            setFileContent('');
                             if (fileInputRef.current) fileInputRef.current.value = '';
                           }}
                         >
@@ -721,7 +769,7 @@ const QuickOptimizationForm = () => {
                   </div>
                 )}
 
-                {content && contentMethod === 'file' && !contentConfirmed && (
+                {(fileContent || contentMethod === 'file') && !contentConfirmed && (
                   <div className="mt-4">
                     <div className="mb-2 flex items-center justify-between">
                       <div className="font-medium flex items-center">
@@ -733,16 +781,18 @@ const QuickOptimizationForm = () => {
                       </div>
                     </div>
 
-                    <div className="quill-container file-upload-container">
-                      <ReactQuill
-                        theme="snow"
-                        value={content}
-                        onChange={setContent}
-                        modules={modules}
-                        formats={formats}
-                        placeholder="Edit content from document here..."
-                        className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'}`}
-                      />
+                    <div className="quill-container file-upload-container single-scrollbar h-[300px]">
+                      <ScrollArea className="h-full">
+                        <ReactQuill
+                          theme="snow"
+                          value={fileContent}
+                          onChange={setFileContent}
+                          modules={modules}
+                          formats={formats}
+                          placeholder="Edit content from document here..."
+                          className={`${editorFontClass} ${isRtlContent ? 'rtl-content' : 'ltr-content'}`}
+                        />
+                      </ScrollArea>
                     </div>
 
                     <div className="text-center mt-6">
@@ -780,12 +830,12 @@ const QuickOptimizationForm = () => {
                   type="text"
                   className="flex-1 p-3 border border-gray-300 rounded-md"
                   placeholder="Enter your main keyword..."
-                  value={primaryKeyword}
-                  onChange={(e) => setPrimaryKeyword(e.target.value)}
+                  value={primaryKeywordInput}
+                  onChange={handlePrimaryKeywordInputChange}
                 />
                 <button
                   className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md flex items-center gap-1 transition-colors"
-                  onClick={handleGeneratePrimaryKeywords} // Trigger generation on button click
+                  onClick={handleGeneratePrimaryKeywords}
                   disabled={!contentConfirmed || isGeneratingPrimary}
                 >
                   {isGeneratingPrimary ? (
@@ -797,35 +847,36 @@ const QuickOptimizationForm = () => {
                 </button>
               </div>
 
-              {showPrimaryKeywordSuggestions && (
+              {showPrimaryKeywordSuggestions && primaryKeywordSuggestions.length > 0 && (
                 <div className="mt-3 p-4 border border-gray-200 rounded-lg bg-white shadow-sm">
-                  <div className="mb-3 font-medium">Suggested (select one):</div>
+                  <div className="mb-3 font-medium">Suggested keywords:</div>
                   <div className="space-y-2">
                     {isGeneratingPrimary ? (
                       <div className="flex justify-center py-4">
                         <Loader size={24} className="animate-spin text-[#F76D01]" />
                         <span className="ml-2">Generating suggestions...</span>
                       </div>
-                    ) : primaryKeywordSuggestions.length > 0 ? (
-                      primaryKeywordSuggestions.map((keyword) => (
-                        <label key={keyword.id} className="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded">
-                          <input
-                            type="radio"
-                            name="primaryKeyword"
-                            className="mr-2"
-                            checked={primaryKeyword === keyword.text}
-                            onChange={() => handlePrimaryKeywordSelect(keyword.text)}
-                          />
-                          {keyword.text}
-                        </label>
-                      ))
                     ) : (
-                      <p>No suggestions available</p>
+                      <div className="flex flex-wrap gap-2">
+                        {primaryKeywordSuggestions.map((keyword) => (
+                          <div
+                            key={keyword.id}
+                            onClick={() => handlePrimaryKeywordSelect(keyword.text)}
+                            className={`cursor-pointer px-3 py-1.5 rounded-full text-sm ${
+                              primaryKeyword === keyword.text 
+                                ? 'bg-purple-600 text-white' 
+                                : 'bg-gray-100 hover:bg-gray-200'
+                            }`}
+                          >
+                            {keyword.text}
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
 
                   <div className="mt-4 flex justify-between items-center">
-                    <div className="text-sm text-gray-500 flex-1 mr-2"> {/* Added flex-1 and mr-2 */}
+                    <div className="text-sm text-gray-500 flex-1 mr-2">
                       <input
                         type="text"
                         className="w-full p-2 border border-gray-300 rounded-md"
@@ -854,9 +905,20 @@ const QuickOptimizationForm = () => {
             <div className="space-y-2">
               <label className="block font-medium">Secondary Keywords (Optional):</label>
               <div className="flex gap-2">
-                <div className="flex-1 p-3 border border-gray-300 rounded-md min-h-[80px] bg-white">
-                  {secondaryKeywords.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
+                <div className="flex-1 min-h-[80px] relative">
+                  <div className="flex items-center">
+                    <input 
+                      type="text" 
+                      className="w-full p-3 border border-gray-300 rounded-md"
+                      placeholder="Type and press Enter to add keywords..."
+                      value={secondaryKeywordInput}
+                      onChange={(e) => setSecondaryKeywordInput(e.target.value)}
+                      onKeyDown={handleSecondaryKeywordInputKeyDown}
+                    />
+                  </div>
+                  
+                  {secondaryKeywords.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
                       {secondaryKeywords.map((keyword, index) => (
                         <div
                           key={index}
@@ -872,13 +934,11 @@ const QuickOptimizationForm = () => {
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <span className="text-gray-400">Select up to 5 secondary keywords</span>
                   )}
                 </div>
                 <button
                   className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md h-fit flex items-center gap-1 transition-colors"
-                  onClick={handleGenerateSecondaryKeywords} // Trigger generation on button click
+                  onClick={handleGenerateSecondaryKeywords}
                   disabled={!primaryKeyword || isGeneratingSecondary}
                 >
                    {isGeneratingSecondary ? (
@@ -890,7 +950,7 @@ const QuickOptimizationForm = () => {
                 </button>
               </div>
 
-              {showSecondaryKeywordSuggestions && (
+              {showSecondaryKeywordSuggestions && secondaryKeywordSuggestions.length > 0 && (
                 <div className="mt-3 p-4 border border-gray-200 rounded-lg bg-white shadow-sm">
                   <div className="mb-3 font-medium">Suggested (select multiple, max 5):</div>
                   <div className="space-y-2">
@@ -899,24 +959,27 @@ const QuickOptimizationForm = () => {
                         <Loader size={24} className="animate-spin text-[#F76D01]" />
                         <span className="ml-2">Generating suggestions...</span>
                       </div>
-                    ) : secondaryKeywordSuggestions.length > 0 ? (
-                      secondaryKeywordSuggestions.map((keyword) => (
-                        <label key={keyword.id} className="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded">
-                          <input
-                            type="checkbox"
-                            className="mr-2"
-                            checked={secondaryKeywords.includes(keyword.text)}
-                            onChange={() => handleSecondaryKeywordToggle(keyword.text)}
-                            disabled={!secondaryKeywords.includes(keyword.text) && secondaryKeywords.length >= 5}
-                          />
-                          {keyword.text}
-                          {!secondaryKeywords.includes(keyword.text) && secondaryKeywords.length >= 5 && (
-                            <span className="ml-2 text-xs text-gray-400">(max 5 reached)</span>
-                          )}
-                        </label>
-                      ))
                     ) : (
-                      <p>No suggestions available</p>
+                      <div className="flex flex-wrap gap-2">
+                        {secondaryKeywordSuggestions.map((keyword) => (
+                          <div
+                            key={keyword.id}
+                            onClick={() => handleSecondaryKeywordToggle(keyword.text)}
+                            className={`cursor-pointer px-3 py-1.5 rounded-full text-sm ${
+                              secondaryKeywords.includes(keyword.text)
+                                ? 'bg-purple-600 text-white'
+                                : secondaryKeywords.length >= 5
+                                ? 'bg-gray-100 opacity-50 cursor-not-allowed'
+                                : 'bg-gray-100 hover:bg-gray-200'
+                            }`}
+                          >
+                            {keyword.text}
+                            {!secondaryKeywords.includes(keyword.text) && secondaryKeywords.length >= 5 && (
+                              <span className="ml-2 text-xs">(max 5 reached)</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
 
@@ -930,7 +993,6 @@ const QuickOptimizationForm = () => {
                           value={regenerationNote}
                           onChange={(e) => setRegenerationNote(e.target.value)}
                         />
-                        <Pencil size={16} className="text-gray-400" />
                       </div>
                     </div>
                     <button
