@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
@@ -6,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { Search, X, Loader, RefreshCw, Pencil, Link as LinkIcon, ExternalLink, AlertTriangle, Upload, FileText } from 'lucide-react';
-import { generateKeywordSuggestions, generateSecondaryKeywordSuggestions, extractContentFromUrl } from '@/services/openaiService';
+import { generateKeywordSuggestions, generateSecondaryKeywordSuggestions } from '@/services/openaiService';
 import { parseWordDocument } from '@/services/documentParserService';
+import { extractContentFromUrl } from '@/services/contentExtractorService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 
@@ -117,22 +117,31 @@ const QuickOptimizationForm = () => {
       setExtractionError(null);
       setExtractionAttempts(prev => prev + 1);
       
-      // Call the API to extract content from URL
+      // Call the API to extract content from URL using contentExtractorService
       const extractedContent = await extractContentFromUrl(processedUrl);
       
-      if (extractedContent) {
-        // Fix: Extract the content string from the response object
+      if (extractedContent && !extractedContent.error) {
+        // Use the HTML content from the extraction
         setContent(extractedContent.content || '');
+        
+        // Set RTL flag based on content if available
+        if (extractedContent.rtl) {
+          setIsRtlContent(extractedContent.rtl);
+        } else {
+          setIsRtlContent(isRTL(extractedContent.textContent || ''));
+        }
+        
         toast({
           title: "Content Extracted",
-          description: "Content has been successfully extracted from the URL.",
+          description: `Successfully extracted content from "${extractedContent.title || 'URL'}"`,
         });
         return true;
       } else {
-        setExtractionError("Unable to extract content from this URL");
+        const errorMessage = extractedContent.error || "Unable to extract content from this URL";
+        setExtractionError(errorMessage);
         toast({
           title: "Extraction Failed",
-          description: "Unable to extract content from this URL. Please try another URL or paste content manually.",
+          description: errorMessage,
           variant: "destructive"
         });
         return false;
@@ -153,7 +162,7 @@ const QuickOptimizationForm = () => {
   
   const handleContentConfirm = async () => {
     // If URL method is selected, extract content first
-    if (contentMethod === 'link') {
+    if (contentMethod === 'link' && !content) {
       const success = await handleUrlExtraction();
       if (!success) return;
     }
@@ -172,6 +181,11 @@ const QuickOptimizationForm = () => {
       title: "Content Confirmed",
       description: "Your content has been added successfully.",
     });
+
+    // Auto-generate keywords after content confirmation
+    if (user?.id && currentWorkspace?.id) {
+      handleGeneratePrimaryKeywords();
+    }
   };
   
   const handlePrimaryKeywordSelect = (keyword: string) => {
@@ -198,6 +212,7 @@ const QuickOptimizationForm = () => {
     }
   };
   
+  // Fix primary keyword generation
   const handleGeneratePrimaryKeywords = async () => {
     if (!content) {
       toast({
@@ -221,7 +236,9 @@ const QuickOptimizationForm = () => {
     setShowPrimaryKeywordSuggestions(true);
     
     try {
-      // Fix: Pass all required arguments to generateKeywordSuggestions
+      console.log("Generating primary keywords for content with length:", content.length);
+      
+      // Pass all required parameters to the function
       const suggestions = await generateKeywordSuggestions(
         content,
         3,
@@ -232,6 +249,12 @@ const QuickOptimizationForm = () => {
       
       if (suggestions && suggestions.length > 0) {
         setPrimaryKeywordSuggestions(suggestions);
+        
+        // Auto-select the first keyword if none is selected
+        if (!primaryKeyword) {
+          setPrimaryKeyword(suggestions[0].text);
+        }
+        
         setRegenerationNote('');
         toast({
           title: "Primary Keywords Generated",
@@ -256,6 +279,7 @@ const QuickOptimizationForm = () => {
     }
   };
   
+  // Fix secondary keyword generation
   const handleGenerateSecondaryKeywords = async () => {
     if (!primaryKeyword || !content) {
       toast({
@@ -279,7 +303,9 @@ const QuickOptimizationForm = () => {
     setShowSecondaryKeywordSuggestions(true);
     
     try {
-      // Fix: Pass all required arguments to generateSecondaryKeywordSuggestions
+      console.log("Generating secondary keywords for primary keyword:", primaryKeyword);
+      
+      // Pass all required parameters to the function
       const suggestions = await generateSecondaryKeywordSuggestions(
         primaryKeyword,
         content,

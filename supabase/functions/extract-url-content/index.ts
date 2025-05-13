@@ -25,20 +25,25 @@ serve(async (req) => {
 
     console.log(`Extracting content from URL: ${url}`);
     
-    // Fetch the content from the URL
+    // Fetch the content from the URL with improved headers and timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
+    
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml',
         'Accept-Language': 'en-US,en;q=0.9,ar;q=0.8'
-      }
-    });
+      },
+      signal: controller.signal
+    }).finally(() => clearTimeout(timeoutId));
 
     if (!response.ok) {
       throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
     }
 
     const html = await response.text();
+    console.log(`Retrieved HTML content length: ${html.length} characters`);
     
     // Parse the HTML
     const parser = new DOMParser();
@@ -55,38 +60,89 @@ serve(async (req) => {
                  metaTitleElement?.getAttribute("content") || 
                  "Extracted Content";
     
-    // Extract main content (simplified approach)
+    console.log(`Extracted title: ${title}`);
+    
+    // Determine if content is RTL
+    let isRTL = false;
+    const dirAttr = doc.querySelector("html")?.getAttribute("dir");
+    const langAttr = doc.querySelector("html")?.getAttribute("lang");
+    
+    if (dirAttr === "rtl" || langAttr?.startsWith("ar") || langAttr?.startsWith("he")) {
+      isRTL = true;
+    }
+    
+    // Extract main content (improved approach)
     let mainContent = "";
     let textContent = "";
     
-    // Try to find main content container
+    // Try to find main content container using extended selectors
     const contentSelectors = [
       'main', 'article', '[role="main"]',
-      '.content', '.article', '.post', '.entry-content',
-      '#content', '#main-content', '#article-content',
-      'article', '.article-body', '.story-body'
+      '.content', '.article', '.post', '.entry-content', '.story', '.blog-post',
+      '#content', '#main-content', '#article-content', '#story-content', '#post-content',
+      'article', '.article-body', '.story-body', '.content-area', '.post-body',
+      '.main-content', '.page-content', '.entry', '.single-content', '.wordpress-content'
     ];
     
     let contentElement = null;
     for (const selector of contentSelectors) {
       contentElement = doc.querySelector(selector);
-      if (contentElement) break;
+      if (contentElement) {
+        console.log(`Found content using selector: ${selector}`);
+        break;
+      }
     }
     
     // If no main content found, use the body
     if (!contentElement) {
+      console.log("No specific content container found, using body");
       contentElement = doc.body;
     }
     
     if (contentElement) {
-      // Remove unwanted elements
-      const unwantedSelectors = ['script', 'style', 'footer', 'header', 'nav', '.ads', '.comments'];
+      // Remove unwanted elements before extraction
+      const unwantedSelectors = [
+        'script', 'style', 'footer', 'header', 'nav', 
+        '.ads', '.comments', '.sidebar', '.widget', '.menu',
+        '.navigation', '.breadcrumb', '.related', '.share',
+        '[id*="comment"]', '[class*="comment"]', 
+        '[id*="widget"]', '[class*="widget"]',
+        '[id*="sidebar"]', '[class*="sidebar"]',
+        '[id*="banner"]', '[class*="banner"]',
+        '[id*="footer"]', '[class*="footer"]'
+      ];
+      
+      // Create a copy of the content to avoid modifying during iteration
+      const contentClone = contentElement.cloneNode(true);
+      
       for (const selector of unwantedSelectors) {
-        contentElement.querySelectorAll(selector).forEach(el => el.remove());
+        const elements = contentClone.querySelectorAll(selector);
+        elements.forEach(el => el.remove());
       }
       
-      mainContent = contentElement.innerHTML || "";
-      textContent = contentElement.textContent || "";
+      mainContent = contentClone.innerHTML || "";
+      textContent = contentClone.textContent || "";
+      
+      // Check if extracted content is too short, might indicate extraction failure
+      if (textContent.length < 100 && contentElement !== doc.body) {
+        console.log("Extracted content too short, falling back to body");
+        contentElement = doc.body;
+        const bodyClone = contentElement.cloneNode(true);
+        
+        for (const selector of unwantedSelectors) {
+          const elements = bodyClone.querySelectorAll(selector);
+          elements.forEach(el => el.remove());
+        }
+        
+        mainContent = bodyClone.innerHTML || "";
+        textContent = bodyClone.textContent || "";
+      }
+    }
+    
+    // Check content again for RTL characters if not already determined
+    if (!isRTL) {
+      const rtlChars = /[\u0591-\u07FF\u200F\u202B\u202E\uFB1D-\uFDFD\uFE70-\uFEFC]/;
+      isRTL = rtlChars.test(textContent);
     }
     
     // Clean text content
@@ -97,14 +153,39 @@ serve(async (req) => {
       ? textContent.substring(0, 150) + "..."
       : textContent;
     
-    // Extract author/byline
-    const authorElement = doc.querySelector("meta[name='author']") || 
-                         doc.querySelector("meta[property='article:author']");
-    const byline = authorElement?.getAttribute("content") || "";
+    // Extract author/byline with expanded selectors
+    let byline = "";
+    const authorSelectors = [
+      'meta[name="author"]', 
+      'meta[property="article:author"]',
+      '.author', '.byline', '.entry-author', 
+      '[rel="author"]', '.post-author',
+      '[itemprop="author"]', '.author-name'
+    ];
     
-    // Extract site name
-    const siteNameElement = doc.querySelector("meta[property='og:site_name']");
-    let siteName = siteNameElement?.getAttribute("content") || "";
+    for (const selector of authorSelectors) {
+      const authorElement = doc.querySelector(selector);
+      if (authorElement) {
+        byline = authorElement.getAttribute("content") || authorElement.textContent || "";
+        if (byline) break;
+      }
+    }
+    
+    // Extract site name with expanded selectors
+    let siteName = "";
+    const siteNameSelectors = [
+      'meta[property="og:site_name"]',
+      '.site-name', '.site-title', '#site-title',
+      '[itemprop="publisher"]', '.publisher'
+    ];
+    
+    for (const selector of siteNameSelectors) {
+      const siteNameElement = doc.querySelector(selector);
+      if (siteNameElement) {
+        siteName = siteNameElement.getAttribute("content") || siteNameElement.textContent || "";
+        if (siteName) break;
+      }
+    }
     
     if (!siteName) {
       try {
@@ -115,6 +196,8 @@ serve(async (req) => {
       }
     }
     
+    console.log(`Completed extraction. Content length: ${mainContent.length} characters`);
+    
     // Return the extracted content
     const result = {
       title,
@@ -123,7 +206,8 @@ serve(async (req) => {
       length: textContent.length,
       excerpt,
       byline,
-      siteName
+      siteName,
+      rtl: isRTL
     };
     
     return new Response(

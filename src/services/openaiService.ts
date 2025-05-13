@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import axios from 'axios';
@@ -383,6 +382,8 @@ export const generateKeywordSuggestions = async (
       return [];
     }
 
+    console.log(`Generating primary keywords with content length: ${content.length}`);
+    
     // Call OpenAI through our edge function
     const { data, error } = await supabase.functions.invoke('generate-keywords', {
       body: { 
@@ -419,7 +420,6 @@ export const generateKeywordSuggestions = async (
   }
 };
 
-// Added new function to match the imports in other files
 export const generateSecondaryKeywordSuggestions = async (
   primaryKeyword: string,
   content: string,
@@ -451,6 +451,8 @@ export const generateSecondaryKeywordSuggestions = async (
       return [];
     }
 
+    console.log(`Generating secondary keywords for primary keyword: ${primaryKeyword}`);
+    
     // Call OpenAI through our edge function
     const { data, error } = await supabase.functions.invoke('generate-secondary-keywords', {
       body: { 
@@ -485,32 +487,5 @@ export const generateSecondaryKeywordSuggestions = async (
     });
     
     return [];
-  }
-};
-
-// Added new function to match the imports in other files
-export const extractContentFromUrl = async (
-  url: string
-): Promise<{ content: string; title?: string; error?: string }> => {
-  try {
-    const { data, error } = await supabase.functions.invoke('extract-url-content', {
-      body: { url },
-    });
-
-    if (error) {
-      console.error('Error extracting content from URL:', error);
-      throw new Error(error.message);
-    }
-
-    return { 
-      content: data?.content || '', 
-      title: data?.title || ''
-    };
-  } catch (error: any) {
-    console.error('Error extracting URL content:', error);
-    return { 
-      content: '', 
-      error: error.message || "Failed to extract content from URL" 
-    };
   }
 };

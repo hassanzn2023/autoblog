@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -14,6 +13,7 @@ import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAPIKeys } from '@/contexts/APIKeysContext';
 import { generateKeywordSuggestions } from '@/services/openaiService';
+import { extractContentFromUrl } from '@/services/contentExtractorService';
 import CreditStatus from './CreditStatus';
 
 const ProModeForm = () => {
@@ -31,6 +31,10 @@ const ProModeForm = () => {
   const [secondaryKeywords, setSecondaryKeywords] = useState('');
   const [suggestedKeywords, setSuggestedKeywords] = useState<{id: string, text: string}[]>([]);
   const [isLoadingKeywords, setIsLoadingKeywords] = useState(false);
+  const [url, setUrl] = useState('');
+  const [isLoadingUrl, setIsLoadingUrl] = useState(false);
+  const [extractionError, setExtractionError] = useState(null);
+  const [extractionAttempts, setExtractionAttempts] = useState(0);
   
   // Track completion status of each step
   const [completedSteps, setCompletedSteps] = useState<Record<string, boolean>>({
@@ -172,6 +176,63 @@ const ProModeForm = () => {
         secondaryKeywords: secondaryKeywords.split(',').map(k => k.trim()).filter(Boolean)
       } 
     });
+  };
+  
+  const handleUrlExtraction = async () => {
+    if (!url.trim()) {
+      toast({
+        title: "URL Required",
+        description: "Please enter a valid URL before confirming.",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
+    // Add http:// prefix if not present
+    let processedUrl = url;
+    if (!/^https?:\/\//i.test(processedUrl)) {
+      processedUrl = 'https://' + processedUrl;
+      setUrl(processedUrl);
+    }
+    
+    try {
+      setIsLoadingUrl(true);
+      setExtractionError(null);
+      setExtractionAttempts(prev => prev + 1);
+      
+      // Call the content extractor service
+      const extractedContent = await extractContentFromUrl(processedUrl);
+      
+      if (extractedContent && !extractedContent.error) {
+        // Set the extracted content
+        setContent(extractedContent.content || '');
+        toast({
+          title: "Content Extracted",
+          description: `Successfully extracted from "${extractedContent.title || 'URL'}"`,
+        });
+        return true;
+      } else {
+        const errorMessage = extractedContent.error || "Unable to extract content from this URL";
+        setExtractionError(errorMessage);
+        toast({
+          title: "Extraction Failed",
+          description: errorMessage,
+          variant: "destructive"
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error("Error extracting content from URL:", error);
+      setExtractionError(error instanceof Error ? error.message : "Unknown error occurred");
+      toast({
+        title: "Extraction Error",
+        description: "An error occurred while extracting content from the URL.",
+        variant: "destructive"
+      });
+      return false;
+    } finally {
+      setIsLoadingUrl(false);
+    }
   };
   
   const isAllCompleted = Object.values(completedSteps).every(status => status);
