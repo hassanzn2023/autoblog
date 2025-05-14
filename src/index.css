@@ -1,10 +1,11 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
- 
+
+/* Cairo font for Arabic text support */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap');
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -12,86 +13,63 @@
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
- 
+
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
- 
+
     --primary: 222.2 47.4% 11.2%;
     --primary-foreground: 210 40% 98%;
- 
+
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
- 
+
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
- 
+
     --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
- 
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
- 
+
     --radius: 0.5rem;
-
-    --seo-purple: 38 100% 50%;
-    --seo-purple-dark: 38 100% 45%;
-
-    --seo-accent: 288 95.8% 60.6%;
-    --seo-accent-dark: 288 95.8% 50.6%;
   }
 
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
- 
+
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
- 
+
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
- 
+
     --primary: 210 40% 98%;
     --primary-foreground: 222.2 47.4% 11.2%;
- 
+
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
- 
+
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
- 
+
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
- 
+
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
- 
+
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
   }
-
-  /* Add RTL direction support */
-  .rtl, .rtl-content {
-    direction: rtl;
-  }
-
-  .ltr, .ltr-content {
-    direction: ltr;
-  }
-
-  .font-arabic {
-    font-family: 'Cairo', sans-serif;
-  }
-
-  .font-english {
-    font-family: system-ui, sans-serif;
-  }
 }
- 
+
 @layer base {
   * {
     @apply border-border;
@@ -101,42 +79,153 @@
   }
 }
 
-/* Custom button styles */
+/* RTL Support */
+.rtl,
+.rtl-content {
+  direction: rtl;
+  font-family: 'Cairo', sans-serif;
+  text-align: right;
+}
+
+.ltr-content {
+  direction: ltr;
+  text-align: left;
+}
+
+.font-arabic {
+  font-family: 'Cairo', sans-serif;
+}
+
+/* SEO Button Styling */
 .seo-button {
-  @apply inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50;
+  @apply px-4 py-2 rounded-md transition-colors;
 }
 
 .seo-button-primary {
-  @apply bg-[#F76D01] text-white hover:bg-[#e55f00] py-2 px-4;
+  @apply bg-purple-600 text-white hover:bg-purple-700;
 }
 
 .seo-button-secondary {
-  @apply bg-white border border-[#F76D01] text-[#F76D01] hover:bg-gray-50 py-2 px-4;
+  @apply bg-gray-100 hover:bg-gray-200 text-gray-800;
 }
 
-/* Fix scrollbars */
-.single-scrollbar {
+/* SEO Meter Styling */
+.seo-meter-container {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  height: 150px;
+}
+
+.seo-meter-gauge {
+  position: relative;
+  width: 150px;
+  height: 75px;
+  margin-bottom: 10px;
   overflow: hidden;
 }
 
-.single-scrollbar .ql-editor,
-.single-scrollbar .ql-container {
-  overflow-y: visible;
-  max-height: none;
+.seo-meter-bg {
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  border: 12px solid #f0f0f0;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
 }
 
-/* Hide multiple scrollbars in ReactQuill */
-.quill-container.single-scrollbar > .quill > .ql-container::-webkit-scrollbar {
-  display: none;
+.seo-meter-mask {
+  position: absolute;
+  width: 150px;
+  height: 75px;
+  bottom: 0;
+  left: 0;
+  background-color: white;
+  z-index: 2;
 }
 
-.quill-container.single-scrollbar > .quill > .ql-container {
-  overflow: visible;
+.seo-meter-needle {
+  position: absolute;
+  width: 2px;
+  height: 75px;
+  background-color: #333;
+  bottom: 0;
+  left: 50%;
+  transform-origin: bottom center;
+  z-index: 3;
+  transition: transform 1.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Fix for the results table scrollbar */
-.seo-results-content {
-  max-height: 500px;
+.seo-meter-dot {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #333;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+}
+
+.seo-meter-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.seo-meter-score-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: baseline;
+}
+
+.seo-meter-score-max {
+  font-size: 1rem;
+  font-weight: 400;
+  color: #666;
+  margin-left: 2px;
+}
+
+.seo-meter-label {
+  font-size: 0.75rem;
+  color: #666;
+  margin-top: 3px;
+}
+
+/* Content Display Container */
+.content-display-container {
+  max-height: 80vh;
   overflow-y: auto;
+}
+
+.content-display-container .ql-editor {
+  min-height: 60vh;
+  font-family: inherit;
+}
+
+/* Custom Scrollbar */
+.content-display-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.content-display-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.content-display-container::-webkit-scrollbar-thumb {
+  background: #d1d1d1;
+  border-radius: 4px;
+}
+
+.content-display-container::-webkit-scrollbar-thumb:hover {
+  background: #b1b1b1;
 }

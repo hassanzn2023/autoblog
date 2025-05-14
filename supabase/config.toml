@@ -49,3 +49,6 @@ name = "track-api-usage"
 
 [[functions]]
 name = "analyze-seo-content"
+
+[[functions]]
+name = "analyze-competitors"
