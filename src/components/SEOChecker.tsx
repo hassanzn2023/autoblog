@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Link, Upload, RefreshCw, Search, Pencil, AlertTriangle, Check, Loader, BarChart } from 'lucide-react';
+import { FileText, Link, Upload, RefreshCw, Search, Pencil, AlertTriangle, Check, Loader } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
@@ -21,40 +21,6 @@ interface SEOCheckerProps {
   initialContent?: string;
   initialPrimaryKeyword?: string;
   initialSecondaryKeywords?: string[];
-}
-
-// Define interface for competitor analysis
-interface CompetitorAnalysis {
-  wordCount: {
-    min: number;
-    max: number;
-    avg: number;
-  };
-  headingsCount: {
-    min: number;
-    max: number;
-    avg: number;
-  };
-  paragraphsCount: {
-    min: number;
-    max: number;
-    avg: number;
-  };
-  imagesCount: {
-    min: number;
-    max: number;
-    avg: number;
-  };
-  competitors: Array<{
-    url: string;
-    title: string;
-    stats: {
-      wordCount: number;
-      headingsCount: number;
-      paragraphsCount: number;
-      imagesCount: number;
-    };
-  }>;
 }
 
 // Helper function to detect language
@@ -118,36 +84,20 @@ const SEOScoreMeter = ({ score }: { score: number }) => {
   );
 };
 
-// ContentStatBox Component with competitor-based recommendations
+// ContentStatBox Component
 const ContentStatBox = ({ 
   label, 
   value, 
-  range,
-  avgValue,
-  isWithinRange
+  range 
 }: { 
   label: string; 
   value: number; 
-  range: string;
-  avgValue?: number;
-  isWithinRange?: boolean;
+  range: string; 
 }) => (
   <div className="p-3 bg-white border border-gray-200 rounded-lg text-center transition-all hover:shadow-md">
     <div className="text-lg font-semibold">{value}</div>
     <div className="text-xs text-gray-500">{label}</div>
     <div className="text-xs text-gray-400">{range}</div>
-    {avgValue !== undefined && (
-      <div className="mt-1 flex items-center justify-center gap-1">
-        <span className={`text-xs ${isWithinRange ? 'text-green-500' : 'text-amber-500'}`}>
-          {isWithinRange ? 'Optimal' : 'Improve'}
-        </span>
-        {avgValue > 0 && (
-          <span className="text-xs text-gray-500">
-            (Avg: {avgValue})
-          </span>
-        )}
-      </div>
-    )}
   </div>
 );
 
@@ -256,13 +206,11 @@ const SEOCheckerResult = () => {
   const [analyzing, setAnalyzing] = useState(true);
   const [analysisFailed, setAnalysisFailed] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
-  const [loadingCompetitorData, setLoadingCompetitorData] = useState(false);
   
   const { 
     content = "", 
     primaryKeyword = "",
-    secondaryKeywords = [],
-    targetCountry = "us"
+    secondaryKeywords = []
   } = location.state || {};
   
   const [contentStats, setContentStats] = useState({ words: 0, headings: 0, paragraphs: 0, images: 0 });
@@ -270,8 +218,6 @@ const SEOCheckerResult = () => {
   const [seoAnalysis, setSeoAnalysis] = useState<SEOAnalysisResult | null>(null);
   const [recommendations, setRecommendations] = useState<RecommendationProps[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [competitorAnalysis, setCompetitorAnalysis] = useState<CompetitorAnalysis | null>(null);
-  const [showCompetitorView, setShowCompetitorView] = useState(false);
   
   // Check if the content is RTL or LTR
   const isRtlContent = isRTL(content);
@@ -303,54 +249,10 @@ const SEOCheckerResult = () => {
     // Perform SEO analysis with GPT
     performSEOAnalysis();
     
-    // Fetch competitor analysis
-    fetchCompetitorAnalysis();
-    
     return () => {
       clearInterval(progressInterval);
     };
-  }, [content, primaryKeyword, navigate, targetCountry]);
-  
-  // Function to fetch competitor analysis
-  const fetchCompetitorAnalysis = async () => {
-    if (!primaryKeyword || !targetCountry) return;
-    
-    try {
-      setLoadingCompetitorData(true);
-      
-      console.log(`Fetching competitor analysis for keyword "${primaryKeyword}" in country "${targetCountry}"`);
-      
-      const { data, error } = await supabase.functions.invoke('analyze-competitors', {
-        body: {
-          keyword: primaryKeyword,
-          country: targetCountry,
-          userId: user?.id,
-          workspaceId: currentWorkspace?.id
-        }
-      });
-      
-      if (error) {
-        console.error('Error fetching competitor analysis:', error);
-        throw error;
-      }
-      
-      console.log('Competitor analysis:', data);
-      
-      if (data && data.success && data.analysis) {
-        setCompetitorAnalysis(data.analysis);
-        setShowCompetitorView(true);
-      }
-    } catch (error) {
-      console.error('Failed to fetch competitor analysis:', error);
-      toast({
-        title: 'Competitor Analysis Failed',
-        description: 'Could not fetch competitor data. Using standard recommendations instead.',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoadingCompetitorData(false);
-    }
-  };
+  }, [content, primaryKeyword, navigate]);
   
   // Function to perform SEO analysis using the Edge Function
   const performSEOAnalysis = async () => {
@@ -545,11 +447,6 @@ const SEOCheckerResult = () => {
   
   // Generate word count range guidance
   const getWordCountRange = () => {
-    if (competitorAnalysis && showCompetitorView) {
-      return `${competitorAnalysis.wordCount.min} - ${competitorAnalysis.wordCount.max}`;
-    }
-    
-    // Fallback to the original calculation
     const idealMin = Math.max(300, Math.round(contentStats.words * 1.2));
     const idealMax = Math.round(idealMin * 1.25);
     return `${idealMin} - ${idealMax}`;
@@ -557,11 +454,6 @@ const SEOCheckerResult = () => {
   
   // Generate heading count range guidance
   const getHeadingCountRange = () => {
-    if (competitorAnalysis && showCompetitorView) {
-      return `${competitorAnalysis.headingsCount.min} - ${competitorAnalysis.headingsCount.max}`;
-    }
-    
-    // Fallback to the original calculation
     const min = Math.max(1, Math.floor(contentStats.words / 300));
     const max = Math.max(2, Math.ceil(contentStats.words / 150));
     return `${min} - ${max}`;
@@ -569,11 +461,6 @@ const SEOCheckerResult = () => {
   
   // Generate paragraph count range guidance
   const getParagraphCountRange = () => {
-    if (competitorAnalysis && showCompetitorView) {
-      return `${competitorAnalysis.paragraphsCount.min} - ${competitorAnalysis.paragraphsCount.max}`;
-    }
-    
-    // Fallback to the original calculation
     const min = Math.max(2, Math.floor(contentStats.words / 150));
     const max = Math.max(4, Math.ceil(contentStats.words / 75));
     return `${min} - ${max}`;
@@ -581,39 +468,9 @@ const SEOCheckerResult = () => {
   
   // Generate image count range guidance
   const getImageCountRange = () => {
-    if (competitorAnalysis && showCompetitorView) {
-      return `${competitorAnalysis.imagesCount.min} - ${competitorAnalysis.imagesCount.max}`;
-    }
-    
-    // Fallback to the original calculation
     const min = Math.max(1, Math.floor(contentStats.words / 400));
     const max = Math.max(3, Math.ceil(contentStats.words / 200));
     return `${min} - ${max}`;
-  };
-  
-  // Check if content stats are within competitor ranges
-  const isWordCountWithinRange = () => {
-    if (!competitorAnalysis) return true;
-    return contentStats.words >= competitorAnalysis.wordCount.min && 
-           contentStats.words <= competitorAnalysis.wordCount.max;
-  };
-  
-  const isHeadingsCountWithinRange = () => {
-    if (!competitorAnalysis) return true;
-    return contentStats.headings >= competitorAnalysis.headingsCount.min && 
-           contentStats.headings <= competitorAnalysis.headingsCount.max;
-  };
-  
-  const isParagraphsCountWithinRange = () => {
-    if (!competitorAnalysis) return true;
-    return contentStats.paragraphs >= competitorAnalysis.paragraphsCount.min && 
-           contentStats.paragraphs <= competitorAnalysis.paragraphsCount.max;
-  };
-  
-  const isImagesCountWithinRange = () => {
-    if (!competitorAnalysis) return true;
-    return contentStats.images >= competitorAnalysis.imagesCount.min && 
-           contentStats.images <= competitorAnalysis.imagesCount.max;
   };
 
   // Filter recommendations based on active category
@@ -629,11 +486,6 @@ const SEOCheckerResult = () => {
       solution: issue.solution
     }));
   };
-  
-  // Toggle between competitor view and standard view
-  const toggleCompetitorView = () => {
-    setShowCompetitorView(!showCompetitorView);
-  };
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -641,26 +493,12 @@ const SEOCheckerResult = () => {
         <div className={`text-xl font-bold ${isRtlContent ? 'font-arabic' : 'font-english'}`}>
           BlogArticle / {primaryKeyword}
         </div>
-        <div className="flex gap-2">
-          {competitorAnalysis && (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={toggleCompetitorView}
-              className="flex items-center gap-1"
-            >
-              <BarChart className="h-4 w-4" />
-              {showCompetitorView ? 'Standard View' : 'Competitor View'}
-            </Button>
-          )}
-          <Button 
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/seo-checker')}
-          >
-            Reset
-          </Button>
-        </div>
+        <button 
+          className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md transition-colors"
+          onClick={() => navigate('/seo-checker')}
+        >
+          Reset
+        </button>
       </div>
       
       {analyzing ? (
@@ -688,93 +526,29 @@ const SEOCheckerResult = () => {
             
             {/* Content Stats */}
             <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-              {loadingCompetitorData ? (
-                <div className="flex items-center justify-center h-32">
-                  <div className="flex flex-col items-center">
-                    <Loader className="h-8 w-8 animate-spin text-gray-400 mb-2" />
-                    <p className="text-sm text-gray-500">Loading competitor data...</p>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {showCompetitorView && competitorAnalysis && (
-                    <div className="mb-3 bg-blue-50 p-3 rounded-md">
-                      <p className="text-sm text-blue-700">
-                        Showing recommendations based on top {competitorAnalysis.competitors.length} competitors for "{primaryKeyword}" in selected country.
-                      </p>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 gap-3">
-                    <ContentStatBox 
-                      label="Words" 
-                      value={contentStats.words} 
-                      range={getWordCountRange()} 
-                      avgValue={competitorAnalysis && showCompetitorView ? competitorAnalysis.wordCount.avg : undefined}
-                      isWithinRange={isWordCountWithinRange()}
-                    />
-                    <ContentStatBox 
-                      label="Headings" 
-                      value={contentStats.headings} 
-                      range={getHeadingCountRange()} 
-                      avgValue={competitorAnalysis && showCompetitorView ? competitorAnalysis.headingsCount.avg : undefined}
-                      isWithinRange={isHeadingsCountWithinRange()}
-                    />
-                    <ContentStatBox 
-                      label="Paragraphs" 
-                      value={contentStats.paragraphs} 
-                      range={getParagraphCountRange()} 
-                      avgValue={competitorAnalysis && showCompetitorView ? competitorAnalysis.paragraphsCount.avg : undefined}
-                      isWithinRange={isParagraphsCountWithinRange()}
-                    />
-                    <ContentStatBox 
-                      label="Images" 
-                      value={contentStats.images} 
-                      range={getImageCountRange()} 
-                      avgValue={competitorAnalysis && showCompetitorView ? competitorAnalysis.imagesCount.avg : undefined}
-                      isWithinRange={isImagesCountWithinRange()}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-            
-            {/* Competitor Analysis */}
-            {showCompetitorView && competitorAnalysis && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-                <h2 className="text-lg font-medium mb-4">Top Competitors</h2>
-                
-                <ScrollArea className="h-[200px]">
-                  <div className="space-y-3 pr-3">
-                    {competitorAnalysis.competitors.map((competitor, index) => (
-                      <div key={index} className="border border-gray-100 p-3 rounded-md hover:bg-gray-50">
-                        <h3 className="font-medium text-sm line-clamp-1">{competitor.title}</h3>
-                        <a href={competitor.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline line-clamp-1">
-                          {competitor.url}
-                        </a>
-                        <div className="grid grid-cols-4 gap-1 mt-2">
-                          <div className="text-xs text-gray-500">
-                            <span className="block font-medium">Words</span>
-                            {competitor.stats.wordCount}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            <span className="block font-medium">Headings</span>
-                            {competitor.stats.headingsCount}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            <span className="block font-medium">Paragraphs</span>
-                            {competitor.stats.paragraphsCount}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            <span className="block font-medium">Images</span>
-                            {competitor.stats.imagesCount}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
+              <div className="grid grid-cols-2 gap-3">
+                <ContentStatBox 
+                  label="Words" 
+                  value={contentStats.words} 
+                  range={getWordCountRange()} 
+                />
+                <ContentStatBox 
+                  label="Headings" 
+                  value={contentStats.headings} 
+                  range={getHeadingCountRange()} 
+                />
+                <ContentStatBox 
+                  label="Paragraphs" 
+                  value={contentStats.paragraphs} 
+                  range={getParagraphCountRange()} 
+                />
+                <ContentStatBox 
+                  label="Images" 
+                  value={contentStats.images} 
+                  range={getImageCountRange()} 
+                />
               </div>
-            )}
+            </div>
             
             {/* Categories and Recommendations */}
             <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
